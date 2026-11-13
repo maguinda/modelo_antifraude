@@ -298,6 +298,24 @@ La primera prueba de carga **encontró un problema real**: con muchas peticiones
 - **Gradient Boosting no devuelve motivos por variable** (solo las reglas activadas).
 - **No se probó un celular real ni Android real**, solo perfiles emulados de Chromium y WebKit.
 
+## Prueba de la metodología con datos públicos y reales
+
+`python -m modelo_ia.validacion_publica` repite la forma de trabajar (corte por tiempo, umbral elegido por costo en validación, logística frente a Gradient Boosting) sobre un conjunto **público y real**: 284.807 pagos con tarjeta de comerciantes europeos, 492 fraudes (copia de OpenML, id 1597). Se descarga solo y no se guarda en el repositorio.
+
+**Qué valida y qué no.** Valida la metodología sobre fraude real, no inventado por nosotros. **No** valida nuestras 47 variables: este conjunto solo trae 28 columnas anónimas (V1…V28) y el monto, sin dispositivo, IP ni comportamiento. Los costos están en euros y el costo de una falsa alarma no es un dato real, por eso se prueban 1, 5 y 25 euros.
+
+**Supuesto:** la copia no trae la hora, así que se usa el orden de las filas (60 % entrenar, 20 % validar, 20 % probar). Se comprobó que el orden es cronológico: la variable V3 baja con el tiempo en el archivo original, y aquí su correlación con el número de fila es −0,405 (con las filas mezcladas, 0,004).
+
+| Corte por tiempo, prueba con 75 fraudes | Calidad (AP) | Costo con falsa alarma de 5 € | Sin modelo |
+|---|---|---|---|
+| Logística | 0,744 | 3.547 | 7.729 |
+| Gradient Boosting | 0,758 | 3.927 | 7.729 |
+
+- **El enfoque funciona con fraude real:** con cualquiera de los dos modelos el costo baja entre 47 % y 66 % frente a no tener modelo, según el costo de la falsa alarma.
+- **Gradient Boosting no es claramente mejor que la logística** (0,758 frente a 0,744, con solo 75 fraudes en la prueba, dentro del ruido). La ventaja que vemos en los datos sintéticos no se confirma aquí. Lo razonable es seguir midiendo ambos con datos reales antes de decidir.
+- **El umbral elegido con tan pocos fraudes es inestable:** con Gradient Boosting y una falsa alarma de 1 €, el umbral dio 908 falsas alarmas; con 5 €, solo 9. Hay que elegir el umbral con más fraudes (o con revisión de varios periodos).
+- **El corte al azar no salió más «bonito»** de lo que esperaba (AP 0,68 frente a 0,74 por tiempo). No son comparables: la parte de prueba al azar tiene otros fraudes (13.578 € sin modelo frente a 7.729 €), así que no se concluye nada de ahí.
+
 ## Hipótesis H1: modelo frente a reglas fijas (con datos sintéticos)
 
 H1 dice que el modelo detecta más fraude (recall) que las reglas fijas **sin subir** los falsos positivos. Se probó con `python -m modelo_ia.comparar_h1`, sobre la prueba (septiembre en adelante, 112.798 pagos y 4.575 fraudes). Las reglas se ajustaron con la validación, no con la prueba.
