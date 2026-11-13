@@ -1,0 +1,146 @@
+{
+  "filas": 284807,
+  "fraudes": 492,
+  "verificacion_del_orden": {
+    "corr_V3_orden_real": -0.405,
+    "corr_V3_orden_mezclado": 0.004,
+    "plausible": true
+  },
+  "corte_por_tiempo": [
+    {
+      "modelo": "logistica",
+      "ranking_ap": 0.7437698102685203,
+      "por_costo_de_falsa_alarma_eur": {
+        "1.0": {
+          "umbral": 0.88,
+          "recall": 0.8533333333333334,
+          "precision": 0.21333333333333335,
+          "falsas_alarmas": 236,
+          "fraudes_que_escapan": 11,
+          "costo_eur": 2603.28,
+          "costo_sin_modelo_eur": 7729.26
+        },
+        "5.0": {
+          "umbral": 0.88,
+          "recall": 0.8533333333333334,
+          "precision": 0.21333333333333335,
+          "falsas_alarmas": 236,
+          "fraudes_que_escapan": 11,
+          "costo_eur": 3547.28,
+          "costo_sin_modelo_eur": 7729.26
+        },
+        "25.0": {
+          "umbral": 0.98,
+          "recall": 0.8133333333333334,
+          "precision": 0.46923076923076923,
+          "falsas_alarmas": 69,
+          "fraudes_que_escapan": 14,
+          "costo_eur": 4110.48,
+          "costo_sin_modelo_eur": 7729.26
+        }
+      }
+    },
+    {
+      "modelo": "gradient_boosting",
+      "ranking_ap": 0.7575923937843501,
+      "por_costo_de_falsa_alarma_eur": {
+        "1.0": {
+          "umbral": 0.06,
+          "recall": 0.88,
+          "precision": 0.06776180698151951,
+          "falsas_alarmas": 908,
+          "fraudes_que_escapan": 9,
+          "costo_eur": 2853.26,
+          "costo_sin_modelo_eur": 7729.26
+        },
+        "5.0": {
+          "umbral": 0.9,
+          "recall": 0.7333333333333333,
+          "precision": 0.859375,
+          "falsas_alarmas": 9,
+          "fraudes_que_escapan": 20,
+          "costo_eur": 3927.4,
+          "costo_sin_modelo_eur": 7729.26
+        },
+        "25.0": {
+          "umbral": 0.9,
+          "recall": 0.7333333333333333,
+          "precision": 0.859375,
+          "falsas_alarmas": 9,
+          "fraudes_que_escapan": 20,
+          "costo_eur": 4107.4,
+          "costo_sin_modelo_eur": 7729.26
+        }
+      }
+    }
+  ],
+  "corte_al_azar_comparacion": [
+    {
+      "modelo": "logistica",
+      "ranking_ap": 0.680194203277327,
+      "por_costo_de_falsa_alarma_eur": {
+        "1.0": {
+          "umbral": 0.52,
+          "recall": 0.8962264150943396,
+          "precision": 0.07224334600760456,
+          "falsas_alarmas": 1220,
+          "fraudes_que_escapan": 11,
+          "costo_eur": 3198.59,
+          "costo_sin_modelo_eur": 13577.87
+        },
+        "5.0": {
+          "umbral": 0.98,
+          "recall": 0.8018867924528302,
+          "precision": 0.5743243243243243,
+          "falsas_alarmas": 63,
+          "fraudes_que_escapan": 21,
+          "costo_eur": 4201.42,
+          "costo_sin_modelo_eur": 13577.87
+        },
+        "25.0": {
+          "umbral": 0.98,
+          "recall": 0.8018867924528302,
+          "precision": 0.5743243243243243,
+          "falsas_alarmas": 63,
+          "fraudes_que_escapan": 21,
+          "costo_eur": 5461.42,
+          "costo_sin_modelo_eur": 13577.87
+        }
+      }
+    },
+    {
+      "modelo": "gradient_boosting",
+      "ranking_ap": 0.689378289292668,
+      "por_costo_de_falsa_alarma_eur": {
+        "1.0": {
+          "umbral": 0.7,
+          "recall": 0.7830188679245284,
+          "precision": 0.5424836601307189,
+          "falsas_alarmas": 70,
+          "fraudes_que_escapan": 23,
+          "costo_eur": 3918.1,
+          "costo_sin_modelo_eur": 13577.87
+        },
+        "5.0": {
+          "umbral": 0.7,
+          "recall": 0.7830188679245284,
+          "precision": 0.5424836601307189,
+          "falsas_alarmas": 70,
+          "fraudes_que_escapan": 23,
+          "costo_eur": 4198.1,
+          "costo_sin_modelo_eur": 13577.87
+        },
+        "25.0": {
+          "umbral": 0.86,
+          "recall": 0.7735849056603774,
+          "precision": 0.7663551401869159,
+          "falsas_alarmas": 25,
+          "fraudes_que_escapan": 24,
+          "costo_eur": 4475.32,
+          "costo_sin_modelo_eur": 13577.87
+        }
+      }
+    }
+  ],
+  "fraudes_en_prueba_por_tiempo": 75
+}
