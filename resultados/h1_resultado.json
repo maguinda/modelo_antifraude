@@ -1,0 +1,111 @@
+{
+  "datos_sinteticos": true,
+  "filas_prueba": 112798,
+  "fraudes_prueba": 4575,
+  "parametros_reglas_ajustadas": {
+    "monto_alto": 750000,
+    "compras_24h": null,
+    "minutos_cambio_ciudad": 60,
+    "monto_cliente_nuevo": 1000000,
+    "monto_madrugada": 500000,
+    "accion_ip_anonima": "REVISAR",
+    "accion_dispositivo_no_reconocido": "BLOQUEAR"
+  },
+  "umbral_modelo_igual_fpr": {
+    "vs_reglas_ajustadas": 0.15,
+    "vs_reglas_ingenuas": 0.21
+  },
+  "costo_validacion_reglas_ingenuas_millones": 538.801474,
+  "costo_validacion_reglas_ajustadas_millones": 446.087378,
+  "tabla_prueba": [
+    {
+      "metodo": "Reglas ingenuas",
+      "recall": 0.7886,
+      "precision": 0.1884,
+      "fpr": 0.1436,
+      "falsas_alarmas": 15542,
+      "fraudes_que_escapan": 967,
+      "costo_millones": 633.8671
+    },
+    {
+      "metodo": "Reglas ajustadas (validación)",
+      "recall": 0.8094,
+      "precision": 0.144,
+      "fpr": 0.2034,
+      "falsas_alarmas": 22008,
+      "fraudes_que_escapan": 872,
+      "costo_millones": 540.0707
+    },
+    {
+      "metodo": "Modelo, umbral de menor costo (0.35)",
+      "recall": 0.9314,
+      "precision": 0.3209,
+      "fpr": 0.0833,
+      "falsas_alarmas": 9019,
+      "fraudes_que_escapan": 314,
+      "costo_millones": 337.0833
+    },
+    {
+      "metodo": "Modelo, igualando falsos positivos de las reglas ajustadas (0.15)",
+      "recall": 0.9657,
+      "precision": 0.181,
+      "fpr": 0.1847,
+      "falsas_alarmas": 19991,
+      "fraudes_que_escapan": 157,
+      "costo_millones": 384.1995
+    },
+    {
+      "metodo": "Modelo + red de seguridad",
+      "recall": 0.9314,
+      "precision": 0.3024,
+      "fpr": 0.0908,
+      "falsas_alarmas": 9829,
+      "fraudes_que_escapan": 314,
+      "costo_millones": 349.2333
+    }
+  ],
+  "comparaciones": {
+    "modelo_igual_fpr_vs_reglas_ajustadas": {
+      "dif_recall": 0.1562841530054645,
+      "ic95_recall": [
+        0.14479734652307297,
+        0.16745888982752605
+      ],
+      "dif_fpr": -0.018637443057390735,
+      "ic95_fpr": [
+        -0.02137484092192199,
+        -0.015658004337741616
+      ],
+      "repeticiones": 1000,
+      "veredicto": "H1 apoyada: el modelo detecta más fraude y no sube los falsos positivos."
+    },
+    "modelo_igual_fpr_vs_reglas_ingenuas": {
+      "dif_recall": 0.16284153005464486,
+      "ic95_recall": [
+        0.15116884295668678,
+        0.17379115483372898
+      ],
+      "dif_fpr": -0.009554346118662405,
+      "ic95_fpr": [
+        -0.012025544593250163,
+        -0.006948932052160729
+      ],
+      "repeticiones": 1000,
+      "veredicto": "H1 apoyada: el modelo detecta más fraude y no sube los falsos positivos."
+    },
+    "modelo_costo_vs_reglas_ajustadas": {
+      "dif_recall": 0.12196721311475411,
+      "ic95_recall": [
+        0.11067410461811596,
+        0.13340829753116373
+      ],
+      "dif_fpr": -0.12002069800319709,
+      "ic95_fpr": [
+        -0.12247877759345313,
+        -0.11744582701906348
+      ],
+      "repeticiones": 1000,
+      "veredicto": "H1 apoyada: el modelo detecta más fraude y no sube los falsos positivos."
+    }
+  }
+}

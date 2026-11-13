@@ -1,0 +1,501 @@
+﻿numero_transaccion,fecha_pago,dispositivo,localizacion,monto_cop,detalle_pago,metodo_pago,canal_pago,tipo_ip,estado_dispositivo,transacciones_ultimas_24h,nivel_riesgo,es_fraude
+TXN-000296,2026-01-01 16:45:27,Tablet Android,"Pereira, Colombia",830119,Supermercado - compra realizada por App móvil,Daviplata,App móvil,Residencial,Nuevo,3,Medio,0
+TXN-000081,2026-01-01 23:54:35,Windows PC,"Cartagena, Colombia",410194,Hotel - compra realizada por API,Daviplata,API,Móvil,Conocido,3,Bajo,0
+TXN-000013,2026-01-02 06:14:54,Windows PC,"Ibagué, Colombia",279124,Ropa - compra realizada por Web,Mastercard,Web,Empresarial,Nuevo,1,Medio,0
+TXN-000061,2026-01-04 22:36:54,Tablet Android,"Barranquilla, Colombia",685976,Transporte - compra realizada por API,Visa,API,Móvil,Nuevo,3,Medio,0
+TXN-000421,2026-01-05 14:10:12,iPhone,"Pereira, Colombia",777730,Restaurante - compra realizada por POS,Daviplata,POS,Empresarial,Conocido,1,Bajo,0
+TXN-000269,2026-01-05 22:02:45,iPhone,"Bogotá, Colombia",707944,Electrónica - compra realizada por POS,Mastercard,POS,Móvil,Conocido,2,Medio,0
+TXN-000452,2026-01-08 06:28:54,Tablet Android,"Bucaramanga, Colombia",597586,Transporte - compra realizada por POS,Daviplata,POS,Móvil,Conocido,3,Medio,0
+TXN-000320,2026-01-08 18:54:05,Android,"Manizales, Colombia",553384,Tienda online - compra realizada por Web,Mastercard,Web,Empresarial,Nuevo,3,Bajo,0
+TXN-000121,2026-01-09 04:05:25,Windows PC,"Cali, Colombia",1213638,Electrónica - compra realizada por POS,Daviplata,POS,IP desconocida,No reconocido,7,Crítico,1
+TXN-000431,2026-01-09 23:19:04,iPhone,"Barranquilla, Colombia",366385,Servicios públicos - compra realizada por Web,PayPal,Web,Residencial,Conocido,3,Bajo,0
+TXN-000155,2026-01-11 01:31:47,iPhone,"Manizales, Colombia",245356,Farmacia - compra realizada por Web,Daviplata,Web,Residencial,Nuevo,2,Bajo,0
+TXN-000414,2026-01-11 14:55:37,MacBook,"Medellín, Colombia",894865,Restaurante - compra realizada por API,PSE,API,Empresarial,Conocido,2,Medio,0
+TXN-000291,2026-01-11 22:54:15,Windows PC,"Santa Marta, Colombia",732205,Tienda online - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Conocido,1,Bajo,0
+TXN-000164,2026-01-12 00:27:36,Android,"Bogotá, Colombia",693759,Hotel - compra realizada por POS,PayPal,POS,Empresarial,Nuevo,1,Bajo,0
+TXN-000318,2026-01-12 20:52:10,iPhone,"Bucaramanga, Colombia",785375,Hotel - compra realizada por API,Nequi,API,Empresarial,Conocido,2,Medio,0
+TXN-000054,2026-01-13 01:13:13,iPhone,"Barranquilla, Colombia",434102,Hotel - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,2,Bajo,0
+TXN-000201,2026-01-13 01:47:02,MacBook,"Santa Marta, Colombia",5360637,Transporte - compra realizada por App móvil,Visa,App móvil,Proxy,Nuevo,12,Crítico,1
+TXN-000485,2026-01-13 12:24:04,MacBook,"Bogotá, Colombia",889595,Farmacia - compra realizada por App móvil,PSE,App móvil,Residencial,Conocido,2,Bajo,0
+TXN-000420,2026-01-13 15:30:21,Tablet Android,"Bucaramanga, Colombia",632946,Tienda online - compra realizada por API,Nequi,API,Móvil,Nuevo,1,Bajo,0
+TXN-000100,2026-01-13 16:56:16,Windows PC,"Barranquilla, Colombia",102929,Electrónica - compra realizada por App móvil,Nequi,App móvil,Móvil,Nuevo,3,Medio,0
+TXN-000135,2026-01-17 23:14:34,MacBook,"Bucaramanga, Colombia",680866,Transporte - compra realizada por API,PayPal,API,Residencial,Nuevo,1,Bajo,0
+TXN-000454,2026-01-18 00:02:01,iPhone,"Cali, Colombia",102397,Transporte - compra realizada por Web,Visa,Web,Empresarial,Conocido,3,Medio,0
+TXN-000066,2026-01-18 03:21:11,Android,"Ibagué, Colombia",1283377,Tienda online - compra realizada por API,PSE,API,Proxy,No reconocido,5,Alto,1
+TXN-000146,2026-01-18 05:14:18,Windows PC,"Ibagué, Colombia",438500,Tienda online - compra realizada por API,PSE,API,Residencial,Conocido,3,Bajo,0
+TXN-000038,2026-01-18 05:42:44,MacBook,"Bogotá, Colombia",76927,Ropa - compra realizada por App móvil,Daviplata,App móvil,Móvil,Nuevo,2,Medio,0
+TXN-000197,2026-01-18 14:07:53,MacBook,"Bucaramanga, Colombia",76082,Restaurante - compra realizada por Web,PayPal,Web,Residencial,Conocido,2,Bajo,0
+TXN-000343,2026-01-18 19:43:02,Android,"Cali, Colombia",402377,Tienda online - compra realizada por POS,PayPal,POS,Móvil,Nuevo,1,Medio,0
+TXN-000390,2026-01-19 00:49:42,Android,"Bucaramanga, Colombia",248035,Ropa - compra realizada por POS,Visa,POS,Empresarial,Conocido,2,Medio,0
+TXN-000299,2026-01-19 16:46:00,MacBook,"Manizales, Colombia",451378,Farmacia - compra realizada por App móvil,PayPal,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000286,2026-01-20 01:17:17,iPhone,"Santa Marta, Colombia",5940884,Farmacia - compra realizada por API,Nequi,API,VPN,Nuevo,7,Crítico,1
+TXN-000176,2026-01-20 22:39:53,Tablet Android,"Manizales, Colombia",617443,Ropa - compra realizada por API,Mastercard,API,Empresarial,Nuevo,1,Bajo,0
+TXN-000432,2026-01-21 21:41:22,Android,"Pereira, Colombia",152418,Restaurante - compra realizada por Web,Daviplata,Web,Móvil,Conocido,1,Medio,0
+TXN-000380,2026-01-22 02:56:08,Tablet Android,"Manizales, Colombia",74616,Ropa - compra realizada por Web,PayPal,Web,Residencial,Nuevo,3,Bajo,0
+TXN-000304,2026-01-22 04:01:19,Windows PC,"Bogotá, Colombia",568205,Restaurante - compra realizada por POS,Nequi,POS,Residencial,Conocido,1,Bajo,0
+TXN-000496,2026-01-22 09:13:59,Windows PC,"Bogotá, Colombia",92617,Supermercado - compra realizada por POS,Mastercard,POS,Móvil,Conocido,1,Bajo,0
+TXN-000290,2026-01-22 17:06:23,iPhone,"Santa Marta, Colombia",539380,Suscripción digital - compra realizada por App móvil,Nequi,App móvil,Empresarial,Conocido,3,Medio,0
+TXN-000196,2026-01-23 10:08:44,Tablet Android,"Manizales, Colombia",737561,Servicios públicos - compra realizada por Web,PayPal,Web,Residencial,Nuevo,1,Medio,0
+TXN-000015,2026-01-23 11:54:06,iPhone,"Santa Marta, Colombia",880516,Restaurante - compra realizada por API,Visa,API,Residencial,Conocido,3,Medio,0
+TXN-000448,2026-01-24 05:08:40,Windows PC,"Cali, Colombia",220917,Ropa - compra realizada por Web,PayPal,Web,Empresarial,Conocido,2,Medio,0
+TXN-000166,2026-01-24 06:25:47,iPhone,"Manizales, Colombia",551894,Electrónica - compra realizada por API,Nequi,API,Empresarial,Conocido,3,Bajo,0
+TXN-000361,2026-01-25 02:11:16,Windows PC,"Barranquilla, Colombia",105695,Supermercado - compra realizada por POS,Daviplata,POS,Empresarial,Nuevo,1,Medio,0
+TXN-000178,2026-01-25 04:30:13,iPhone,"Ibagué, Colombia",438358,Ropa - compra realizada por POS,Mastercard,POS,Móvil,Conocido,2,Bajo,0
+TXN-000279,2026-01-25 04:31:06,MacBook,"Cali, Colombia",834547,Servicios públicos - compra realizada por POS,Mastercard,POS,Empresarial,Nuevo,2,Bajo,0
+TXN-000067,2026-01-26 09:02:41,MacBook,"Manizales, Colombia",732861,Hotel - compra realizada por Web,Visa,Web,Residencial,Conocido,1,Bajo,0
+TXN-000239,2026-01-27 02:06:36,Windows PC,"Bogotá, Colombia",588453,Restaurante - compra realizada por Web,PayPal,Web,Residencial,Nuevo,1,Medio,0
+TXN-000086,2026-01-27 13:43:39,iPhone,"Cartagena, Colombia",687927,Restaurante - compra realizada por API,Mastercard,API,Residencial,Conocido,1,Medio,0
+TXN-000006,2026-01-28 00:18:03,Android,"Barranquilla, Colombia",351412,Restaurante - compra realizada por App móvil,PSE,App móvil,Empresarial,Conocido,1,Bajo,0
+TXN-000221,2026-01-29 20:58:26,Windows PC,"Ibagué, Colombia",293319,Supermercado - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Conocido,3,Bajo,0
+TXN-000365,2026-01-29 22:06:04,iPhone,"Cali, Colombia",394229,Ropa - compra realizada por Web,PayPal,Web,Móvil,Conocido,1,Medio,0
+TXN-000254,2026-01-30 07:51:45,Android,"Pereira, Colombia",446919,Servicios públicos - compra realizada por POS,Daviplata,POS,Residencial,Nuevo,1,Medio,0
+TXN-000495,2026-01-31 20:06:26,Tablet Android,"Santa Marta, Colombia",508431,Transporte - compra realizada por POS,Visa,POS,Residencial,Conocido,1,Bajo,0
+TXN-000258,2026-02-02 00:12:54,Windows PC,"Cali, Colombia",683380,Farmacia - compra realizada por POS,Visa,POS,Empresarial,Conocido,3,Bajo,0
+TXN-000275,2026-02-03 13:10:17,Tablet Android,"Manizales, Colombia",709289,Suscripción digital - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,2,Medio,0
+TXN-000349,2026-02-04 04:24:16,MacBook,"Manizales, Colombia",30726,Restaurante - compra realizada por API,PSE,API,Móvil,Conocido,3,Bajo,0
+TXN-000341,2026-02-04 13:33:59,Android,"Santa Marta, Colombia",704881,Electrónica - compra realizada por App móvil,PayPal,App móvil,Empresarial,Nuevo,1,Bajo,0
+TXN-000327,2026-02-04 16:20:04,iPhone,"Bucaramanga, Colombia",308216,Servicios públicos - compra realizada por API,Mastercard,API,Empresarial,Conocido,2,Bajo,0
+TXN-000470,2026-02-04 19:04:57,Android,"Pereira, Colombia",319905,Suscripción digital - compra realizada por POS,Nequi,POS,Residencial,Conocido,1,Medio,0
+TXN-000282,2026-02-05 02:47:01,iPhone,"Cartagena, Colombia",773067,Hotel - compra realizada por Web,PayPal,Web,Residencial,Nuevo,1,Bajo,0
+TXN-000011,2026-02-05 07:20:13,Android,"Medellín, Colombia",355519,Tienda online - compra realizada por API,Mastercard,API,Móvil,Nuevo,2,Medio,0
+TXN-000075,2026-02-05 10:26:27,MacBook,"Bucaramanga, Colombia",774094,Suscripción digital - compra realizada por POS,Nequi,POS,Móvil,Nuevo,2,Bajo,0
+TXN-000463,2026-02-05 16:37:04,Tablet Android,"Pereira, Colombia",716720,Transporte - compra realizada por Web,Daviplata,Web,Móvil,Nuevo,3,Bajo,0
+TXN-000399,2026-02-06 04:35:36,MacBook,"Cali, Colombia",700760,Ropa - compra realizada por Web,Daviplata,Web,Móvil,Nuevo,2,Medio,0
+TXN-000444,2026-02-06 11:46:24,Tablet Android,"Barranquilla, Colombia",155371,Farmacia - compra realizada por POS,Nequi,POS,Residencial,Nuevo,3,Medio,0
+TXN-000259,2026-02-06 23:10:34,Android,"Barranquilla, Colombia",474708,Restaurante - compra realizada por App móvil,Nequi,App móvil,Residencial,Conocido,3,Bajo,0
+TXN-000168,2026-02-07 14:21:00,Android,"Cartagena, Colombia",780797,Hotel - compra realizada por API,Nequi,API,Móvil,Nuevo,3,Bajo,0
+TXN-000457,2026-02-07 17:13:01,Android,"Barranquilla, Colombia",596336,Farmacia - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Conocido,3,Medio,0
+TXN-000093,2026-02-07 17:38:00,Android,"Cartagena, Colombia",94768,Supermercado - compra realizada por POS,Nequi,POS,Móvil,Nuevo,2,Bajo,0
+TXN-000401,2026-02-07 22:47:15,MacBook,"Cali, Colombia",89179,Electrónica - compra realizada por App móvil,PSE,App móvil,Empresarial,Conocido,2,Medio,0
+TXN-000140,2026-02-08 11:31:17,Windows PC,"Cali, Colombia",433123,Supermercado - compra realizada por POS,Mastercard,POS,Empresarial,Conocido,2,Bajo,0
+TXN-000084,2026-02-08 17:22:49,Tablet Android,"Manizales, Colombia",873412,Tienda online - compra realizada por API,Visa,API,Móvil,Conocido,2,Bajo,0
+TXN-000184,2026-02-09 01:08:47,iPhone,"Bogotá, Colombia",794373,Tienda online - compra realizada por API,Daviplata,API,Móvil,Nuevo,1,Bajo,0
+TXN-000338,2026-02-09 05:12:01,Tablet Android,"Cartagena, Colombia",810280,Hotel - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Nuevo,1,Medio,0
+TXN-000300,2026-02-09 09:22:57,MacBook,"Santa Marta, Colombia",722287,Transporte - compra realizada por App móvil,PayPal,App móvil,Móvil,Conocido,2,Bajo,0
+TXN-000441,2026-02-09 17:15:28,Windows PC,"Cartagena, Colombia",148355,Electrónica - compra realizada por Web,Mastercard,Web,Residencial,Conocido,2,Bajo,0
+TXN-000322,2026-02-09 17:37:04,Android,"Ibagué, Colombia",110673,Suscripción digital - compra realizada por POS,PayPal,POS,Móvil,Conocido,3,Bajo,0
+TXN-000123,2026-02-09 22:12:27,iPhone,"Cartagena, Colombia",595125,Tienda online - compra realizada por App móvil,Mastercard,App móvil,Empresarial,Conocido,2,Bajo,0
+TXN-000112,2026-02-10 05:37:38,Tablet Android,"Ibagué, Colombia",110773,Tienda online - compra realizada por API,Mastercard,API,Móvil,Conocido,2,Medio,0
+TXN-000297,2026-02-10 10:22:39,MacBook,"Cali, Colombia",297774,Restaurante - compra realizada por App móvil,PSE,App móvil,Residencial,Nuevo,3,Medio,0
+TXN-000236,2026-02-11 03:28:29,Android,"Medellín, Colombia",361154,Transporte - compra realizada por App móvil,PSE,App móvil,Empresarial,Nuevo,3,Medio,0
+TXN-000107,2026-02-11 22:16:37,MacBook,"Manizales, Colombia",73129,Restaurante - compra realizada por POS,Visa,POS,Empresarial,Nuevo,3,Bajo,0
+TXN-000235,2026-02-12 11:23:48,iPhone,"Bucaramanga, Colombia",585853,Hotel - compra realizada por Web,Mastercard,Web,Móvil,Conocido,2,Medio,0
+TXN-000175,2026-02-12 13:35:19,MacBook,"Santa Marta, Colombia",595198,Supermercado - compra realizada por API,PSE,API,Empresarial,Conocido,3,Medio,0
+TXN-000104,2026-02-12 16:35:16,Android,"Cali, Colombia",28966,Suscripción digital - compra realizada por App móvil,Visa,App móvil,Residencial,Conocido,3,Bajo,0
+TXN-000142,2026-02-13 04:20:11,Windows PC,"Barranquilla, Colombia",580472,Restaurante - compra realizada por Web,PSE,Web,Móvil,Conocido,1,Medio,0
+TXN-000037,2026-02-14 03:38:32,Windows PC,"Cali, Colombia",2038527,Servicios públicos - compra realizada por Web,Daviplata,Web,Proxy,Nuevo,8,Alto,1
+TXN-000095,2026-02-14 17:27:34,MacBook,"Medellín, Colombia",727060,Transporte - compra realizada por API,Mastercard,API,Residencial,Conocido,1,Bajo,0
+TXN-000272,2026-02-14 18:59:13,iPhone,"Ibagué, Colombia",432512,Supermercado - compra realizada por Web,Visa,Web,Residencial,Conocido,1,Bajo,0
+TXN-000030,2026-02-14 19:52:23,Android,"Ibagué, Colombia",650087,Servicios públicos - compra realizada por POS,Mastercard,POS,Empresarial,Nuevo,2,Bajo,0
+TXN-000328,2026-02-15 17:48:10,MacBook,"Bogotá, Colombia",187171,Hotel - compra realizada por Web,PayPal,Web,Empresarial,Conocido,3,Bajo,0
+TXN-000418,2026-02-16 13:20:54,Android,"Manizales, Colombia",343509,Supermercado - compra realizada por Web,Daviplata,Web,Móvil,Nuevo,2,Bajo,0
+TXN-000427,2026-02-17 02:00:55,Windows PC,"Santa Marta, Colombia",266879,Hotel - compra realizada por App móvil,Mastercard,App móvil,Empresarial,Nuevo,2,Bajo,0
+TXN-000072,2026-02-18 07:03:36,MacBook,"Cartagena, Colombia",452009,Farmacia - compra realizada por POS,PayPal,POS,Empresarial,Conocido,2,Bajo,0
+TXN-000039,2026-02-18 09:35:31,Windows PC,"Ibagué, Colombia",276655,Farmacia - compra realizada por POS,PSE,POS,Residencial,Conocido,3,Bajo,0
+TXN-000138,2026-02-18 10:04:51,Windows PC,"Medellín, Colombia",145404,Servicios públicos - compra realizada por API,Mastercard,API,Residencial,Conocido,2,Bajo,0
+TXN-000270,2026-02-19 07:04:44,Windows PC,"Medellín, Colombia",71527,Suscripción digital - compra realizada por API,Visa,API,Empresarial,Nuevo,1,Medio,0
+TXN-000033,2026-02-19 11:52:42,Android,"Cartagena, Colombia",235834,Supermercado - compra realizada por POS,PSE,POS,Móvil,Nuevo,2,Bajo,0
+TXN-000131,2026-02-20 01:54:59,Tablet Android,"Medellín, Colombia",305702,Ropa - compra realizada por API,PSE,API,Empresarial,Nuevo,3,Bajo,0
+TXN-000335,2026-02-20 22:55:35,iPhone,"Bogotá, Colombia",644332,Ropa - compra realizada por App móvil,Daviplata,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000315,2026-02-22 04:33:49,Windows PC,"Manizales, Colombia",94019,Servicios públicos - compra realizada por API,PSE,API,Residencial,Conocido,3,Bajo,0
+TXN-000215,2026-02-23 09:30:50,iPhone,"Medellín, Colombia",418569,Tienda online - compra realizada por Web,PayPal,Web,Empresarial,Nuevo,3,Bajo,0
+TXN-000223,2026-02-24 02:01:40,Android,"Ibagué, Colombia",929231,Suscripción digital - compra realizada por Web,PayPal,Web,Proxy,No reconocido,7,Crítico,1
+TXN-000388,2026-02-24 12:20:58,MacBook,"Cali, Colombia",442901,Hotel - compra realizada por App móvil,Mastercard,App móvil,Residencial,Conocido,2,Bajo,0
+TXN-000080,2026-02-26 04:09:39,MacBook,"Barranquilla, Colombia",259479,Ropa - compra realizada por App móvil,Daviplata,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000173,2026-02-26 04:29:09,iPhone,"Santa Marta, Colombia",1366169,Farmacia - compra realizada por Web,Daviplata,Web,Proxy,No reconocido,6,Alto,1
+TXN-000481,2026-02-26 08:55:06,Tablet Android,"Cali, Colombia",757977,Restaurante - compra realizada por Web,PSE,Web,Empresarial,Conocido,2,Bajo,0
+TXN-000253,2026-02-26 19:05:15,Windows PC,"Barranquilla, Colombia",574676,Farmacia - compra realizada por API,PayPal,API,Móvil,Conocido,2,Medio,0
+TXN-000293,2026-02-27 08:46:32,Tablet Android,"Cali, Colombia",345628,Ropa - compra realizada por POS,Visa,POS,Móvil,Nuevo,1,Medio,0
+TXN-000262,2026-02-28 02:27:20,MacBook,"Santa Marta, Colombia",2079158,Electrónica - compra realizada por App móvil,PayPal,App móvil,VPN,No reconocido,5,Alto,1
+TXN-000393,2026-02-28 08:20:31,iPhone,"Cali, Colombia",381933,Hotel - compra realizada por Web,PSE,Web,Empresarial,Conocido,2,Bajo,0
+TXN-000237,2026-02-28 13:02:40,Windows PC,"Bogotá, Colombia",866129,Restaurante - compra realizada por POS,Nequi,POS,Empresarial,Conocido,2,Bajo,0
+TXN-000014,2026-03-01 08:33:54,Windows PC,"Cali, Colombia",447416,Ropa - compra realizada por Web,Daviplata,Web,Móvil,Conocido,1,Bajo,0
+TXN-000070,2026-03-02 00:14:18,iPhone,"Cali, Colombia",1809479,Restaurante - compra realizada por App móvil,Daviplata,App móvil,IP desconocida,No reconocido,5,Crítico,1
+TXN-000025,2026-03-03 03:22:45,Android,"Ibagué, Colombia",612563,Tienda online - compra realizada por Web,Visa,Web,Móvil,Conocido,3,Bajo,0
+TXN-000029,2026-03-03 06:18:25,MacBook,"Ibagué, Colombia",505823,Servicios públicos - compra realizada por Web,PayPal,Web,Residencial,Conocido,2,Medio,0
+TXN-000331,2026-03-03 12:43:20,MacBook,"Medellín, Colombia",372003,Hotel - compra realizada por API,Mastercard,API,Móvil,Conocido,1,Bajo,0
+TXN-000032,2026-03-04 04:02:53,MacBook,"Ibagué, Colombia",7642831,Farmacia - compra realizada por Web,PayPal,Web,IP desconocida,Nuevo,10,Crítico,1
+TXN-000137,2026-03-04 22:29:29,iPhone,"Santa Marta, Colombia",788593,Servicios públicos - compra realizada por Web,Mastercard,Web,Residencial,Nuevo,3,Medio,0
+TXN-000319,2026-03-05 01:41:14,Windows PC,"Medellín, Colombia",7049839,Supermercado - compra realizada por API,PSE,API,Proxy,No reconocido,12,Alto,1
+TXN-000051,2026-03-06 02:19:42,MacBook,"Cali, Colombia",538825,Ropa - compra realizada por Web,Daviplata,Web,Residencial,Conocido,3,Medio,0
+TXN-000395,2026-03-06 14:24:50,Windows PC,"Cali, Colombia",659257,Farmacia - compra realizada por Web,Daviplata,Web,Residencial,Conocido,2,Bajo,0
+TXN-000492,2026-03-08 08:45:48,Windows PC,"Santa Marta, Colombia",173297,Tienda online - compra realizada por App móvil,PayPal,App móvil,Residencial,Conocido,2,Medio,0
+TXN-000356,2026-03-09 10:32:16,iPhone,"Medellín, Colombia",355426,Hotel - compra realizada por POS,Nequi,POS,Empresarial,Conocido,2,Medio,0
+TXN-000412,2026-03-09 23:26:32,MacBook,"Ibagué, Colombia",315870,Ropa - compra realizada por Web,Visa,Web,Empresarial,Conocido,3,Bajo,0
+TXN-000094,2026-03-10 05:05:02,iPhone,"Cali, Colombia",242419,Suscripción digital - compra realizada por POS,Daviplata,POS,Móvil,Nuevo,2,Bajo,0
+TXN-000359,2026-03-11 01:20:04,Tablet Android,"Ibagué, Colombia",512618,Suscripción digital - compra realizada por Web,PayPal,Web,Empresarial,Nuevo,3,Medio,0
+TXN-000490,2026-03-11 19:35:26,Tablet Android,"Ibagué, Colombia",37047,Farmacia - compra realizada por API,Mastercard,API,Empresarial,Nuevo,1,Bajo,0
+TXN-000198,2026-03-11 21:32:51,iPhone,"Pereira, Colombia",817489,Farmacia - compra realizada por API,PSE,API,Residencial,Nuevo,3,Bajo,0
+TXN-000088,2026-03-11 22:15:06,iPhone,"Cali, Colombia",228134,Hotel - compra realizada por API,Visa,API,Residencial,Conocido,2,Medio,0
+TXN-000330,2026-03-12 01:02:48,Android,"Manizales, Colombia",19171,Tienda online - compra realizada por POS,PSE,POS,Residencial,Conocido,3,Bajo,0
+TXN-000161,2026-03-12 16:01:09,iPhone,"Pereira, Colombia",284150,Supermercado - compra realizada por Web,Daviplata,Web,Móvil,Nuevo,1,Bajo,0
+TXN-000245,2026-03-14 03:20:59,MacBook,"Ibagué, Colombia",139162,Tienda online - compra realizada por App móvil,PayPal,App móvil,Móvil,Nuevo,1,Bajo,0
+TXN-000127,2026-03-15 02:31:08,Windows PC,"Santa Marta, Colombia",413713,Ropa - compra realizada por App móvil,Nequi,App móvil,Empresarial,Conocido,3,Bajo,0
+TXN-000402,2026-03-15 09:48:12,Android,"Bogotá, Colombia",346901,Ropa - compra realizada por Web,Daviplata,Web,Empresarial,Conocido,2,Bajo,0
+TXN-000177,2026-03-16 02:14:19,Android,"Manizales, Colombia",195444,Farmacia - compra realizada por App móvil,PSE,App móvil,Empresarial,Conocido,3,Medio,0
+TXN-000371,2026-03-16 18:20:43,Windows PC,"Ibagué, Colombia",699387,Restaurante - compra realizada por App móvil,Visa,App móvil,Residencial,Nuevo,1,Medio,0
+TXN-000064,2026-03-16 19:00:56,Windows PC,"Medellín, Colombia",668665,Ropa - compra realizada por App móvil,PayPal,App móvil,Empresarial,Nuevo,3,Bajo,0
+TXN-000449,2026-03-16 22:34:01,Android,"Pereira, Colombia",444492,Tienda online - compra realizada por POS,PSE,POS,Empresarial,Conocido,3,Bajo,0
+TXN-000036,2026-03-17 00:06:00,MacBook,"Bucaramanga, Colombia",465824,Restaurante - compra realizada por POS,PSE,POS,Empresarial,Conocido,1,Medio,0
+TXN-000424,2026-03-18 03:26:29,iPhone,"Cali, Colombia",134007,Supermercado - compra realizada por App móvil,Nequi,App móvil,Empresarial,Nuevo,3,Medio,0
+TXN-000417,2026-03-19 13:01:37,iPhone,"Barranquilla, Colombia",235980,Transporte - compra realizada por App móvil,PSE,App móvil,Móvil,Conocido,1,Medio,0
+TXN-000195,2026-03-21 18:28:50,Tablet Android,"Manizales, Colombia",416288,Ropa - compra realizada por API,Visa,API,Móvil,Conocido,3,Medio,0
+TXN-000251,2026-03-22 05:50:05,iPhone,"Bogotá, Colombia",164014,Suscripción digital - compra realizada por POS,Daviplata,POS,Móvil,Conocido,3,Medio,0
+TXN-000305,2026-03-22 08:56:29,iPhone,"Cartagena, Colombia",366759,Electrónica - compra realizada por Web,Visa,Web,Empresarial,Conocido,1,Bajo,0
+TXN-000372,2026-03-23 20:37:32,iPhone,"Pereira, Colombia",846680,Transporte - compra realizada por API,Visa,API,Empresarial,Conocido,1,Medio,0
+TXN-000009,2026-03-23 22:30:09,Tablet Android,"Bucaramanga, Colombia",583924,Electrónica - compra realizada por API,Mastercard,API,Móvil,Conocido,1,Bajo,0
+TXN-000119,2026-03-24 04:45:14,iPhone,"Cartagena, Colombia",1098681,Suscripción digital - compra realizada por Web,PSE,Web,VPN,No reconocido,4,Crítico,1
+TXN-000473,2026-03-24 06:49:15,iPhone,"Ibagué, Colombia",893187,Servicios públicos - compra realizada por API,Daviplata,API,Empresarial,Nuevo,1,Medio,0
+TXN-000462,2026-03-25 02:56:37,Windows PC,"Bogotá, Colombia",1065382,Servicios públicos - compra realizada por App móvil,PayPal,App móvil,VPN,No reconocido,8,Alto,1
+TXN-000202,2026-03-26 09:05:44,Android,"Cali, Colombia",662393,Servicios públicos - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Nuevo,3,Bajo,0
+TXN-000024,2026-03-26 13:07:09,Android,"Santa Marta, Colombia",65591,Ropa - compra realizada por Web,PayPal,Web,Móvil,Nuevo,3,Medio,0
+TXN-000367,2026-03-27 10:11:40,iPhone,"Ibagué, Colombia",490277,Ropa - compra realizada por App móvil,Visa,App móvil,Móvil,Conocido,1,Bajo,0
+TXN-000106,2026-03-28 00:59:36,Tablet Android,"Bogotá, Colombia",868163,Ropa - compra realizada por POS,PayPal,POS,Móvil,Conocido,2,Bajo,0
+TXN-000352,2026-03-28 02:49:58,Android,"Bucaramanga, Colombia",55514,Servicios públicos - compra realizada por POS,PSE,POS,Móvil,Conocido,3,Bajo,0
+TXN-000307,2026-03-29 04:03:53,Windows PC,"Santa Marta, Colombia",3734644,Tienda online - compra realizada por Web,Visa,Web,IP desconocida,No reconocido,12,Crítico,1
+TXN-000133,2026-03-29 23:32:03,iPhone,"Cali, Colombia",492697,Servicios públicos - compra realizada por Web,Visa,Web,Empresarial,Conocido,3,Medio,0
+TXN-000018,2026-03-31 08:49:29,Tablet Android,"Barranquilla, Colombia",816297,Restaurante - compra realizada por Web,Visa,Web,Residencial,Nuevo,1,Bajo,0
+TXN-000092,2026-03-31 08:51:31,Tablet Android,"Bucaramanga, Colombia",653022,Transporte - compra realizada por POS,Mastercard,POS,Empresarial,Conocido,3,Medio,0
+TXN-000048,2026-03-31 19:30:47,MacBook,"Cali, Colombia",307830,Transporte - compra realizada por Web,PayPal,Web,Móvil,Conocido,1,Bajo,0
+TXN-000389,2026-04-01 00:03:56,Android,"Cartagena, Colombia",473328,Transporte - compra realizada por Web,PSE,Web,Móvil,Conocido,2,Bajo,0
+TXN-000071,2026-04-01 01:04:03,Windows PC,"Santa Marta, Colombia",1053282,Transporte - compra realizada por API,PayPal,API,Proxy,No reconocido,11,Alto,1
+TXN-000265,2026-04-04 15:02:41,MacBook,"Santa Marta, Colombia",841523,Ropa - compra realizada por Web,Visa,Web,Móvil,Nuevo,2,Bajo,0
+TXN-000227,2026-04-05 06:31:27,Tablet Android,"Ibagué, Colombia",281501,Farmacia - compra realizada por App móvil,Mastercard,App móvil,Residencial,Conocido,1,Bajo,0
+TXN-000043,2026-04-06 02:05:52,MacBook,"Santa Marta, Colombia",524469,Electrónica - compra realizada por API,Visa,API,Empresarial,Conocido,2,Medio,0
+TXN-000026,2026-04-06 14:53:36,Tablet Android,"Santa Marta, Colombia",531550,Hotel - compra realizada por Web,Visa,Web,Móvil,Conocido,1,Medio,0
+TXN-000433,2026-04-07 01:54:09,Windows PC,"Manizales, Colombia",165988,Tienda online - compra realizada por App móvil,PayPal,App móvil,Empresarial,Conocido,2,Bajo,0
+TXN-000263,2026-04-07 09:05:03,Tablet Android,"Santa Marta, Colombia",626071,Hotel - compra realizada por POS,Daviplata,POS,Móvil,Conocido,3,Medio,0
+TXN-000145,2026-04-09 12:11:30,Android,"Bucaramanga, Colombia",571007,Suscripción digital - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,1,Medio,0
+TXN-000342,2026-04-10 02:51:43,iPhone,"Manizales, Colombia",2286039,Servicios públicos - compra realizada por API,PSE,API,Proxy,Nuevo,5,Crítico,1
+TXN-000055,2026-04-10 12:21:51,Windows PC,"Cali, Colombia",159933,Hotel - compra realizada por Web,Daviplata,Web,Residencial,Nuevo,1,Bajo,0
+TXN-000182,2026-04-10 14:13:51,MacBook,"Barranquilla, Colombia",631112,Ropa - compra realizada por POS,Mastercard,POS,Residencial,Nuevo,3,Bajo,0
+TXN-000370,2026-04-10 15:35:50,Tablet Android,"Cartagena, Colombia",465231,Ropa - compra realizada por POS,Visa,POS,Residencial,Conocido,3,Bajo,0
+TXN-000386,2026-04-12 05:07:12,Tablet Android,"Ibagué, Colombia",803922,Tienda online - compra realizada por POS,Nequi,POS,Empresarial,Conocido,1,Medio,0
+TXN-000301,2026-04-12 09:53:11,Android,"Medellín, Colombia",81377,Tienda online - compra realizada por API,PSE,API,Móvil,Nuevo,3,Bajo,0
+TXN-000385,2026-04-13 05:31:29,Android,"Medellín, Colombia",527327,Ropa - compra realizada por Web,Visa,Web,Residencial,Conocido,3,Medio,0
+TXN-000096,2026-04-13 16:55:57,Tablet Android,"Medellín, Colombia",742839,Suscripción digital - compra realizada por POS,Nequi,POS,Residencial,Nuevo,1,Bajo,0
+TXN-000397,2026-04-13 17:30:41,iPhone,"Bucaramanga, Colombia",356134,Hotel - compra realizada por Web,Nequi,Web,Residencial,Conocido,3,Bajo,0
+TXN-000150,2026-04-14 14:01:01,Android,"Pereira, Colombia",299272,Farmacia - compra realizada por App móvil,Visa,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000483,2026-04-14 15:20:23,Tablet Android,"Santa Marta, Colombia",38085,Transporte - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Conocido,1,Bajo,0
+TXN-000252,2026-04-14 19:49:04,Tablet Android,"Medellín, Colombia",782337,Farmacia - compra realizada por Web,Mastercard,Web,Empresarial,Conocido,1,Bajo,0
+TXN-000430,2026-04-14 21:01:24,Tablet Android,"Pereira, Colombia",476028,Electrónica - compra realizada por POS,PSE,POS,Móvil,Conocido,1,Bajo,0
+TXN-000422,2026-04-15 15:04:00,MacBook,"Santa Marta, Colombia",201321,Suscripción digital - compra realizada por App móvil,PSE,App móvil,Móvil,Conocido,2,Medio,0
+TXN-000074,2026-04-15 16:01:29,Tablet Android,"Bogotá, Colombia",175618,Electrónica - compra realizada por API,Mastercard,API,Móvil,Nuevo,2,Medio,0
+TXN-000439,2026-04-16 13:57:59,Windows PC,"Ibagué, Colombia",176430,Farmacia - compra realizada por App móvil,PSE,App móvil,Residencial,Nuevo,2,Bajo,0
+TXN-000188,2026-04-16 23:01:33,iPhone,"Medellín, Colombia",650959,Tienda online - compra realizada por API,PSE,API,Empresarial,Conocido,2,Bajo,0
+TXN-000114,2026-04-17 03:03:52,Windows PC,"Bucaramanga, Colombia",516194,Supermercado - compra realizada por App móvil,PSE,App móvil,Residencial,Conocido,3,Bajo,0
+TXN-000321,2026-04-17 22:42:51,MacBook,"Pereira, Colombia",282398,Electrónica - compra realizada por POS,PSE,POS,Empresarial,Conocido,3,Medio,0
+TXN-000478,2026-04-18 03:22:18,Android,"Cartagena, Colombia",317481,Supermercado - compra realizada por POS,Nequi,POS,Empresarial,Conocido,1,Bajo,0
+TXN-000004,2026-04-18 21:56:55,iPhone,"Barranquilla, Colombia",332697,Restaurante - compra realizada por Web,PSE,Web,Empresarial,Conocido,1,Bajo,0
+TXN-000242,2026-04-19 02:21:42,Android,"Santa Marta, Colombia",189411,Ropa - compra realizada por App móvil,Visa,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000019,2026-04-19 03:35:46,MacBook,"Barranquilla, Colombia",433581,Tienda online - compra realizada por API,Daviplata,API,Residencial,Conocido,1,Bajo,0
+TXN-000423,2026-04-19 14:20:10,MacBook,"Cali, Colombia",652922,Tienda online - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Conocido,2,Bajo,0
+TXN-000289,2026-04-20 02:28:56,Android,"Manizales, Colombia",103619,Suscripción digital - compra realizada por App móvil,Daviplata,App móvil,Residencial,Conocido,3,Medio,0
+TXN-000376,2026-04-20 07:55:57,MacBook,"Pereira, Colombia",209581,Supermercado - compra realizada por API,Nequi,API,Móvil,Nuevo,2,Medio,0
+TXN-000339,2026-04-20 19:01:05,Android,"Medellín, Colombia",750876,Transporte - compra realizada por App móvil,Nequi,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000042,2026-04-21 05:04:51,Tablet Android,"Santa Marta, Colombia",213807,Restaurante - compra realizada por App móvil,PSE,App móvil,Residencial,Conocido,1,Bajo,0
+TXN-000497,2026-04-21 10:37:07,Tablet Android,"Santa Marta, Colombia",678161,Ropa - compra realizada por App móvil,Daviplata,App móvil,Residencial,Conocido,2,Bajo,0
+TXN-000126,2026-04-22 11:45:06,Android,"Medellín, Colombia",505570,Hotel - compra realizada por API,Daviplata,API,Residencial,Conocido,3,Medio,0
+TXN-000185,2026-04-22 13:19:04,Windows PC,"Cartagena, Colombia",220515,Supermercado - compra realizada por Web,PayPal,Web,Empresarial,Conocido,1,Medio,0
+TXN-000076,2026-04-22 22:23:04,MacBook,"Ibagué, Colombia",301097,Electrónica - compra realizada por Web,Visa,Web,Empresarial,Conocido,3,Bajo,0
+TXN-000248,2026-04-23 02:36:08,iPhone,"Manizales, Colombia",252082,Electrónica - compra realizada por Web,Daviplata,Web,Móvil,Nuevo,1,Medio,0
+TXN-000180,2026-04-23 05:42:49,iPhone,"Manizales, Colombia",842020,Electrónica - compra realizada por POS,PSE,POS,Móvil,Conocido,1,Medio,0
+TXN-000340,2026-04-25 16:52:21,iPhone,"Bogotá, Colombia",440388,Electrónica - compra realizada por App móvil,Daviplata,App móvil,Residencial,Conocido,3,Bajo,0
+TXN-000244,2026-04-26 04:24:26,Tablet Android,"Santa Marta, Colombia",3484970,Tienda online - compra realizada por POS,Visa,POS,IP desconocida,No reconocido,10,Alto,1
+TXN-000329,2026-04-26 20:52:37,MacBook,"Bogotá, Colombia",888665,Tienda online - compra realizada por App móvil,Mastercard,App móvil,Residencial,Conocido,3,Bajo,0
+TXN-000087,2026-04-27 07:13:34,Android,"Bogotá, Colombia",396158,Supermercado - compra realizada por POS,PSE,POS,Empresarial,Conocido,3,Bajo,0
+TXN-000437,2026-04-27 08:34:20,Android,"Pereira, Colombia",500168,Hotel - compra realizada por App móvil,PSE,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000069,2026-04-29 14:21:00,Tablet Android,"Santa Marta, Colombia",198892,Hotel - compra realizada por Web,Visa,Web,Móvil,Nuevo,1,Bajo,0
+TXN-000151,2026-04-30 00:44:54,MacBook,"Santa Marta, Colombia",326119,Farmacia - compra realizada por App móvil,PayPal,App móvil,Empresarial,Conocido,3,Bajo,0
+TXN-000136,2026-05-01 04:26:59,MacBook,"Barranquilla, Colombia",264368,Hotel - compra realizada por API,PSE,API,Empresarial,Nuevo,2,Bajo,0
+TXN-000493,2026-05-01 04:55:10,MacBook,"Cartagena, Colombia",864984,Tienda online - compra realizada por Web,PayPal,Web,Empresarial,Conocido,1,Bajo,0
+TXN-000017,2026-05-02 01:24:23,MacBook,"Bucaramanga, Colombia",213857,Ropa - compra realizada por API,Nequi,API,Residencial,Nuevo,3,Bajo,0
+TXN-000238,2026-05-02 03:01:43,Windows PC,"Manizales, Colombia",101396,Ropa - compra realizada por API,Mastercard,API,Empresarial,Conocido,2,Medio,0
+TXN-000442,2026-05-02 03:04:34,MacBook,"Bucaramanga, Colombia",1048349,Supermercado - compra realizada por POS,Nequi,POS,VPN,Nuevo,8,Crítico,1
+TXN-000056,2026-05-02 03:39:08,Tablet Android,"Pereira, Colombia",750056,Transporte - compra realizada por Web,Nequi,Web,Residencial,Nuevo,2,Bajo,0
+TXN-000363,2026-05-02 10:08:46,Tablet Android,"Bogotá, Colombia",706119,Servicios públicos - compra realizada por App móvil,Visa,App móvil,Residencial,Nuevo,3,Bajo,0
+TXN-000169,2026-05-02 10:42:51,iPhone,"Cali, Colombia",288058,Ropa - compra realizada por API,Nequi,API,Residencial,Conocido,3,Bajo,0
+TXN-000383,2026-05-02 15:22:24,iPhone,"Barranquilla, Colombia",133861,Farmacia - compra realizada por POS,PayPal,POS,Móvil,Conocido,2,Medio,0
+TXN-000027,2026-05-03 00:24:21,iPhone,"Cartagena, Colombia",837181,Tienda online - compra realizada por POS,Nequi,POS,Residencial,Conocido,3,Bajo,0
+TXN-000425,2026-05-03 14:47:28,MacBook,"Cartagena, Colombia",626131,Ropa - compra realizada por Web,PSE,Web,Residencial,Conocido,2,Bajo,0
+TXN-000225,2026-05-03 23:39:18,Windows PC,"Medellín, Colombia",688792,Supermercado - compra realizada por POS,Visa,POS,Residencial,Conocido,1,Bajo,0
+TXN-000280,2026-05-04 12:30:46,MacBook,"Cartagena, Colombia",696580,Restaurante - compra realizada por App móvil,Mastercard,App móvil,Residencial,Conocido,1,Bajo,0
+TXN-000466,2026-05-05 00:14:45,Tablet Android,"Santa Marta, Colombia",611167,Suscripción digital - compra realizada por App móvil,Mastercard,App móvil,Móvil,Nuevo,3,Bajo,0
+TXN-000324,2026-05-05 02:45:17,iPhone,"Bogotá, Colombia",385431,Electrónica - compra realizada por POS,PayPal,POS,Empresarial,Conocido,3,Bajo,0
+TXN-000203,2026-05-05 12:48:55,iPhone,"Cartagena, Colombia",258511,Ropa - compra realizada por App móvil,Mastercard,App móvil,Empresarial,Nuevo,1,Medio,0
+TXN-000230,2026-05-05 12:48:57,Tablet Android,"Barranquilla, Colombia",872322,Suscripción digital - compra realizada por App móvil,Nequi,App móvil,Empresarial,Nuevo,3,Bajo,0
+TXN-000073,2026-05-06 04:15:17,Tablet Android,"Cartagena, Colombia",754823,Restaurante - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,3,Medio,0
+TXN-000498,2026-05-06 08:55:03,Windows PC,"Pereira, Colombia",134073,Farmacia - compra realizada por Web,Visa,Web,Móvil,Conocido,3,Medio,0
+TXN-000116,2026-05-06 23:28:03,Tablet Android,"Santa Marta, Colombia",561787,Supermercado - compra realizada por App móvil,Visa,App móvil,Residencial,Conocido,2,Medio,0
+TXN-000323,2026-05-07 06:29:49,Windows PC,"Cartagena, Colombia",692445,Servicios públicos - compra realizada por App móvil,PayPal,App móvil,Empresarial,Conocido,3,Bajo,0
+TXN-000382,2026-05-08 12:24:26,Tablet Android,"Cartagena, Colombia",337577,Hotel - compra realizada por App móvil,PayPal,App móvil,Móvil,Conocido,1,Bajo,0
+TXN-000348,2026-05-09 12:09:48,Windows PC,"Bogotá, Colombia",222975,Transporte - compra realizada por API,Daviplata,API,Móvil,Nuevo,2,Bajo,0
+TXN-000220,2026-05-09 15:39:57,Tablet Android,"Medellín, Colombia",783283,Supermercado - compra realizada por App móvil,Daviplata,App móvil,Móvil,Conocido,1,Medio,0
+TXN-000368,2026-05-09 21:22:42,Windows PC,"Bucaramanga, Colombia",743964,Transporte - compra realizada por API,PSE,API,Residencial,Conocido,3,Medio,0
+TXN-000122,2026-05-10 08:25:28,iPhone,"Medellín, Colombia",324197,Restaurante - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Conocido,1,Medio,0
+TXN-000477,2026-05-10 13:05:39,MacBook,"Pereira, Colombia",326443,Tienda online - compra realizada por Web,PayPal,Web,Móvil,Conocido,3,Medio,0
+TXN-000294,2026-05-11 16:58:35,Windows PC,"Bucaramanga, Colombia",865186,Tienda online - compra realizada por API,Mastercard,API,Móvil,Conocido,3,Medio,0
+TXN-000134,2026-05-11 18:52:17,Tablet Android,"Cali, Colombia",750740,Farmacia - compra realizada por App móvil,Daviplata,App móvil,Residencial,Nuevo,2,Medio,0
+TXN-000213,2026-05-12 02:19:37,Windows PC,"Manizales, Colombia",718553,Electrónica - compra realizada por API,PayPal,API,Residencial,Nuevo,3,Bajo,0
+TXN-000256,2026-05-12 04:06:22,Tablet Android,"Santa Marta, Colombia",806327,Hotel - compra realizada por API,Mastercard,API,Residencial,Conocido,3,Bajo,0
+TXN-000334,2026-05-12 04:51:06,MacBook,"Cali, Colombia",160922,Electrónica - compra realizada por POS,PSE,POS,Residencial,Conocido,1,Bajo,0
+TXN-000354,2026-05-12 05:46:08,Android,"Pereira, Colombia",413697,Hotel - compra realizada por Web,Visa,Web,Empresarial,Nuevo,1,Medio,0
+TXN-000021,2026-05-12 18:31:46,Android,"Barranquilla, Colombia",177387,Transporte - compra realizada por API,Mastercard,API,Residencial,Conocido,2,Bajo,0
+TXN-000260,2026-05-14 00:20:23,Android,"Pereira, Colombia",3989955,Tienda online - compra realizada por API,PayPal,API,VPN,No reconocido,6,Crítico,1
+TXN-000405,2026-05-14 17:38:00,MacBook,"Cali, Colombia",633891,Restaurante - compra realizada por App móvil,PayPal,App móvil,Residencial,Conocido,3,Bajo,0
+TXN-000167,2026-05-15 03:05:12,MacBook,"Cali, Colombia",427828,Ropa - compra realizada por Web,PSE,Web,Móvil,Conocido,1,Bajo,0
+TXN-000347,2026-05-15 03:55:10,MacBook,"Cali, Colombia",1659465,Hotel - compra realizada por Web,Daviplata,Web,Proxy,No reconocido,7,Alto,1
+TXN-000369,2026-05-15 09:01:18,MacBook,"Barranquilla, Colombia",619058,Hotel - compra realizada por App móvil,PayPal,App móvil,Móvil,Conocido,2,Bajo,0
+TXN-000162,2026-05-15 09:10:07,Tablet Android,"Cartagena, Colombia",502495,Servicios públicos - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,3,Bajo,0
+TXN-000157,2026-05-15 22:14:18,Android,"Ibagué, Colombia",644951,Servicios públicos - compra realizada por POS,Daviplata,POS,Empresarial,Conocido,2,Medio,0
+TXN-000471,2026-05-16 01:48:46,Tablet Android,"Manizales, Colombia",1139465,Tienda online - compra realizada por API,Daviplata,API,VPN,Nuevo,7,Alto,1
+TXN-000139,2026-05-16 18:22:08,Android,"Pereira, Colombia",895155,Farmacia - compra realizada por POS,Visa,POS,Residencial,Conocido,2,Bajo,0
+TXN-000224,2026-05-19 00:17:09,Tablet Android,"Pereira, Colombia",5521003,Tienda online - compra realizada por API,Nequi,API,IP desconocida,Nuevo,10,Crítico,1
+TXN-000283,2026-05-19 03:45:46,MacBook,"Ibagué, Colombia",168873,Servicios públicos - compra realizada por POS,Visa,POS,Móvil,Nuevo,3,Bajo,0
+TXN-000101,2026-05-20 07:04:57,Android,"Pereira, Colombia",744409,Transporte - compra realizada por Web,PSE,Web,Empresarial,Conocido,3,Bajo,0
+TXN-000246,2026-05-20 10:29:15,Android,"Manizales, Colombia",462313,Transporte - compra realizada por API,Mastercard,API,Móvil,Nuevo,2,Bajo,0
+TXN-000288,2026-05-20 11:10:02,MacBook,"Ibagué, Colombia",174137,Suscripción digital - compra realizada por POS,Nequi,POS,Empresarial,Conocido,1,Bajo,0
+TXN-000475,2026-05-20 21:29:08,Android,"Bogotá, Colombia",465058,Farmacia - compra realizada por App móvil,PSE,App móvil,Residencial,Conocido,2,Medio,0
+TXN-000194,2026-05-21 12:04:45,Android,"Santa Marta, Colombia",147619,Supermercado - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,1,Bajo,0
+TXN-000403,2026-05-21 16:35:57,Android,"Cali, Colombia",489453,Hotel - compra realizada por POS,Nequi,POS,Móvil,Nuevo,2,Medio,0
+TXN-000351,2026-05-22 02:35:50,Android,"Barranquilla, Colombia",336516,Suscripción digital - compra realizada por API,Nequi,API,Residencial,Conocido,3,Bajo,0
+TXN-000266,2026-05-22 21:53:27,Tablet Android,"Cali, Colombia",27207,Restaurante - compra realizada por Web,Nequi,Web,Residencial,Conocido,2,Bajo,0
+TXN-000171,2026-05-23 01:17:40,MacBook,"Bucaramanga, Colombia",187270,Farmacia - compra realizada por Web,Visa,Web,Móvil,Conocido,2,Medio,0
+TXN-000436,2026-05-23 02:30:34,MacBook,"Cartagena, Colombia",2241509,Servicios públicos - compra realizada por Web,Mastercard,Web,IP desconocida,No reconocido,11,Alto,1
+TXN-000192,2026-05-23 17:45:26,Tablet Android,"Barranquilla, Colombia",676745,Tienda online - compra realizada por API,Mastercard,API,Móvil,Conocido,3,Medio,0
+TXN-000149,2026-05-23 22:11:14,MacBook,"Pereira, Colombia",180333,Electrónica - compra realizada por API,PayPal,API,Móvil,Conocido,3,Medio,0
+TXN-000276,2026-05-24 00:33:32,Tablet Android,"Manizales, Colombia",840172,Ropa - compra realizada por App móvil,Mastercard,App móvil,Residencial,Nuevo,2,Bajo,0
+TXN-000007,2026-05-24 18:20:12,Windows PC,"Barranquilla, Colombia",166458,Servicios públicos - compra realizada por Web,PayPal,Web,Residencial,Conocido,2,Medio,0
+TXN-000400,2026-05-24 20:10:04,Android,"Ibagué, Colombia",352394,Transporte - compra realizada por API,Nequi,API,Empresarial,Nuevo,3,Medio,0
+TXN-000211,2026-05-24 23:13:13,Windows PC,"Pereira, Colombia",29355,Hotel - compra realizada por App móvil,Visa,App móvil,Empresarial,Nuevo,3,Medio,0
+TXN-000285,2026-05-25 01:05:57,Android,"Santa Marta, Colombia",2334243,Servicios públicos - compra realizada por Web,Daviplata,Web,VPN,Nuevo,11,Crítico,1
+TXN-000207,2026-05-25 02:41:34,Android,"Ibagué, Colombia",611200,Transporte - compra realizada por Web,PayPal,Web,Residencial,Conocido,1,Medio,0
+TXN-000344,2026-05-25 17:05:24,Windows PC,"Cali, Colombia",255572,Farmacia - compra realizada por API,Visa,API,Empresarial,Conocido,2,Bajo,0
+TXN-000474,2026-05-27 00:29:41,Tablet Android,"Ibagué, Colombia",1984095,Servicios públicos - compra realizada por App móvil,Visa,App móvil,VPN,No reconocido,8,Alto,1
+TXN-000391,2026-05-28 00:02:53,Windows PC,"Santa Marta, Colombia",817910,Restaurante - compra realizada por POS,PayPal,POS,Móvil,Conocido,2,Medio,0
+TXN-000040,2026-05-28 05:53:24,iPhone,"Santa Marta, Colombia",15359,Servicios públicos - compra realizada por API,Daviplata,API,Residencial,Conocido,3,Bajo,0
+TXN-000008,2026-05-28 08:46:51,Windows PC,"Ibagué, Colombia",43409,Suscripción digital - compra realizada por Web,Mastercard,Web,Móvil,Conocido,1,Bajo,0
+TXN-000337,2026-05-28 16:13:19,Android,"Ibagué, Colombia",621880,Electrónica - compra realizada por App móvil,PSE,App móvil,Móvil,Conocido,3,Bajo,0
+TXN-000443,2026-05-29 04:33:33,Android,"Medellín, Colombia",407020,Transporte - compra realizada por API,PayPal,API,Residencial,Conocido,2,Medio,0
+TXN-000091,2026-05-29 04:55:43,Tablet Android,"Bucaramanga, Colombia",6895244,Servicios públicos - compra realizada por POS,Daviplata,POS,IP desconocida,No reconocido,8,Alto,1
+TXN-000479,2026-05-29 10:25:42,Tablet Android,"Santa Marta, Colombia",150183,Transporte - compra realizada por API,PayPal,API,Empresarial,Conocido,2,Bajo,0
+TXN-000035,2026-05-29 13:32:50,Android,"Manizales, Colombia",741175,Transporte - compra realizada por API,Mastercard,API,Residencial,Conocido,3,Bajo,0
+TXN-000174,2026-06-02 14:36:07,Tablet Android,"Cartagena, Colombia",280315,Suscripción digital - compra realizada por API,Daviplata,API,Móvil,Conocido,3,Bajo,0
+TXN-000487,2026-06-03 01:45:03,Tablet Android,"Santa Marta, Colombia",414674,Ropa - compra realizada por Web,Daviplata,Web,Residencial,Nuevo,3,Bajo,0
+TXN-000438,2026-06-03 07:21:21,iPhone,"Cali, Colombia",85101,Farmacia - compra realizada por API,PayPal,API,Residencial,Nuevo,3,Medio,0
+TXN-000410,2026-06-03 11:00:02,MacBook,"Santa Marta, Colombia",75726,Ropa - compra realizada por Web,Mastercard,Web,Empresarial,Conocido,3,Bajo,0
+TXN-000488,2026-06-03 15:21:48,Android,"Ibagué, Colombia",404005,Ropa - compra realizada por Web,Nequi,Web,Móvil,Conocido,1,Bajo,0
+TXN-000311,2026-06-04 07:37:01,Tablet Android,"Bucaramanga, Colombia",25942,Ropa - compra realizada por API,PSE,API,Empresarial,Nuevo,3,Medio,0
+TXN-000404,2026-06-04 08:32:28,iPhone,"Pereira, Colombia",509798,Ropa - compra realizada por API,Daviplata,API,Móvil,Conocido,3,Bajo,0
+TXN-000357,2026-06-04 12:25:01,Windows PC,"Cartagena, Colombia",634513,Tienda online - compra realizada por App móvil,Nequi,App móvil,Empresarial,Conocido,3,Medio,0
+TXN-000222,2026-06-04 16:23:16,Android,"Cartagena, Colombia",766757,Hotel - compra realizada por App móvil,Mastercard,App móvil,Empresarial,Conocido,2,Medio,0
+TXN-000044,2026-06-05 05:02:04,iPhone,"Cali, Colombia",208674,Supermercado - compra realizada por Web,PayPal,Web,Empresarial,Conocido,1,Medio,0
+TXN-000406,2026-06-05 13:29:53,Windows PC,"Ibagué, Colombia",577751,Supermercado - compra realizada por App móvil,Daviplata,App móvil,Residencial,Conocido,3,Bajo,0
+TXN-000219,2026-06-07 09:28:03,MacBook,"Pereira, Colombia",637018,Electrónica - compra realizada por Web,Daviplata,Web,Móvil,Conocido,3,Bajo,0
+TXN-000374,2026-06-08 07:24:46,MacBook,"Manizales, Colombia",359709,Farmacia - compra realizada por API,PayPal,API,Empresarial,Conocido,3,Bajo,0
+TXN-000205,2026-06-08 13:15:04,iPhone,"Cartagena, Colombia",214430,Tienda online - compra realizada por API,Nequi,API,Residencial,Conocido,1,Medio,0
+TXN-000098,2026-06-08 13:35:35,Android,"Cali, Colombia",117767,Supermercado - compra realizada por POS,Visa,POS,Empresarial,Conocido,2,Bajo,0
+TXN-000129,2026-06-08 18:00:24,Windows PC,"Santa Marta, Colombia",508797,Suscripción digital - compra realizada por Web,Visa,Web,Móvil,Conocido,3,Bajo,0
+TXN-000353,2026-06-08 22:07:14,Android,"Cartagena, Colombia",769192,Transporte - compra realizada por App móvil,Daviplata,App móvil,Móvil,Conocido,3,Bajo,0
+TXN-000313,2026-06-09 00:25:56,Windows PC,"Pereira, Colombia",1044550,Electrónica - compra realizada por API,PayPal,API,IP desconocida,Nuevo,4,Crítico,1
+TXN-000499,2026-06-10 03:46:44,Tablet Android,"Barranquilla, Colombia",6243235,Transporte - compra realizada por Web,PayPal,Web,Proxy,No reconocido,8,Crítico,1
+TXN-000415,2026-06-10 04:05:19,Windows PC,"Ibagué, Colombia",97313,Supermercado - compra realizada por POS,Daviplata,POS,Empresarial,Conocido,1,Medio,0
+TXN-000482,2026-06-10 19:08:02,MacBook,"Cartagena, Colombia",109493,Servicios públicos - compra realizada por App móvil,Nequi,App móvil,Residencial,Nuevo,3,Bajo,0
+TXN-000247,2026-06-11 09:57:23,MacBook,"Manizales, Colombia",210169,Restaurante - compra realizada por Web,Mastercard,Web,Móvil,Conocido,3,Bajo,0
+TXN-000360,2026-06-12 02:48:50,Tablet Android,"Cartagena, Colombia",2444624,Supermercado - compra realizada por Web,Nequi,Web,Proxy,No reconocido,6,Alto,1
+TXN-000212,2026-06-12 04:06:35,Windows PC,"Cali, Colombia",752526,Suscripción digital - compra realizada por App móvil,Mastercard,App móvil,Empresarial,Nuevo,3,Bajo,0
+TXN-000186,2026-06-12 06:58:13,iPhone,"Bogotá, Colombia",866486,Electrónica - compra realizada por App móvil,Nequi,App móvil,Residencial,Conocido,2,Bajo,0
+TXN-000312,2026-06-12 22:53:52,Android,"Pereira, Colombia",512975,Tienda online - compra realizada por Web,Mastercard,Web,Móvil,Nuevo,2,Bajo,0
+TXN-000049,2026-06-13 04:01:17,MacBook,"Santa Marta, Colombia",849326,Supermercado - compra realizada por API,PayPal,API,Móvil,Conocido,3,Bajo,0
+TXN-000105,2026-06-13 11:38:12,Tablet Android,"Medellín, Colombia",335404,Restaurante - compra realizada por API,PayPal,API,Residencial,Conocido,3,Medio,0
+TXN-000053,2026-06-13 17:16:08,Windows PC,"Medellín, Colombia",324715,Supermercado - compra realizada por Web,Nequi,Web,Residencial,Nuevo,1,Medio,0
+TXN-000489,2026-06-14 01:37:58,Windows PC,"Santa Marta, Colombia",586800,Ropa - compra realizada por App móvil,Visa,App móvil,Empresarial,Nuevo,1,Bajo,0
+TXN-000310,2026-06-14 10:08:24,Android,"Pereira, Colombia",658486,Tienda online - compra realizada por POS,Mastercard,POS,Residencial,Conocido,3,Bajo,0
+TXN-000117,2026-06-14 16:06:14,MacBook,"Santa Marta, Colombia",468426,Farmacia - compra realizada por POS,Nequi,POS,Móvil,Conocido,2,Bajo,0
+TXN-000110,2026-06-15 23:47:23,Windows PC,"Cartagena, Colombia",6906517,Tienda online - compra realizada por API,PSE,API,IP desconocida,Nuevo,12,Alto,1
+TXN-000052,2026-06-16 10:57:38,iPhone,"Manizales, Colombia",202319,Supermercado - compra realizada por POS,Mastercard,POS,Móvil,Conocido,2,Bajo,0
+TXN-000226,2026-06-17 03:00:18,MacBook,"Ibagué, Colombia",1742174,Ropa - compra realizada por API,Daviplata,API,Proxy,Nuevo,12,Crítico,1
+TXN-000020,2026-06-17 09:41:17,Windows PC,"Pereira, Colombia",885986,Electrónica - compra realizada por Web,Nequi,Web,Residencial,Conocido,3,Bajo,0
+TXN-000465,2026-06-18 16:00:37,MacBook,"Medellín, Colombia",574491,Hotel - compra realizada por Web,Mastercard,Web,Móvil,Nuevo,1,Bajo,0
+TXN-000228,2026-06-18 19:28:35,Windows PC,"Pereira, Colombia",850637,Electrónica - compra realizada por Web,PSE,Web,Empresarial,Conocido,3,Medio,0
+TXN-000152,2026-06-18 21:56:21,Windows PC,"Bogotá, Colombia",678660,Farmacia - compra realizada por POS,Visa,POS,Residencial,Conocido,3,Bajo,0
+TXN-000407,2026-06-19 04:41:33,Android,"Medellín, Colombia",1453354,Transporte - compra realizada por POS,PSE,POS,IP desconocida,Nuevo,6,Crítico,1
+TXN-000120,2026-06-19 09:51:40,Android,"Manizales, Colombia",642907,Suscripción digital - compra realizada por API,Visa,API,Móvil,Conocido,2,Bajo,0
+TXN-000153,2026-06-20 04:04:00,Android,"Cali, Colombia",855278,Transporte - compra realizada por POS,Visa,POS,Empresarial,Conocido,3,Bajo,0
+TXN-000250,2026-06-20 12:25:41,Android,"Barranquilla, Colombia",555082,Hotel - compra realizada por POS,Mastercard,POS,Residencial,Nuevo,1,Bajo,0
+TXN-000249,2026-06-21 09:50:04,Tablet Android,"Barranquilla, Colombia",899392,Restaurante - compra realizada por App móvil,Nequi,App móvil,Móvil,Conocido,1,Bajo,0
+TXN-000125,2026-06-21 17:40:40,Windows PC,"Cartagena, Colombia",289711,Supermercado - compra realizada por POS,Daviplata,POS,Residencial,Conocido,2,Bajo,0
+TXN-000384,2026-06-22 23:02:13,Windows PC,"Cartagena, Colombia",551865,Ropa - compra realizada por Web,Nequi,Web,Residencial,Nuevo,1,Bajo,0
+TXN-000428,2026-06-23 13:41:26,Android,"Pereira, Colombia",143191,Servicios públicos - compra realizada por API,Daviplata,API,Empresarial,Conocido,2,Bajo,0
+TXN-000461,2026-06-23 19:00:01,MacBook,"Bogotá, Colombia",473084,Supermercado - compra realizada por POS,PayPal,POS,Residencial,Conocido,1,Bajo,0
+TXN-000281,2026-06-24 14:15:56,MacBook,"Bucaramanga, Colombia",198758,Restaurante - compra realizada por POS,Nequi,POS,Móvil,Conocido,1,Bajo,0
+TXN-000154,2026-06-24 17:34:56,Windows PC,"Bucaramanga, Colombia",367260,Restaurante - compra realizada por App móvil,Nequi,App móvil,Móvil,Conocido,1,Medio,0
+TXN-000099,2026-06-26 04:15:58,Windows PC,"Ibagué, Colombia",594606,Hotel - compra realizada por App móvil,Nequi,App móvil,Empresarial,Conocido,2,Bajo,0
+TXN-000491,2026-06-26 04:45:24,Android,"Cartagena, Colombia",6090474,Tienda online - compra realizada por Web,PSE,Web,Proxy,No reconocido,4,Alto,1
+TXN-000170,2026-06-27 02:34:00,iPhone,"Barranquilla, Colombia",2299977,Suscripción digital - compra realizada por Web,Daviplata,Web,Proxy,Nuevo,8,Alto,1
+TXN-000317,2026-06-27 06:24:35,Android,"Bucaramanga, Colombia",425833,Transporte - compra realizada por POS,PayPal,POS,Empresarial,Conocido,3,Bajo,0
+TXN-000435,2026-06-27 07:17:35,Tablet Android,"Pereira, Colombia",441262,Ropa - compra realizada por POS,Daviplata,POS,Residencial,Conocido,2,Bajo,0
+TXN-000147,2026-06-27 17:52:58,Android,"Cartagena, Colombia",294302,Supermercado - compra realizada por App móvil,Mastercard,App móvil,Empresarial,Conocido,3,Bajo,0
+TXN-000255,2026-06-28 01:03:24,Windows PC,"Medellín, Colombia",744990,Farmacia - compra realizada por App móvil,Daviplata,App móvil,Móvil,Conocido,2,Bajo,0
+TXN-000494,2026-06-28 02:51:33,MacBook,"Manizales, Colombia",536143,Supermercado - compra realizada por API,Daviplata,API,Móvil,Conocido,2,Bajo,0
+TXN-000218,2026-06-28 06:10:08,Tablet Android,"Barranquilla, Colombia",765362,Transporte - compra realizada por POS,PayPal,POS,Empresarial,Conocido,1,Medio,0
+TXN-000373,2026-06-28 08:17:21,Windows PC,"Bogotá, Colombia",237939,Restaurante - compra realizada por Web,Visa,Web,Empresarial,Conocido,2,Bajo,0
+TXN-000005,2026-06-28 10:09:00,Tablet Android,"Medellín, Colombia",562390,Restaurante - compra realizada por POS,Nequi,POS,Empresarial,Conocido,3,Bajo,0
+TXN-000257,2026-06-28 23:19:10,Android,"Medellín, Colombia",7727207,Electrónica - compra realizada por API,Mastercard,API,VPN,No reconocido,8,Crítico,1
+TXN-000079,2026-06-29 05:00:21,Android,"Cali, Colombia",442012,Servicios públicos - compra realizada por POS,Nequi,POS,Residencial,Conocido,3,Bajo,0
+TXN-000200,2026-06-29 19:30:32,Tablet Android,"Pereira, Colombia",321351,Farmacia - compra realizada por App móvil,Daviplata,App móvil,Residencial,Nuevo,1,Bajo,0
+TXN-000060,2026-06-30 02:51:16,Tablet Android,"Santa Marta, Colombia",7031193,Farmacia - compra realizada por POS,PayPal,POS,Proxy,No reconocido,12,Crítico,1
+TXN-000387,2026-06-30 11:19:42,Tablet Android,"Ibagué, Colombia",601470,Farmacia - compra realizada por POS,Visa,POS,Empresarial,Conocido,3,Medio,0
+TXN-000097,2026-07-03 02:28:58,Android,"Santa Marta, Colombia",577332,Suscripción digital - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Conocido,3,Bajo,0
+TXN-000083,2026-07-03 16:27:29,MacBook,"Pereira, Colombia",126728,Tienda online - compra realizada por API,PayPal,API,Móvil,Conocido,2,Medio,0
+TXN-000148,2026-07-03 20:24:20,Windows PC,"Bogotá, Colombia",706045,Transporte - compra realizada por POS,PayPal,POS,Móvil,Conocido,1,Medio,0
+TXN-000308,2026-07-04 09:41:02,Tablet Android,"Barranquilla, Colombia",770737,Servicios públicos - compra realizada por Web,Nequi,Web,Empresarial,Nuevo,3,Bajo,0
+TXN-000314,2026-07-04 13:21:16,Windows PC,"Bucaramanga, Colombia",760919,Suscripción digital - compra realizada por POS,Visa,POS,Empresarial,Conocido,1,Medio,0
+TXN-000447,2026-07-04 13:50:37,Tablet Android,"Cali, Colombia",95890,Restaurante - compra realizada por App móvil,PSE,App móvil,Móvil,Nuevo,1,Medio,0
+TXN-000016,2026-07-04 13:57:10,Tablet Android,"Cali, Colombia",837088,Ropa - compra realizada por API,PSE,API,Empresarial,Conocido,3,Medio,0
+TXN-000434,2026-07-04 22:05:01,MacBook,"Ibagué, Colombia",854410,Ropa - compra realizada por API,PSE,API,Residencial,Nuevo,3,Medio,0
+TXN-000394,2026-07-05 01:40:32,MacBook,"Barranquilla, Colombia",1780438,Tienda online - compra realizada por API,Daviplata,API,IP desconocida,Nuevo,4,Alto,1
+TXN-000190,2026-07-05 10:11:41,Windows PC,"Barranquilla, Colombia",682075,Servicios públicos - compra realizada por API,Visa,API,Móvil,Nuevo,3,Bajo,0
+TXN-000209,2026-07-05 23:51:57,iPhone,"Santa Marta, Colombia",503590,Transporte - compra realizada por API,PayPal,API,Móvil,Conocido,3,Bajo,0
+TXN-000023,2026-07-06 02:27:44,iPhone,"Pereira, Colombia",2375081,Tienda online - compra realizada por API,Visa,API,VPN,Nuevo,8,Crítico,1
+TXN-000302,2026-07-07 11:25:58,Android,"Pereira, Colombia",104613,Tienda online - compra realizada por API,PayPal,API,Residencial,Conocido,3,Bajo,0
+TXN-000059,2026-07-07 18:31:24,MacBook,"Pereira, Colombia",232263,Hotel - compra realizada por POS,PayPal,POS,Móvil,Conocido,1,Bajo,0
+TXN-000346,2026-07-07 23:55:21,MacBook,"Medellín, Colombia",5757328,Electrónica - compra realizada por Web,Nequi,Web,Proxy,Nuevo,11,Alto,1
+TXN-000316,2026-07-08 01:12:56,Tablet Android,"Bucaramanga, Colombia",6112201,Ropa - compra realizada por App móvil,Visa,App móvil,VPN,Nuevo,4,Alto,1
+TXN-000392,2026-07-09 01:52:43,MacBook,"Santa Marta, Colombia",218542,Ropa - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,1,Medio,0
+TXN-000381,2026-07-09 04:56:37,Windows PC,"Bucaramanga, Colombia",76781,Transporte - compra realizada por Web,Mastercard,Web,Móvil,Conocido,2,Bajo,0
+TXN-000469,2026-07-09 11:11:42,MacBook,"Santa Marta, Colombia",250638,Ropa - compra realizada por App móvil,Mastercard,App móvil,Móvil,Nuevo,3,Bajo,0
+TXN-000214,2026-07-09 15:26:16,iPhone,"Ibagué, Colombia",80782,Supermercado - compra realizada por Web,PayPal,Web,Residencial,Conocido,2,Medio,0
+TXN-000292,2026-07-10 01:21:45,Android,"Medellín, Colombia",4606928,Transporte - compra realizada por App móvil,Visa,App móvil,Proxy,Nuevo,4,Alto,1
+TXN-000455,2026-07-10 01:41:31,Tablet Android,"Santa Marta, Colombia",2934698,Hotel - compra realizada por POS,PayPal,POS,Proxy,Nuevo,9,Alto,1
+TXN-000450,2026-07-10 07:59:18,iPhone,"Santa Marta, Colombia",429529,Ropa - compra realizada por POS,Mastercard,POS,Empresarial,Conocido,1,Medio,0
+TXN-000058,2026-07-10 09:00:39,Android,"Pereira, Colombia",664409,Electrónica - compra realizada por App móvil,PSE,App móvil,Móvil,Nuevo,3,Medio,0
+TXN-000419,2026-07-10 14:38:14,iPhone,"Ibagué, Colombia",128498,Farmacia - compra realizada por App móvil,PSE,App móvil,Móvil,Conocido,3,Medio,0
+TXN-000062,2026-07-10 14:47:11,MacBook,"Bogotá, Colombia",230325,Servicios públicos - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,2,Medio,0
+TXN-000231,2026-07-10 16:31:11,Tablet Android,"Barranquilla, Colombia",362748,Farmacia - compra realizada por POS,PSE,POS,Empresarial,Conocido,3,Bajo,0
+TXN-000156,2026-07-10 18:19:03,iPhone,"Medellín, Colombia",646332,Restaurante - compra realizada por API,Mastercard,API,Empresarial,Conocido,3,Bajo,0
+TXN-000271,2026-07-12 16:25:49,MacBook,"Ibagué, Colombia",162690,Supermercado - compra realizada por API,PSE,API,Móvil,Conocido,3,Bajo,0
+TXN-000453,2026-07-13 05:29:39,Tablet Android,"Cali, Colombia",299991,Servicios públicos - compra realizada por POS,Daviplata,POS,Empresarial,Nuevo,1,Bajo,0
+TXN-000165,2026-07-13 10:03:04,Tablet Android,"Cartagena, Colombia",729504,Servicios públicos - compra realizada por API,PayPal,API,Móvil,Conocido,1,Bajo,0
+TXN-000355,2026-07-13 17:25:11,Android,"Ibagué, Colombia",442395,Supermercado - compra realizada por API,PayPal,API,Residencial,Nuevo,3,Medio,0
+TXN-000233,2026-07-13 21:50:35,iPhone,"Cartagena, Colombia",713333,Servicios públicos - compra realizada por App móvil,Mastercard,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000143,2026-07-14 02:44:45,Tablet Android,"Ibagué, Colombia",272776,Ropa - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,1,Bajo,0
+TXN-000274,2026-07-14 23:21:38,Android,"Cali, Colombia",76000,Ropa - compra realizada por Web,Mastercard,Web,Móvil,Conocido,2,Bajo,0
+TXN-000484,2026-07-15 02:00:16,Tablet Android,"Manizales, Colombia",449929,Suscripción digital - compra realizada por App móvil,PayPal,App móvil,Residencial,Conocido,1,Bajo,0
+TXN-000333,2026-07-15 11:26:09,Tablet Android,"Cartagena, Colombia",272383,Restaurante - compra realizada por Web,Mastercard,Web,Empresarial,Nuevo,3,Medio,0
+TXN-000172,2026-07-15 20:00:07,MacBook,"Ibagué, Colombia",100563,Hotel - compra realizada por Web,PSE,Web,Móvil,Nuevo,2,Bajo,0
+TXN-000398,2026-07-15 20:58:17,MacBook,"Cali, Colombia",559052,Restaurante - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Nuevo,1,Bajo,0
+TXN-000267,2026-07-16 00:19:05,Windows PC,"Ibagué, Colombia",1847280,Farmacia - compra realizada por API,Nequi,API,VPN,No reconocido,10,Alto,1
+TXN-000467,2026-07-16 00:25:06,Android,"Barranquilla, Colombia",312509,Servicios públicos - compra realizada por API,Nequi,API,Empresarial,Nuevo,1,Bajo,0
+TXN-000046,2026-07-16 00:52:24,MacBook,"Ibagué, Colombia",680322,Tienda online - compra realizada por API,Nequi,API,Móvil,Nuevo,2,Medio,0
+TXN-000031,2026-07-16 06:45:13,MacBook,"Cartagena, Colombia",54017,Restaurante - compra realizada por API,Visa,API,Residencial,Nuevo,2,Bajo,0
+TXN-000158,2026-07-17 13:56:50,iPhone,"Medellín, Colombia",38261,Tienda online - compra realizada por App móvil,Mastercard,App móvil,Empresarial,Conocido,2,Medio,0
+TXN-000240,2026-07-20 09:24:42,iPhone,"Ibagué, Colombia",220192,Suscripción digital - compra realizada por API,Mastercard,API,Empresarial,Conocido,1,Bajo,0
+TXN-000278,2026-07-21 20:30:25,MacBook,"Bucaramanga, Colombia",578936,Restaurante - compra realizada por Web,Nequi,Web,Residencial,Nuevo,3,Bajo,0
+TXN-000445,2026-07-22 07:23:04,Android,"Cartagena, Colombia",61097,Servicios públicos - compra realizada por App móvil,Nequi,App móvil,Residencial,Conocido,1,Medio,0
+TXN-000217,2026-07-23 15:37:34,iPhone,"Barranquilla, Colombia",251582,Hotel - compra realizada por POS,Mastercard,POS,Residencial,Conocido,2,Bajo,0
+TXN-000500,2026-07-24 01:00:04,Tablet Android,"Santa Marta, Colombia",574194,Tienda online - compra realizada por API,PSE,API,Residencial,Nuevo,1,Bajo,0
+TXN-000132,2026-07-24 10:20:29,Android,"Pereira, Colombia",174533,Suscripción digital - compra realizada por Web,Daviplata,Web,Móvil,Conocido,1,Bajo,0
+TXN-000243,2026-07-24 22:39:37,Windows PC,"Santa Marta, Colombia",322913,Hotel - compra realizada por API,Nequi,API,Empresarial,Conocido,3,Bajo,0
+TXN-000451,2026-07-26 06:33:34,iPhone,"Manizales, Colombia",701687,Servicios públicos - compra realizada por POS,PSE,POS,Móvil,Nuevo,1,Medio,0
+TXN-000179,2026-07-27 01:06:15,Windows PC,"Ibagué, Colombia",233169,Servicios públicos - compra realizada por API,PSE,API,Móvil,Conocido,2,Medio,0
+TXN-000163,2026-07-27 04:22:32,Android,"Ibagué, Colombia",567664,Tienda online - compra realizada por App móvil,PayPal,App móvil,Móvil,Nuevo,1,Medio,0
+TXN-000336,2026-07-27 16:04:36,Tablet Android,"Bogotá, Colombia",32471,Supermercado - compra realizada por Web,Daviplata,Web,Residencial,Conocido,2,Medio,0
+TXN-000332,2026-07-27 23:56:22,iPhone,"Bucaramanga, Colombia",1526805,Suscripción digital - compra realizada por App móvil,Visa,App móvil,VPN,Nuevo,10,Crítico,1
+TXN-000199,2026-07-29 10:38:34,iPhone,"Bucaramanga, Colombia",659154,Tienda online - compra realizada por API,Visa,API,Residencial,Conocido,2,Bajo,0
+TXN-000480,2026-07-30 13:59:05,iPhone,"Barranquilla, Colombia",288464,Tienda online - compra realizada por App móvil,PayPal,App móvil,Empresarial,Conocido,2,Medio,0
+TXN-000077,2026-07-30 17:20:19,MacBook,"Pereira, Colombia",456166,Transporte - compra realizada por POS,Visa,POS,Residencial,Conocido,2,Bajo,0
+TXN-000082,2026-07-31 01:08:07,MacBook,"Manizales, Colombia",221703,Transporte - compra realizada por App móvil,PSE,App móvil,Residencial,Conocido,3,Bajo,0
+TXN-000003,2026-07-31 15:13:21,MacBook,"Barranquilla, Colombia",20751,Hotel - compra realizada por POS,Nequi,POS,Empresarial,Conocido,2,Bajo,0
+TXN-000232,2026-07-31 21:37:54,iPhone,"Ibagué, Colombia",272828,Electrónica - compra realizada por App móvil,Visa,App móvil,Residencial,Conocido,3,Medio,0
+TXN-000050,2026-08-01 02:19:19,Tablet Android,"Barranquilla, Colombia",40687,Transporte - compra realizada por POS,Nequi,POS,Empresarial,Nuevo,2,Bajo,0
+TXN-000358,2026-08-01 17:55:18,Windows PC,"Ibagué, Colombia",647230,Transporte - compra realizada por App móvil,PayPal,App móvil,Móvil,Nuevo,1,Medio,0
+TXN-000468,2026-08-01 21:09:02,MacBook,"Cartagena, Colombia",130382,Farmacia - compra realizada por API,Visa,API,Móvil,Nuevo,1,Bajo,0
+TXN-000108,2026-08-01 23:03:08,Windows PC,"Pereira, Colombia",550803,Ropa - compra realizada por POS,Daviplata,POS,Empresarial,Conocido,3,Bajo,0
+TXN-000078,2026-08-02 02:35:00,iPhone,"Cartagena, Colombia",5595145,Electrónica - compra realizada por Web,Nequi,Web,VPN,Nuevo,5,Crítico,1
+TXN-000350,2026-08-02 05:58:18,Android,"Medellín, Colombia",512664,Hotel - compra realizada por POS,Daviplata,POS,Empresarial,Conocido,2,Medio,0
+TXN-000193,2026-08-02 07:14:11,MacBook,"Ibagué, Colombia",542296,Transporte - compra realizada por App móvil,PayPal,App móvil,Empresarial,Conocido,3,Bajo,0
+TXN-000459,2026-08-02 14:02:58,MacBook,"Ibagué, Colombia",813699,Tienda online - compra realizada por API,PSE,API,Móvil,Conocido,2,Medio,0
+TXN-000284,2026-08-02 15:29:54,iPhone,"Medellín, Colombia",69577,Restaurante - compra realizada por App móvil,Nequi,App móvil,Residencial,Conocido,2,Bajo,0
+TXN-000022,2026-08-02 17:24:13,Android,"Bogotá, Colombia",834835,Ropa - compra realizada por Web,PayPal,Web,Residencial,Conocido,2,Bajo,0
+TXN-000109,2026-08-03 02:49:00,iPhone,"Pereira, Colombia",416347,Transporte - compra realizada por API,Nequi,API,Empresarial,Conocido,2,Bajo,0
+TXN-000159,2026-08-03 05:43:19,iPhone,"Santa Marta, Colombia",649486,Restaurante - compra realizada por POS,Visa,POS,Empresarial,Conocido,2,Bajo,0
+TXN-000273,2026-08-03 17:04:23,MacBook,"Barranquilla, Colombia",298143,Transporte - compra realizada por API,PSE,API,Empresarial,Conocido,1,Bajo,0
+TXN-000012,2026-08-03 20:26:20,Android,"Medellín, Colombia",316055,Ropa - compra realizada por POS,PayPal,POS,Móvil,Conocido,2,Bajo,0
+TXN-000063,2026-08-03 22:44:30,Tablet Android,"Bucaramanga, Colombia",416565,Ropa - compra realizada por POS,Nequi,POS,Móvil,Conocido,1,Bajo,0
+TXN-000303,2026-08-04 04:42:07,Tablet Android,"Cartagena, Colombia",58927,Servicios públicos - compra realizada por POS,PayPal,POS,Empresarial,Conocido,1,Medio,0
+TXN-000416,2026-08-04 08:47:40,iPhone,"Manizales, Colombia",253132,Suscripción digital - compra realizada por App móvil,PSE,App móvil,Empresarial,Conocido,2,Medio,0
+TXN-000045,2026-08-05 11:23:54,iPhone,"Medellín, Colombia",889285,Tienda online - compra realizada por API,Nequi,API,Móvil,Conocido,3,Medio,0
+TXN-000456,2026-08-05 17:07:20,MacBook,"Bucaramanga, Colombia",664856,Supermercado - compra realizada por POS,PayPal,POS,Residencial,Conocido,3,Bajo,0
+TXN-000068,2026-08-05 17:37:03,MacBook,"Santa Marta, Colombia",351635,Hotel - compra realizada por App móvil,Daviplata,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000458,2026-08-05 18:15:24,MacBook,"Medellín, Colombia",636757,Hotel - compra realizada por POS,PayPal,POS,Residencial,Conocido,1,Bajo,0
+TXN-000326,2026-08-05 19:14:56,iPhone,"Cartagena, Colombia",656790,Electrónica - compra realizada por App móvil,Visa,App móvil,Residencial,Nuevo,2,Medio,0
+TXN-000411,2026-08-06 03:19:08,Tablet Android,"Bucaramanga, Colombia",187155,Servicios públicos - compra realizada por App móvil,PSE,App móvil,Empresarial,Conocido,2,Bajo,0
+TXN-000010,2026-08-07 00:19:48,Tablet Android,"Cartagena, Colombia",368469,Hotel - compra realizada por API,PayPal,API,Residencial,Nuevo,2,Bajo,0
+TXN-000111,2026-08-07 03:16:06,Windows PC,"Medellín, Colombia",653139,Suscripción digital - compra realizada por API,Nequi,API,Empresarial,Conocido,2,Bajo,0
+TXN-000295,2026-08-07 06:00:29,Tablet Android,"Bucaramanga, Colombia",664586,Hotel - compra realizada por App móvil,Mastercard,App móvil,Residencial,Conocido,3,Bajo,0
+TXN-000206,2026-08-07 09:49:01,MacBook,"Pereira, Colombia",240671,Ropa - compra realizada por App móvil,Daviplata,App móvil,Empresarial,Conocido,2,Bajo,0
+TXN-000028,2026-08-07 15:28:51,Android,"Medellín, Colombia",323873,Transporte - compra realizada por POS,Daviplata,POS,Residencial,Conocido,2,Bajo,0
+TXN-000124,2026-08-07 22:23:43,Tablet Android,"Manizales, Colombia",570087,Hotel - compra realizada por POS,PayPal,POS,Móvil,Conocido,2,Bajo,0
+TXN-000189,2026-08-09 12:06:16,iPhone,"Cali, Colombia",91763,Farmacia - compra realizada por API,Daviplata,API,Residencial,Conocido,1,Medio,0
+TXN-000187,2026-08-09 13:47:17,Tablet Android,"Medellín, Colombia",495821,Servicios públicos - compra realizada por API,PSE,API,Residencial,Nuevo,2,Bajo,0
+TXN-000144,2026-08-10 03:55:30,MacBook,"Cali, Colombia",4919386,Restaurante - compra realizada por POS,PayPal,POS,IP desconocida,No reconocido,9,Alto,1
+TXN-000309,2026-08-10 22:37:48,Tablet Android,"Cali, Colombia",162941,Electrónica - compra realizada por App móvil,Visa,App móvil,Residencial,Conocido,1,Bajo,0
+TXN-000325,2026-08-11 03:49:18,iPhone,"Bucaramanga, Colombia",609604,Transporte - compra realizada por API,PayPal,API,Móvil,Conocido,3,Medio,0
+TXN-000181,2026-08-11 17:11:28,Tablet Android,"Pereira, Colombia",269553,Suscripción digital - compra realizada por App móvil,Nequi,App móvil,Residencial,Conocido,2,Medio,0
+TXN-000113,2026-08-11 22:59:59,iPhone,"Pereira, Colombia",597181,Hotel - compra realizada por Web,Daviplata,Web,Móvil,Conocido,1,Medio,0
+TXN-000191,2026-08-11 23:32:59,Android,"Cartagena, Colombia",1321571,Suscripción digital - compra realizada por App móvil,PayPal,App móvil,IP desconocida,Nuevo,8,Crítico,1
+TXN-000413,2026-08-12 06:23:57,Windows PC,"Manizales, Colombia",685364,Hotel - compra realizada por API,Nequi,API,Empresarial,Conocido,3,Bajo,0
+TXN-000160,2026-08-12 06:27:40,Android,"Cali, Colombia",472864,Restaurante - compra realizada por API,PSE,API,Empresarial,Nuevo,3,Bajo,0
+TXN-000464,2026-08-12 18:52:32,Android,"Santa Marta, Colombia",525011,Servicios públicos - compra realizada por Web,PayPal,Web,Residencial,Conocido,2,Bajo,0
+TXN-000234,2026-08-15 02:54:27,MacBook,"Ibagué, Colombia",333184,Farmacia - compra realizada por Web,Daviplata,Web,Empresarial,Nuevo,1,Medio,0
+TXN-000366,2026-08-15 03:50:36,Windows PC,"Bogotá, Colombia",1814697,Electrónica - compra realizada por App móvil,PSE,App móvil,VPN,No reconocido,12,Crítico,1
+TXN-000268,2026-08-16 04:38:03,Android,"Cartagena, Colombia",1538622,Farmacia - compra realizada por App móvil,PayPal,App móvil,IP desconocida,Nuevo,5,Crítico,1
+TXN-000103,2026-08-16 17:29:11,iPhone,"Barranquilla, Colombia",885865,Tienda online - compra realizada por Web,PSE,Web,Empresarial,Conocido,1,Bajo,0
+TXN-000183,2026-08-16 21:39:24,iPhone,"Barranquilla, Colombia",61455,Ropa - compra realizada por App móvil,Visa,App móvil,Móvil,Nuevo,2,Bajo,0
+TXN-000090,2026-08-17 04:33:54,Windows PC,"Pereira, Colombia",191307,Servicios públicos - compra realizada por API,PayPal,API,Móvil,Conocido,1,Bajo,0
+TXN-000208,2026-08-17 04:40:36,Tablet Android,"Barranquilla, Colombia",819460,Transporte - compra realizada por POS,Nequi,POS,Residencial,Nuevo,1,Bajo,0
+TXN-000002,2026-08-18 07:47:20,MacBook,"Bogotá, Colombia",547787,Restaurante - compra realizada por App móvil,Visa,App móvil,Residencial,Nuevo,3,Medio,0
+TXN-000118,2026-08-19 08:24:42,MacBook,"Ibagué, Colombia",886234,Servicios públicos - compra realizada por Web,PayPal,Web,Residencial,Conocido,2,Bajo,0
+TXN-000378,2026-08-20 17:13:35,MacBook,"Ibagué, Colombia",671166,Restaurante - compra realizada por POS,Daviplata,POS,Móvil,Conocido,2,Medio,0
+TXN-000065,2026-08-20 18:29:34,Windows PC,"Medellín, Colombia",282507,Servicios públicos - compra realizada por App móvil,Mastercard,App móvil,Empresarial,Conocido,2,Medio,0
+TXN-000476,2026-08-20 21:26:06,Tablet Android,"Medellín, Colombia",645535,Transporte - compra realizada por API,Mastercard,API,Residencial,Nuevo,2,Bajo,0
+TXN-000057,2026-08-22 04:14:30,Android,"Santa Marta, Colombia",76027,Suscripción digital - compra realizada por API,Visa,API,Móvil,Conocido,2,Medio,0
+TXN-000130,2026-08-23 01:34:43,iPhone,"Bucaramanga, Colombia",289555,Hotel - compra realizada por App móvil,Visa,App móvil,Empresarial,Nuevo,2,Medio,0
+TXN-000396,2026-08-24 13:13:51,MacBook,"Manizales, Colombia",718235,Transporte - compra realizada por API,Mastercard,API,Empresarial,Nuevo,3,Bajo,0
+TXN-000041,2026-08-24 14:29:44,Windows PC,"Manizales, Colombia",717456,Electrónica - compra realizada por App móvil,Nequi,App móvil,Residencial,Nuevo,1,Medio,0
+TXN-000264,2026-08-24 16:58:06,Tablet Android,"Barranquilla, Colombia",708664,Farmacia - compra realizada por POS,PayPal,POS,Móvil,Conocido,1,Bajo,0
+TXN-000409,2026-08-27 21:59:10,iPhone,"Bogotá, Colombia",91856,Transporte - compra realizada por Web,PSE,Web,Móvil,Conocido,3,Bajo,0
+TXN-000141,2026-08-27 23:27:41,Android,"Medellín, Colombia",500692,Servicios públicos - compra realizada por App móvil,Visa,App móvil,Empresarial,Nuevo,2,Medio,0
+TXN-000216,2026-08-28 00:32:52,MacBook,"Manizales, Colombia",1267059,Supermercado - compra realizada por API,Visa,API,VPN,Nuevo,5,Crítico,1
+TXN-000229,2026-08-28 02:28:21,iPhone,"Manizales, Colombia",2230743,Tienda online - compra realizada por POS,Visa,POS,IP desconocida,Nuevo,8,Crítico,1
+TXN-000486,2026-08-28 15:24:36,MacBook,"Bucaramanga, Colombia",52016,Transporte - compra realizada por API,Nequi,API,Móvil,Nuevo,2,Medio,0
+TXN-000440,2026-08-28 21:39:19,MacBook,"Cartagena, Colombia",32165,Hotel - compra realizada por API,PayPal,API,Empresarial,Conocido,1,Bajo,0
+TXN-000375,2026-08-29 03:26:01,Android,"Santa Marta, Colombia",108930,Restaurante - compra realizada por POS,Visa,POS,Móvil,Nuevo,1,Medio,0
+TXN-000472,2026-08-30 04:09:44,iPhone,"Cartagena, Colombia",432003,Suscripción digital - compra realizada por Web,Visa,Web,Residencial,Nuevo,3,Bajo,0
+TXN-000034,2026-08-30 23:55:47,iPhone,"Barranquilla, Colombia",1364715,Tienda online - compra realizada por API,Mastercard,API,Proxy,Nuevo,5,Alto,1
+TXN-000085,2026-08-31 01:11:55,MacBook,"Medellín, Colombia",569717,Ropa - compra realizada por API,PSE,API,Empresarial,Conocido,3,Bajo,0
+TXN-000204,2026-09-01 02:40:44,MacBook,"Ibagué, Colombia",609138,Supermercado - compra realizada por POS,Nequi,POS,Móvil,Nuevo,2,Medio,0
+TXN-000047,2026-09-01 09:43:07,iPhone,"Cartagena, Colombia",312225,Restaurante - compra realizada por POS,Nequi,POS,Residencial,Conocido,1,Medio,0
+TXN-000426,2026-09-02 14:44:28,Android,"Manizales, Colombia",510910,Suscripción digital - compra realizada por POS,PayPal,POS,Móvil,Conocido,2,Bajo,0
+TXN-000429,2026-09-03 03:53:40,Tablet Android,"Santa Marta, Colombia",216973,Restaurante - compra realizada por Web,Nequi,Web,Empresarial,Conocido,3,Bajo,0
+TXN-000446,2026-09-03 19:08:20,MacBook,"Bucaramanga, Colombia",365290,Tienda online - compra realizada por POS,Visa,POS,Residencial,Conocido,3,Bajo,0
+TXN-000115,2026-09-03 21:35:27,Android,"Medellín, Colombia",416477,Ropa - compra realizada por App móvil,PayPal,App móvil,Móvil,Conocido,3,Bajo,0
+TXN-000460,2026-09-03 22:13:56,MacBook,"Bucaramanga, Colombia",501961,Transporte - compra realizada por App móvil,Daviplata,App móvil,Móvil,Conocido,2,Medio,0
+TXN-000277,2026-09-04 00:09:45,Android,"Bucaramanga, Colombia",1204885,Farmacia - compra realizada por POS,Visa,POS,VPN,Nuevo,7,Crítico,1
+TXN-000377,2026-09-04 05:44:02,iPhone,"Cartagena, Colombia",506237,Suscripción digital - compra realizada por Web,PayPal,Web,Residencial,Conocido,3,Bajo,0
+TXN-000089,2026-09-05 17:42:07,Windows PC,"Manizales, Colombia",614686,Supermercado - compra realizada por API,PSE,API,Residencial,Conocido,2,Bajo,0
+TXN-000298,2026-09-06 04:52:07,Windows PC,"Manizales, Colombia",74998,Servicios públicos - compra realizada por App móvil,Visa,App móvil,Residencial,Nuevo,1,Bajo,0
+TXN-000001,2026-09-06 07:53:23,Android,"Bogotá, Colombia",666777,Servicios públicos - compra realizada por App móvil,PayPal,App móvil,Empresarial,Nuevo,1,Medio,0
+TXN-000102,2026-09-06 08:30:21,Tablet Android,"Bogotá, Colombia",711476,Suscripción digital - compra realizada por App móvil,Visa,App móvil,Residencial,Nuevo,1,Bajo,0
+TXN-000408,2026-09-06 15:56:51,MacBook,"Manizales, Colombia",708804,Transporte - compra realizada por POS,Visa,POS,Empresarial,Nuevo,1,Medio,0
+TXN-000241,2026-09-06 17:41:44,MacBook,"Pereira, Colombia",395154,Hotel - compra realizada por App móvil,Visa,App móvil,Empresarial,Conocido,1,Bajo,0
+TXN-000261,2026-09-07 03:55:23,iPhone,"Medellín, Colombia",160243,Hotel - compra realizada por Web,Daviplata,Web,Empresarial,Conocido,3,Bajo,0
+TXN-000306,2026-09-07 06:37:41,Tablet Android,"Pereira, Colombia",409511,Suscripción digital - compra realizada por API,Mastercard,API,Móvil,Conocido,2,Bajo,0
+TXN-000379,2026-09-08 20:31:04,Tablet Android,"Cali, Colombia",238676,Tienda online - compra realizada por App móvil,Mastercard,App móvil,Residencial,Nuevo,3,Bajo,0
+TXN-000128,2026-09-08 22:20:27,iPhone,"Bogotá, Colombia",554678,Electrónica - compra realizada por API,Mastercard,API,Móvil,Conocido,2,Bajo,0
+TXN-000345,2026-09-09 01:39:24,iPhone,"Medellín, Colombia",1620547,Supermercado - compra realizada por App móvil,Mastercard,App móvil,IP desconocida,Nuevo,6,Crítico,1
+TXN-000362,2026-09-09 07:35:25,Tablet Android,"Pereira, Colombia",56577,Ropa - compra realizada por POS,Mastercard,POS,Móvil,Conocido,3,Bajo,0
+TXN-000364,2026-09-09 12:22:16,Windows PC,"Santa Marta, Colombia",868396,Hotel - compra realizada por App móvil,Daviplata,App móvil,Móvil,Conocido,3,Bajo,0
+TXN-000210,2026-09-09 22:31:16,Windows PC,"Cartagena, Colombia",725493,Suscripción digital - compra realizada por API,PSE,API,Móvil,Conocido,1,Medio,0
+TXN-000287,2026-09-09 23:56:51,Windows PC,"Manizales, Colombia",3318544,Ropa - compra realizada por API,Nequi,API,IP desconocida,Nuevo,10,Alto,1

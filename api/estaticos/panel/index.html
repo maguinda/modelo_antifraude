@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisión manual · antifraude</title>
+<link rel="icon" href="/estaticos/favicon.png">
+<link rel="stylesheet" href="/estaticos/panel/panel.css">
+</head>
+<body>
+<header class="barra">
+  <h1>Revisión manual</h1>
+  <div class="acciones">
+    <span id="contador" class="contador" role="status" aria-live="polite"></span>
+    <button id="actualizar" type="button" class="secundario" hidden>Actualizar</button>
+    <button id="salir" type="button" class="secundario" hidden>Salir</button>
+  </div>
+</header>
+<main>
+  <section id="acceso" class="tarjeta" aria-labelledby="tituloAcceso">
+    <h2 id="tituloAcceso">Entrar</h2>
+    <p>Escribe tu clave de analista. Solo se guarda mientras esta pestaña esté abierta.</p>
+    <form id="formAcceso" autocomplete="off">
+      <label for="clave">Clave de analista</label>
+      <input id="clave" name="clave" type="password" autocomplete="off" required>
+      <button type="submit" class="primario">Entrar</button>
+    </form>
+    <p id="errorAcceso" class="error" role="alert" hidden></p>
+  </section>
+  <section id="panel" hidden aria-label="Pagos para revisar">
+    <div class="filtros">
+      <label for="estado">Mostrar</label>
+      <select id="estado"><option value="pendiente">Pendientes</option><option value="resuelta">Resueltas</option></select>
+    </div>
+    <p id="mensaje" class="aviso" role="status" aria-live="polite" hidden></p>
+    <ul id="lista" class="lista"></ul>
+    <p id="vacio" class="vacio" hidden>No hay pagos en esta lista.</p>
+  </section>
+</main>
+<script src="/init/panel-config.js"></script>
+<script src="/estaticos/panel/panel.js"></script>
+</body>
+</html>
