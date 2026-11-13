@@ -1,0 +1,16 @@
+/* Ajustes para que Swagger UI se vea bien en pantallas angostas (hasta 320 px) sin desbordarse. */
+.swagger-ui .wrapper { padding: 0 12px; max-width: 100%; box-sizing: border-box; }
+.swagger-ui .info .title { word-break: break-word; }
+.swagger-ui .opblock-tag { flex-wrap: wrap; }
+.swagger-ui .opblock-tag small { flex: 1 1 100%; padding: 4px 0 0; }
+.swagger-ui .opblock .opblock-summary { flex-wrap: wrap; }
+.swagger-ui .opblock .opblock-summary-path, .swagger-ui .opblock .opblock-summary-path__deprecated,
+.swagger-ui .opblock .opblock-summary-description { word-break: break-word; overflow-wrap: anywhere; min-width: 0; }
+.swagger-ui .opblock .opblock-summary-description { flex: 1 1 100%; text-align: left; }
+.swagger-ui table.parameters, .swagger-ui table.responses-table { display: block; overflow-x: auto; max-width: 100%; }
+.swagger-ui .highlight-code pre, .swagger-ui .model-box, .swagger-ui .markdown pre { max-width: 100%; overflow-x: auto; }
+.swagger-ui .scheme-container, .swagger-ui .servers { padding: 12px; }
+.swagger-ui .btn.authorize { margin-top: 8px; }
+.swagger-ui .markdown p, .swagger-ui .markdown li, .swagger-ui .renderedMarkdown p { overflow-wrap: anywhere; }
+
+.swagger-ui code, .swagger-ui .markdown code { overflow-wrap: anywhere; word-break: break-word; max-width: 100%; }

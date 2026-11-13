@@ -1,0 +1,54 @@
+{
+  "version": "0.1.0",
+  "modelo": "logistica",
+  "conjunto": "historial",
+  "numericas": [
+    "monto_cop",
+    "transacciones_ultimas_24h",
+    "hora",
+    "es_madrugada",
+    "es_fin_semana",
+    "minutos_desde_anterior",
+    "ciudad_distinta_anterior",
+    "n_compras_previas",
+    "monto_vs_promedio",
+    "dispositivo_nuevo_cliente"
+  ],
+  "categoricas": [
+    "dispositivo",
+    "localizacion",
+    "metodo_pago",
+    "canal_pago",
+    "tipo_ip",
+    "estado_dispositivo",
+    "categoria"
+  ],
+  "umbral_revisar": 0.35,
+  "umbral_bloquear": 0.7,
+  "filas": {
+    "entrenamiento": 288848,
+    "validacion": 98354,
+    "prueba": 112798
+  },
+  "huella_datos": "a787987497eca088",
+  "scikit_learn": "1.6.1",
+  "datos_sinteticos": true,
+  "metricas_validacion": {
+    "umbral": 0.35,
+    "recall": 0.926420528934276,
+    "precision": 0.30395189003436424,
+    "ranking_ap": 0.8381667355547442,
+    "fraudes_que_escapan": 281,
+    "falsas_alarmas": 8102,
+    "costo_cop": 290282337.0
+  },
+  "metricas_prueba": {
+    "umbral": 0.35,
+    "recall": 0.9313661202185792,
+    "precision": 0.3208584337349398,
+    "ranking_ap": 0.8529990318373162,
+    "fraudes_que_escapan": 314,
+    "falsas_alarmas": 9019,
+    "costo_cop": 337083291.0
+  }
+}

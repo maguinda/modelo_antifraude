@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Los datos se pueden volver a generar con los scripts de datos/generadores/ (semilla fija).
+datos/*.csv
+datos/*.csv.gz
+!datos/dataset_antifraude_500_transacciones.csv
+
+# Base de datos local del API (claves y evaluaciones): nunca se sube
+api/datos_api.sqlite3*
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Demo local: base y claves de demostración
+api/demo/
+api/certificados_locales/

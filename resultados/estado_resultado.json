@@ -1,0 +1,62 @@
+{
+  "datos_sinteticos": true,
+  "tabla": [
+    {
+      "estado": "original",
+      "recall": 0.9297,
+      "precision": 0.4511,
+      "ranking_ap": 0.9215,
+      "falsas_alarmas": 4957,
+      "fraudes_que_escapan": 308,
+      "costo_millones": 243.5787
+    },
+    {
+      "estado": "derivado (primer pago = Nuevo)",
+      "recall": 0.9188,
+      "precision": 0.4021,
+      "ranking_ap": 0.903,
+      "falsas_alarmas": 5986,
+      "fraudes_que_escapan": 356,
+      "costo_millones": 268.8788
+    },
+    {
+      "estado": "derivado (primer pago = Conocido)",
+      "recall": 0.9297,
+      "precision": 0.3476,
+      "ranking_ap": 0.9019,
+      "falsas_alarmas": 7645,
+      "fraudes_que_escapan": 308,
+      "costo_millones": 268.9786
+    },
+    {
+      "estado": "sin la variable",
+      "recall": 0.9306,
+      "precision": 0.3482,
+      "ranking_ap": 0.902,
+      "falsas_alarmas": 7634,
+      "fraudes_que_escapan": 304,
+      "costo_millones": 265.4539
+    },
+    {
+      "estado": "sin reentrenar: modelo original + derivado",
+      "recall": 0.8895,
+      "precision": 0.2807,
+      "ranking_ap": 0.7973,
+      "falsas_alarmas": 9989,
+      "fraudes_que_escapan": 484,
+      "costo_millones": 451.2776
+    }
+  ],
+  "reparto": {
+    "original": {
+      "Conocido": 0.8989,
+      "No reconocido": 0.0115,
+      "Nuevo": 0.0896
+    },
+    "derivado (primer pago = Nuevo)": {
+      "Conocido": 0.4486,
+      "No reconocido": 0.0,
+      "Nuevo": 0.5514
+    }
+  }
+}

@@ -1,0 +1,20 @@
+:root { --fondo:#f5f6f8; --tarjeta:#fff; --texto:#1c2430; --suave:#5b6573; --borde:#d5dae1; --primario:#0b5cab; --primario-t:#fff; --ok:#0a6b3d; --mal:#a61b1b; --aviso:#8a5a00; }
+@media (prefers-color-scheme: dark) { :root { --fondo:#12161c; --tarjeta:#1b212a; --texto:#e8ecf1; --suave:#a3adba; --borde:#323b47; --primario:#5aa7ee; --primario-t:#0b1520; --ok:#4cc38a; --mal:#ff8a8a; --aviso:#f0b955; } }
+* { box-sizing:border-box; } html { -webkit-text-size-adjust:100%; }
+body { margin:0; font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--fondo); color:var(--texto); }
+.barra { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 16px; background:var(--tarjeta); border-bottom:1px solid var(--borde); }
+h1 { font-size:1.15rem; margin:0; } h2 { font-size:1.05rem; margin:16px 0 4px; } h3 { font-size:.95rem; margin:14px 0 4px; color:var(--suave); }
+.etiqueta { font-size:.75rem; font-weight:700; padding:2px 8px; border:1px solid var(--aviso); color:var(--aviso); border-radius:99px; }
+main { max-width:680px; margin:0 auto; padding:16px; } .nota { background:var(--tarjeta); border:1px solid var(--borde); border-radius:10px; padding:12px; }
+.tarjeta { background:var(--tarjeta); border:1px solid var(--borde); border-radius:10px; padding:14px; margin-top:14px; }
+label { display:block; font-weight:600; margin:12px 0 4px; } .casilla { display:flex; align-items:center; gap:10px; min-height:44px; }
+input[type=text], input[type=number], select { width:100%; min-height:44px; padding:10px 12px; font:inherit; color:var(--texto); background:var(--fondo); border:1px solid var(--borde); border-radius:8px; }
+select { -webkit-appearance:none; appearance:none; padding-right:38px; background-image:linear-gradient(45deg, transparent 50%, var(--suave) 50%), linear-gradient(135deg, var(--suave) 50%, transparent 50%); background-position:calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size:6px 6px, 6px 6px; background-repeat:no-repeat; }
+input[type=checkbox] { width:24px; height:24px; }
+button.primario { width:100%; min-height:48px; margin-top:16px; font:inherit; font-weight:700; background:var(--primario); color:var(--primario-t); border:0; border-radius:8px; cursor:pointer; } button:disabled { opacity:.6; }
+:focus-visible { outline:3px solid var(--primario); outline-offset:2px; }
+.ayuda { color:var(--suave); font-size:.9rem; margin:4px 0 0; } .error { color:var(--mal); font-weight:600; }
+.decision { font-size:1.5rem; font-weight:800; margin:6px 0; } .decision.APROBADA { color:var(--ok); } .decision.RECHAZADA { color:var(--mal); } .decision.EN_REVISION { color:var(--aviso); }
+dl.datos { display:grid; grid-template-columns:minmax(110px,40%) 1fr; gap:6px 12px; margin:0; } dl.datos dt { color:var(--suave); } dl.datos dd { margin:0; font-weight:600; overflow-wrap:anywhere; }
+pre { margin:0; padding:10px; background:var(--fondo); border:1px solid var(--borde); border-radius:8px; overflow-x:auto; white-space:pre-wrap; overflow-wrap:anywhere; font-size:.85rem; }
+@media (max-width:420px) { main { padding:12px; } dl.datos { grid-template-columns:1fr; gap:0; } dl.datos dd { margin-bottom:8px; } }

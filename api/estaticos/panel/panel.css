@@ -1,0 +1,49 @@
+:root { --fondo:#f5f6f8; --tarjeta:#fff; --texto:#1c2430; --suave:#5b6573; --borde:#d5dae1; --primario:#0b5cab; --primario-t:#fff;
+        --ok:#0a6b3d; --mal:#a61b1b; --aviso:#8a5a00; --radio:10px; }
+@media (prefers-color-scheme: dark) {
+  :root { --fondo:#12161c; --tarjeta:#1b212a; --texto:#e8ecf1; --suave:#a3adba; --borde:#323b47; --primario:#5aa7ee; --primario-t:#0b1520;
+          --ok:#4cc38a; --mal:#ff8a8a; --aviso:#f0b955; } }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin:0; font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--fondo); color:var(--texto); }
+.barra { position:sticky; top:0; z-index:2; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px;
+         padding:10px 16px; background:var(--tarjeta); border-bottom:1px solid var(--borde); }
+h1 { font-size:1.15rem; margin:0; }
+h2 { font-size:1.05rem; margin:0 0 8px; }
+.acciones { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.contador { font-weight:600; color:var(--suave); }
+main { max-width:860px; margin:0 auto; padding:16px; }
+.tarjeta, .item { background:var(--tarjeta); border:1px solid var(--borde); border-radius:var(--radio); padding:14px; }
+label { display:block; font-weight:600; margin:10px 0 4px; }
+input, select, textarea { width:100%; min-height:44px; padding:10px 12px; font:inherit; color:var(--texto); background:var(--fondo);
+                          border:1px solid var(--borde); border-radius:8px; }
+textarea { min-height:88px; resize:vertical; }
+/* Safari ignora la altura mínima de un <select> nativo: se dibuja igual en todos los navegadores (flecha hecha con degradados, sin imágenes) */
+select { -webkit-appearance:none; appearance:none; min-height:44px; padding-right:38px; cursor:pointer;
+  background-image:linear-gradient(45deg, transparent 50%, var(--suave) 50%), linear-gradient(135deg, var(--suave) 50%, transparent 50%);
+  background-position:calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size:6px 6px, 6px 6px; background-repeat:no-repeat; }
+button { min-height:44px; padding:10px 16px; font:inherit; font-weight:600; border-radius:8px; border:1px solid var(--borde);
+         background:var(--tarjeta); color:var(--texto); cursor:pointer; }
+button.primario { background:var(--primario); color:var(--primario-t); border-color:var(--primario); margin-top:12px; }
+button.ok { color:var(--ok); border-color:var(--ok); } button.mal { color:var(--mal); border-color:var(--mal); }
+button.confirmar.ok { background:var(--ok); color:#fff; } button.confirmar.mal { background:var(--mal); color:#fff; }
+button:disabled { opacity:.55; cursor:not-allowed; }
+:focus-visible { outline:3px solid var(--primario); outline-offset:2px; }
+.filtros { display:flex; align-items:center; gap:10px; margin-bottom:12px; } .filtros label { margin:0; } .filtros select { width:auto; min-width:150px; }
+.lista { list-style:none; margin:0; padding:0; display:grid; gap:12px; }
+.item summary { cursor:pointer; list-style:none; display:grid; gap:4px; min-height:44px; }
+.item summary::-webkit-details-marker { display:none; }
+.fila1 { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 12px; align-items:baseline; }
+.monto { font-size:1.2rem; font-weight:700; }
+.riesgo { font-weight:700; } .riesgo.alto { color:var(--mal); } .riesgo.medio { color:var(--aviso); } .riesgo.bajo { color:var(--ok); }
+.barra-riesgo { height:8px; background:var(--borde); border-radius:4px; overflow:hidden; } .barra-riesgo > span { display:block; height:100%; background:var(--aviso); }
+.meta { color:var(--suave); font-size:.9rem; overflow-wrap:anywhere; }
+.detalle { margin-top:12px; display:grid; gap:12px; }
+.detalle h3 { font-size:.95rem; margin:0 0 4px; color:var(--suave); }
+.detalle ul { margin:0; padding-left:20px; }
+dl.datos { display:grid; grid-template-columns:minmax(110px,40%) 1fr; gap:6px 12px; margin:0; }
+dl.datos dt { color:var(--suave); } dl.datos dd { margin:0; overflow-wrap:anywhere; font-weight:600; }
+.botones { display:flex; flex-wrap:wrap; gap:10px; } .botones button { flex:1 1 140px; }
+.aviso { padding:10px 12px; border-radius:8px; border:1px solid var(--borde); background:var(--tarjeta); }
+.error { color:var(--mal); font-weight:600; } .vacio { text-align:center; color:var(--suave); padding:24px 0; }
+@media (max-width:420px) { main { padding:12px; } dl.datos { grid-template-columns:1fr; gap:0; } dl.datos dd { margin-bottom:8px; } }

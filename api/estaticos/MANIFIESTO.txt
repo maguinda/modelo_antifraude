@@ -1,0 +1,7 @@
+# Archivos de terceros servidos desde este servidor (sin CDN). Si cambian, una prueba avisa.
+# sha256  archivo  origen
+c2e4a9ef08144839ff47c14202063ecfe4e59e70a4e7154a26bd50d880c88ba1  swagger-ui-bundle.js  cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14
+40170f0ee859d17f92131ba707329a88a070e4f66874d11365e9a77d232f6117  swagger-ui.css  cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14
+3ed612f41e050ca5e7000cad6f1cbe7e7da39f65fca99c02e99e6591056e5837  favicon.png  cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14 (favicon-32x32.png)
+75cfdd7263007dc52d234ff3267014a81ab199526a26135d785f39be74297e78  redoc.standalone.js  cdn.jsdelivr.net/npm/redoc@2.1.5/bundles | MODIFICADO: se cambió la dirección externa del logo (cdn.redoc.ly/redoc/logo-mini.svg) por /estaticos/logo-vacio.svg; sha256 original be5c3330c8c35b8fceb29a5b7552ad45bffc2fd9494fe2e1a82fa94179eb5f8f
+38faf4153750fdb3d8b4ac3c34650dce4c2128f5c7b1dce0c1f5efb5c2522809  logo-vacio.svg  propio (imagen vacía de 1 px)

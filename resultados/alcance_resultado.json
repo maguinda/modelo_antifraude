@@ -1,0 +1,57 @@
+{
+  "datos_sinteticos": true,
+  "tabla": [
+    {
+      "alcance": "plataforma",
+      "modelo": "gradient_boosting",
+      "recall": 0.9359,
+      "precision": 0.3265,
+      "ranking_ap": 0.9168,
+      "falsas_alarmas": 8461,
+      "fraudes_que_escapan": 281,
+      "costo_millones": 265.4761,
+      "umbral": 0.25
+    },
+    {
+      "alcance": "comercio",
+      "modelo": "gradient_boosting",
+      "recall": 0.9525,
+      "precision": 0.4158,
+      "ranking_ap": 0.9405,
+      "falsas_alarmas": 5864,
+      "fraudes_que_escapan": 208,
+      "costo_millones": 207.7637,
+      "umbral": 0.2
+    }
+  ],
+  "recall_por_patron": {
+    "gradient_boosting|plataforma": {
+      "bot_relleno_tarjetas": 1.0,
+      "cuenta_nueva_2fa_fallida": 1.0,
+      "fraude_amistoso": 0.404,
+      "fraude_disimulado": 0.758,
+      "granja_dispositivos": 1.0,
+      "ip_anonima": 0.952,
+      "madrugada_monto_alto": 1.0,
+      "navegador_antidetect": 1.0,
+      "prueba_tarjeta": 1.0,
+      "rafaga_velocidad": 1.0,
+      "toma_cuenta": 1.0,
+      "viaje_imposible": 1.0
+    },
+    "gradient_boosting|comercio": {
+      "bot_relleno_tarjetas": 1.0,
+      "cuenta_nueva_2fa_fallida": 1.0,
+      "fraude_amistoso": 0.557,
+      "fraude_disimulado": 0.818,
+      "granja_dispositivos": 1.0,
+      "ip_anonima": 0.972,
+      "madrugada_monto_alto": 1.0,
+      "navegador_antidetect": 1.0,
+      "prueba_tarjeta": 1.0,
+      "rafaga_velocidad": 1.0,
+      "toma_cuenta": 1.0,
+      "viaje_imposible": 1.0
+    }
+  }
+}
