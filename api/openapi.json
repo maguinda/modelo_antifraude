@@ -278,6 +278,17 @@
             "title": "Id Evaluacion",
             "type": "string"
           },
+          "id_seguimiento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Seguimiento"
+          },
           "id_transaccion": {
             "title": "Id Transaccion",
             "type": "string"
@@ -751,6 +762,11 @@
             "title": "Id Evaluacion",
             "type": "string"
           },
+          "id_seguimiento": {
+            "description": "Identificador de seguimiento que asigna ESTE sistema a cada pago, legible (p. ej. `AF-7K3Q-9M2X`). Guárdalo junto a tu `id_transaccion`: sirve para rastrear el pago en el panel y para hablar de él con soporte. También llega en la cabecera `X-Id-Seguimiento`.",
+            "title": "Id Seguimiento",
+            "type": "string"
+          },
           "id_transaccion": {
             "title": "Id Transaccion",
             "type": "string"
@@ -832,6 +848,7 @@
         },
         "required": [
           "id_evaluacion",
+          "id_seguimiento",
           "id_transaccion",
           "decision",
           "modo",
@@ -1736,6 +1753,7 @@
                       "decision_final": "APROBADA",
                       "evaluada_en": "2026-11-12T18:30:00.123456",
                       "id_evaluacion": "3f1c9a52-8e0b-4d1f-9a54-0c6f6c2a7b11",
+                      "id_seguimiento": "AF-7K3Q-9M2X",
                       "id_transaccion": "PED-100234",
                       "latencia_ms": 18.4,
                       "modelo": {
@@ -1756,6 +1774,7 @@
                       "decision": "EN_REVISION",
                       "evaluada_en": "2026-11-12T18:31:00.000000",
                       "id_evaluacion": "b9e0c8d3-5a64-49c1-b0a7-1f3d2e4c5d66",
+                      "id_seguimiento": "AF-B6TC-0R5J",
                       "id_transaccion": "PED-100237",
                       "latencia_ms": 19.9,
                       "modelo": {
@@ -1780,6 +1799,7 @@
                       "decision_final": "RECHAZADA",
                       "evaluada_en": "2026-11-12T03:12:01.004211",
                       "id_evaluacion": "7a2d41f0-1b7c-4b0e-8d2a-52e2f5b3c9aa",
+                      "id_seguimiento": "AF-4H8D-2WZN",
                       "id_transaccion": "PED-100235",
                       "latencia_ms": 21.7,
                       "modelo": {
@@ -1819,6 +1839,7 @@
                       "decision_final": "APROBADA",
                       "evaluada_en": "2026-11-12T18:30:00.123456",
                       "id_evaluacion": "3f1c9a52-8e0b-4d1f-9a54-0c6f6c2a7b11",
+                      "id_seguimiento": "AF-7K3Q-9M2X",
                       "id_transaccion": "PED-100234",
                       "latencia_ms": 18.4,
                       "modelo": {
@@ -1839,6 +1860,7 @@
                       "decision": "EN_REVISION",
                       "evaluada_en": "2026-11-12T18:31:00.000000",
                       "id_evaluacion": "b9e0c8d3-5a64-49c1-b0a7-1f3d2e4c5d66",
+                      "id_seguimiento": "AF-B6TC-0R5J",
                       "id_transaccion": "PED-100237",
                       "latencia_ms": 19.9,
                       "modelo": {
@@ -1863,6 +1885,7 @@
                       "decision_final": "RECHAZADA",
                       "evaluada_en": "2026-11-12T03:12:01.004211",
                       "id_evaluacion": "7a2d41f0-1b7c-4b0e-8d2a-52e2f5b3c9aa",
+                      "id_seguimiento": "AF-4H8D-2WZN",
                       "id_transaccion": "PED-100235",
                       "latencia_ms": 21.7,
                       "modelo": {
@@ -1979,13 +2002,13 @@
         "operationId": "consultar_evaluacion",
         "parameters": [
           {
-            "description": "Identificador devuelto al evaluar.",
+            "description": "`id_evaluacion` o `id_seguimiento` (AF-XXXX-XXXX) devueltos al evaluar.",
             "in": "path",
             "name": "id_evaluacion",
             "required": true,
             "schema": {
-              "description": "Identificador devuelto al evaluar.",
-              "pattern": "^[0-9a-fA-F\\-]{36}$",
+              "description": "`id_evaluacion` o `id_seguimiento` (AF-XXXX-XXXX) devueltos al evaluar.",
+              "pattern": "^(?:[0-9a-fA-F\\-]{36}|[Aa][Ff]-[0-9A-Za-z]{4}-[0-9A-Za-z]{4})$",
               "title": "Id Evaluacion",
               "type": "string"
             }
@@ -2074,7 +2097,7 @@
             "name": "id_evaluacion",
             "required": true,
             "schema": {
-              "pattern": "^[0-9a-fA-F\\-]{36}$",
+              "pattern": "^(?:[0-9a-fA-F\\-]{36}|[Aa][Ff]-[0-9A-Za-z]{4}-[0-9A-Za-z]{4})$",
               "title": "Id Evaluacion",
               "type": "string"
             }
@@ -2446,6 +2469,1160 @@
         ]
       }
     },
+    "/v1/panel/comercios": {
+      "get": {
+        "description": "Solo analistas y administradores.",
+        "operationId": "panel_comercios",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Panel Comercios",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Comercios (para el filtro del panel)",
+        "tags": [
+          "Panel de control"
+        ]
+      }
+    },
+    "/v1/panel/resumen": {
+      "get": {
+        "description": "Indicadores del periodo y los filtros pedidos. `por_comercio` solo trae varios comercios para analistas y administradores.",
+        "operationId": "panel_resumen",
+        "parameters": [
+          {
+            "description": "Solo analistas y administradores; un comercio solo ve lo suyo.",
+            "in": "query",
+            "name": "comercio_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo analistas y administradores; un comercio solo ve lo suyo.",
+              "title": "Comercio Id"
+            }
+          },
+          {
+            "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+            "in": "query",
+            "name": "desde",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+              "title": "Desde"
+            }
+          },
+          {
+            "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+            "in": "query",
+            "name": "hasta",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+              "title": "Hasta"
+            }
+          },
+          {
+            "description": "APROBADA, RECHAZADA o EN_REVISION (la decisión inicial).",
+            "in": "query",
+            "name": "decision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "APROBADA, RECHAZADA o EN_REVISION (la decisión inicial).",
+              "title": "Decision"
+            }
+          },
+          {
+            "description": "normal o degradado.",
+            "in": "query",
+            "name": "modo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "normal o degradado.",
+              "title": "Modo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "monto_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Monto Min"
+            }
+          },
+          {
+            "in": "query",
+            "name": "monto_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Monto Max"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id_cliente",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Id Cliente"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id_transaccion",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Id Transaccion"
+            }
+          },
+          {
+            "description": "Identificador de seguimiento (AF-XXXX-XXXX).",
+            "in": "query",
+            "name": "id_seguimiento",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Identificador de seguimiento (AF-XXXX-XXXX).",
+              "title": "Id Seguimiento"
+            }
+          },
+          {
+            "description": "Nombre exacto de una regla que se activó.",
+            "in": "query",
+            "name": "regla",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Nombre exacto de una regla que se activó.",
+              "title": "Regla"
+            }
+          },
+          {
+            "description": "Código corto de IP (8 caracteres) como el que muestra el panel.",
+            "in": "query",
+            "name": "ip",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código corto de IP (8 caracteres) como el que muestra el panel.",
+              "title": "Ip"
+            }
+          },
+          {
+            "description": "Código corto de dispositivo (8 caracteres).",
+            "in": "query",
+            "name": "dispositivo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código corto de dispositivo (8 caracteres).",
+              "title": "Dispositivo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Panel Resumen",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "No existe (o no pertenece a tu comercio)."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Datos inválidos (incluye el envío de datos de tarjeta)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Resumen: totales, por día, por comercio, reglas y calidad",
+        "tags": [
+          "Panel de control"
+        ]
+      }
+    },
+    "/v1/panel/transacciones": {
+      "get": {
+        "description": "Lista paginada de pagos evaluados. Filtra por comercio, fechas, decisión, modo, monto, cliente, regla, IP o dispositivo. La IP y la huella del dispositivo se muestran como **códigos cortos**, nunca en claro. Analistas y administradores ven todos los comercios; un comercio, solo los suyos.",
+        "operationId": "panel_transacciones",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "orden",
+            "required": false,
+            "schema": {
+              "default": "fecha_desc",
+              "pattern": "^(fecha_desc|fecha_asc|monto_desc|riesgo_desc)$",
+              "title": "Orden",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "desplazamiento",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 100000,
+              "minimum": 0,
+              "title": "Desplazamiento",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Solo analistas y administradores; un comercio solo ve lo suyo.",
+            "in": "query",
+            "name": "comercio_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo analistas y administradores; un comercio solo ve lo suyo.",
+              "title": "Comercio Id"
+            }
+          },
+          {
+            "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+            "in": "query",
+            "name": "desde",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+              "title": "Desde"
+            }
+          },
+          {
+            "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+            "in": "query",
+            "name": "hasta",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+              "title": "Hasta"
+            }
+          },
+          {
+            "description": "APROBADA, RECHAZADA o EN_REVISION (la decisión inicial).",
+            "in": "query",
+            "name": "decision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "APROBADA, RECHAZADA o EN_REVISION (la decisión inicial).",
+              "title": "Decision"
+            }
+          },
+          {
+            "description": "normal o degradado.",
+            "in": "query",
+            "name": "modo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "normal o degradado.",
+              "title": "Modo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "monto_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Monto Min"
+            }
+          },
+          {
+            "in": "query",
+            "name": "monto_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Monto Max"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id_cliente",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Id Cliente"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id_transaccion",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Id Transaccion"
+            }
+          },
+          {
+            "description": "Identificador de seguimiento (AF-XXXX-XXXX).",
+            "in": "query",
+            "name": "id_seguimiento",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Identificador de seguimiento (AF-XXXX-XXXX).",
+              "title": "Id Seguimiento"
+            }
+          },
+          {
+            "description": "Nombre exacto de una regla que se activó.",
+            "in": "query",
+            "name": "regla",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Nombre exacto de una regla que se activó.",
+              "title": "Regla"
+            }
+          },
+          {
+            "description": "Código corto de IP (8 caracteres) como el que muestra el panel.",
+            "in": "query",
+            "name": "ip",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código corto de IP (8 caracteres) como el que muestra el panel.",
+              "title": "Ip"
+            }
+          },
+          {
+            "description": "Código corto de dispositivo (8 caracteres).",
+            "in": "query",
+            "name": "dispositivo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código corto de dispositivo (8 caracteres).",
+              "title": "Dispositivo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Panel Transacciones",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "No existe (o no pertenece a tu comercio)."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Datos inválidos (incluye el envío de datos de tarjeta)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Pagos con filtros (solo lectura)",
+        "tags": [
+          "Panel de control"
+        ]
+      }
+    },
+    "/v1/panel/transacciones/{id_pago}": {
+      "get": {
+        "description": "Detalle completo: identificadores (el del comercio y el de seguimiento), datos recibidos y cuáles NO se mandaron, puntaje y umbrales, reglas activadas y su efecto, revisión, resultado posterior, auditoría y pagos relacionados (misma IP, mismo dispositivo, mismo cliente). Acepta `id_seguimiento` (AF-XXXX-XXXX) o `id_evaluacion`.",
+        "operationId": "panel_detalle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id_pago",
+            "required": true,
+            "schema": {
+              "pattern": "^(?:[0-9a-fA-F\\-]{36}|[Aa][Ff]-[0-9A-Za-z]{4}-[0-9A-Za-z]{4})$",
+              "title": "Id Pago",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Panel Detalle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "No existe (o no pertenece a tu comercio)."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Datos inválidos (incluye el envío de datos de tarjeta)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Todo sobre un pago: cómo se decidió",
+        "tags": [
+          "Panel de control"
+        ]
+      }
+    },
+    "/v1/panel/vinculos": {
+      "get": {
+        "description": "Varios clientes desde una misma IP, varios clientes con un mismo dispositivo, un cliente con varias IPs y ráfagas de pagos desde una IP. `minimo` es cuántos clientes, IPs o pagos hacen falta para listarlo. Cada fila trae un `filtro` para ver esos pagos.",
+        "operationId": "panel_vinculos",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "minimo",
+            "required": false,
+            "schema": {
+              "default": 3,
+              "maximum": 1000,
+              "minimum": 2,
+              "title": "Minimo",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Solo analistas y administradores; un comercio solo ve lo suyo.",
+            "in": "query",
+            "name": "comercio_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo analistas y administradores; un comercio solo ve lo suyo.",
+              "title": "Comercio Id"
+            }
+          },
+          {
+            "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+            "in": "query",
+            "name": "desde",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+              "title": "Desde"
+            }
+          },
+          {
+            "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+            "in": "query",
+            "name": "hasta",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+              "title": "Hasta"
+            }
+          },
+          {
+            "description": "APROBADA, RECHAZADA o EN_REVISION (la decisión inicial).",
+            "in": "query",
+            "name": "decision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "APROBADA, RECHAZADA o EN_REVISION (la decisión inicial).",
+              "title": "Decision"
+            }
+          },
+          {
+            "description": "normal o degradado.",
+            "in": "query",
+            "name": "modo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "normal o degradado.",
+              "title": "Modo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "monto_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Monto Min"
+            }
+          },
+          {
+            "in": "query",
+            "name": "monto_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Monto Max"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id_cliente",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Id Cliente"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id_transaccion",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Id Transaccion"
+            }
+          },
+          {
+            "description": "Identificador de seguimiento (AF-XXXX-XXXX).",
+            "in": "query",
+            "name": "id_seguimiento",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Identificador de seguimiento (AF-XXXX-XXXX).",
+              "title": "Id Seguimiento"
+            }
+          },
+          {
+            "description": "Nombre exacto de una regla que se activó.",
+            "in": "query",
+            "name": "regla",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Nombre exacto de una regla que se activó.",
+              "title": "Regla"
+            }
+          },
+          {
+            "description": "Código corto de IP (8 caracteres) como el que muestra el panel.",
+            "in": "query",
+            "name": "ip",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código corto de IP (8 caracteres) como el que muestra el panel.",
+              "title": "Ip"
+            }
+          },
+          {
+            "description": "Código corto de dispositivo (8 caracteres).",
+            "in": "query",
+            "name": "dispositivo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código corto de dispositivo (8 caracteres).",
+              "title": "Dispositivo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Panel Vinculos",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "No existe (o no pertenece a tu comercio)."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Datos inválidos (incluye el envío de datos de tarjeta)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Patrones entre pagos: misma IP, mismo dispositivo, ráfagas",
+        "tags": [
+          "Panel de control"
+        ]
+      }
+    },
     "/v1/revisiones": {
       "get": {
         "description": "Pagos que esperan a un analista, del más antiguo al más reciente. Solo analistas y administradores.",
@@ -2559,7 +3736,7 @@
             "name": "id_evaluacion",
             "required": true,
             "schema": {
-              "pattern": "^[0-9a-fA-F\\-]{36}$",
+              "pattern": "^(?:[0-9a-fA-F\\-]{36}|[Aa][Ff]-[0-9A-Za-z]{4}-[0-9A-Za-z]{4})$",
               "title": "Id Evaluacion",
               "type": "string"
             }

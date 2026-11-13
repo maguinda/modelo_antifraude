@@ -1323,3 +1323,201 @@ def test_se_entrena_y_se_registra_el_modelo_sin_estado(ruta_csv_completo, carpet
     normal = entrenar.ajustar_y_evaluar(df, m, "logistica", "completo")
     with pytest.raises(ValueError, match="--sin-estado"):
         entrenar.guardar(normal, ruta_csv_completo, como_actual_sin_estado=True)             # un modelo normal no puede ocupar ese lugar
+
+
+# ------------------------------------------------------------------ identificador de seguimiento y panel de control (solo lectura)
+import re as _re
+
+PATRON_SEG = _re.compile(r"^AF-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$")
+
+
+def pago_ip(tx, cliente, ip, **cambios):
+    return pago(tx, cliente, red={"ip": ip}, **cambios)
+
+
+def panel(ctx, ruta, quien="analista", **params):
+    return ctx.cliente.get("/v1/panel/" + ruta, params=params, headers=ctx.h(quien))
+
+
+def test_cada_pago_recibe_su_identificador_de_seguimiento_unico_y_estable(ctx):
+    r = [ctx.evaluar(pago(f"S{i}", f"CS{i}")) for i in range(12)]
+    ids = [x.json()["id_seguimiento"] for x in r]
+    assert all(PATRON_SEG.match(i) for i in ids) and len(set(ids)) == 12
+    assert all(x.headers["X-Id-Seguimiento"] == x.json()["id_seguimiento"] for x in r)
+    repetida = ctx.evaluar(pago("S0", "CS0"))
+    assert repetida.status_code == 200 and repetida.json()["id_seguimiento"] == ids[0]              # la repetición conserva su identificador
+
+
+def test_se_consulta_por_seguimiento_en_minusculas_y_otro_comercio_recibe_404(ctx):
+    seg = ctx.evaluar(pago("S20", "CS20")).json()["id_seguimiento"]
+    interno = ctx.cliente.get(f"/v1/evaluaciones/{seg.lower()}", headers=ctx.h("A"))
+    assert interno.status_code == 200 and interno.json()["id_transaccion"] == "S20"
+    assert ctx.cliente.get(f"/v1/evaluaciones/{seg}", headers=ctx.h("B")).status_code == 404
+    assert ctx.cliente.get("/v1/evaluaciones/AF-ZZZZ-ZZZZ", headers=ctx.h("A")).status_code == 404
+
+
+def test_una_base_vieja_sin_columnas_del_panel_se_rellena_sin_repetir_ids(tmp_path, artefacto):
+    c = construir_contexto(tmp_path, artefacto)
+    for i in range(5):
+        c.evaluar(pago_ip(f"V{i}", f"CV{i}", "192.0.2.10"), "A")
+    antes = sqlite3.connect(c.bd).execute("SELECT id, ip_codigo, disp_codigo, monto_cop FROM evaluaciones ORDER BY id").fetchall()
+    con = sqlite3.connect(c.bd)
+    for ix in ("ux_eval_seguimiento", "ix_eval_ip", "ix_eval_disp"):                          # una base vieja no tenía estos índices
+        con.execute(f"DROP INDEX {ix}")
+    for col in ("id_seguimiento", "ip_codigo", "disp_codigo", "monto_cop", "no_enviados_json"):
+        con.execute(f"ALTER TABLE evaluaciones DROP COLUMN {col}")
+    con.commit(); con.close()
+    Almacen(c.bd, "pepper-de-prueba").inicializar()
+    despues = sqlite3.connect(c.bd).execute("SELECT id, ip_codigo, disp_codigo, monto_cop, id_seguimiento FROM evaluaciones ORDER BY id").fetchall()
+    assert [d[:4] for d in despues] == [tuple(a) for a in antes]                           # mismos códigos y montos calculados desde lo ya guardado
+    segs = [d[4] for d in despues]
+    assert all(PATRON_SEG.match(s) for s in segs) and len(set(segs)) == 5
+
+
+def test_el_panel_lista_con_aislamiento_filtros_y_paginacion(ctx):
+    ctx.evaluar(pago_ip("L1", "CL1", "192.0.2.10", monto_cop=100000, fecha_pago="2026-11-03T10:00:00"), "A")
+    ctx.evaluar(pago_ip("L2", "CL2", "192.0.2.11", monto_cop=900000, fecha_pago="2026-11-05T10:00:00"), "A")
+    ctx.evaluar(pago_ip("L3", "CL3", "192.0.2.10", monto_cop=300000, fecha_pago="2026-11-09T10:00:00"), "A")
+    ctx.evaluar(pago_ip("M1", "CM1", "192.0.2.10", monto_cop=500000, fecha_pago="2026-11-09T11:00:00"), "B")
+    ids = lambda r: [t["id_transaccion"] for t in r.json()["transacciones"]]
+    todo = panel(ctx, "transacciones")
+    assert todo.json()["total"] == 4 and set(ids(todo)) == {"L1", "L2", "L3", "M1"}                    # el analista ve todos los comercios
+    assert set(ids(panel(ctx, "transacciones", "A"))) == {"L1", "L2", "L3"}                            # un comercio, solo los suyos
+    assert panel(ctx, "transacciones", "A", comercio_id=ctx.comercios["B"]).status_code == 404         # y no puede pedir el de otro
+    assert set(ids(panel(ctx, "transacciones", comercio_id=ctx.comercios["B"]))) == {"M1"}
+    assert set(ids(panel(ctx, "transacciones", desde="2026-11-05", hasta="2026-11-09"))) == {"L2", "L3", "M1"}
+    assert set(ids(panel(ctx, "transacciones", monto_min=300000, monto_max=600000))) == {"L3", "M1"}
+    assert set(ids(panel(ctx, "transacciones", id_cliente="CL2"))) == {"L2"}
+    assert ids(panel(ctx, "transacciones", orden="monto_desc")) == ["L2", "M1", "L3", "L1"]
+    assert ids(panel(ctx, "transacciones", orden="fecha_asc"))[0] == "L1"
+    pagina = panel(ctx, "transacciones", orden="fecha_asc", limite=2, desplazamiento=2).json()
+    assert pagina["total"] == 4 and len(pagina["transacciones"]) == 2
+    codigo = todo.json()["transacciones"][0]["ip"]
+    por_ip = panel(ctx, "transacciones", ip=[t for t in todo.json()["transacciones"] if t["id_transaccion"] == "L1"][0]["ip"])
+    assert set(ids(por_ip)) == {"L1", "L3", "M1"} and codigo                                           # misma IP, incluso entre comercios (solo para el analista)
+    assert set(ids(panel(ctx, "transacciones", "A", ip=[t for t in todo.json()["transacciones"] if t["id_transaccion"] == "L1"][0]["ip"]))) == {"L1", "L3"}
+
+
+def test_el_panel_filtra_por_decision_modo_y_regla(ctx):
+    ctx.agregar_lista_negra = None
+    ctx.cliente.put("/v1/lista-negra/MALO", json={"motivo": "prueba"}, headers=ctx.h("A"))
+    ctx.evaluar(pago("F1", "MALO"))
+    ctx.evaluar(pago("F2", "CF2"))
+    ctx.evaluar(pago_minimo("F3", "CF3"))
+    por = lambda **k: {t["id_transaccion"] for t in panel(ctx, "transacciones", **k).json()["transacciones"]}
+    assert por(decision="RECHAZADA") == {"F1"} and por(regla="lista_negra_cliente") == {"F1"}
+    assert por(modo="degradado") == {"F3"} and "F3" not in por(modo="normal")
+
+
+def test_el_panel_rechaza_entradas_raras_y_no_se_deja_inyectar(ctx):
+    ctx.evaluar(pago("R1", "CR1"))
+    for malo in ({"desde": "2026-13-45"}, {"desde": "2026-11-10", "hasta": "2026-11-01"}, {"ip": "nada"}, {"dispositivo": "ZZZZZZZZ"},
+                 {"decision": "TAL_VEZ"}, {"modo": "raro"}, {"limite": 0}, {"limite": 500}, {"orden": "id; DROP TABLE evaluaciones"}, {"desde": "ayer"}):
+        assert panel(ctx, "transacciones", **malo).status_code == 422, malo
+    inyeccion = panel(ctx, "transacciones", id_cliente="x' OR '1'='1", regla="a') OR 1=1 --", id_transaccion="'; DROP TABLE evaluaciones; --")
+    assert inyeccion.status_code == 200 and inyeccion.json()["total"] == 0
+    assert panel(ctx, "transacciones").json()["total"] == 1                                            # la tabla sigue ahí
+
+
+def test_el_panel_nunca_muestra_la_ip_ni_la_huella_del_dispositivo(ctx):
+    r = ctx.evaluar(pago_ip("P1", "CP1", "192.0.2.77"))
+    seg = r.json()["id_seguimiento"]
+    ctx.evaluar(pago_ip("P2", "CP2", "192.0.2.77"))
+    huella = sqlite3.connect(ctx.bd).execute("SELECT json_extract(fila_json,'$.ip_huella') FROM evaluaciones WHERE id_transaccion='P1'").fetchone()[0]
+    textos = [panel(ctx, "transacciones").text, panel(ctx, f"transacciones/{seg}").text, panel(ctx, "resumen").text, panel(ctx, "vinculos", minimo=2).text]
+    for t in textos:
+        assert "192.0.2.77" not in t and huella not in t and "FP-CP1" not in t
+
+
+def test_el_detalle_explica_como_se_decidio_y_que_no_se_mando(ctx):
+    ctx.cliente.put("/v1/lista-negra/CD1", json={"motivo": "prueba"}, headers=ctx.h("A"))
+    seg = ctx.evaluar(pago_minimo("D1", "CD1")).json()["id_seguimiento"]
+    d = panel(ctx, f"transacciones/{seg}").json()
+    assert d["identificadores"]["id_transaccion"] == "D1" and d["identificadores"]["id_seguimiento"] == seg
+    assert d["decision"]["inicial"] == "RECHAZADA" and d["decision"]["decidio"] in ("regla de seguridad", "reglas de seguridad en modo degradado")
+    assert "kyc_nivel" in d["campos_no_enviados"] and d["datos_recibidos"]["identidad"]["kyc_nivel"]["enviado"] is False
+    assert d["datos_recibidos"]["pago"]["monto_cop"] == {"valor": 200000, "enviado": True}
+    nombres = [p["paso"] for p in d["como_se_decidio"]]
+    assert "Datos recibidos" in nombres and "Decisión inicial" in nombres and any(n.startswith("Regla: lista_negra_cliente") for n in nombres)
+    assert d["reglas_activadas"][0]["regla"] == "lista_negra_cliente" and any(a["accion"] == "evaluacion" for a in d["auditoria"])
+    assert d["modelo"]["modo"] == "degradado"
+
+
+def test_el_detalle_muestra_la_revision_y_el_resultado_despues(ctx):
+    r = ctx.evaluar(pago_minimo("D2", "CD2")).json()
+    assert r["decision"] == "EN_REVISION"
+    antes = panel(ctx, f"transacciones/{r['id_seguimiento']}").json()
+    assert antes["decision"]["final"] is None and antes["decision"]["decidio"] == "pendiente de analista" and antes["revision"]["estado"] == "pendiente"
+    ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA", "nota": "cliente confirmado"}, "analista")
+    ctx.post(f"/v1/evaluaciones/{r['id_evaluacion']}/resultado", {"resultado": "LEGITIMA"}, "A")
+    d = panel(ctx, f"transacciones/{r['id_evaluacion']}").json()                                      # también se encuentra por el identificador interno
+    assert d["decision"]["final"] == "APROBADA" and d["decision"]["decidio"] == "analista" and d["revision"]["nota"] == "cliente confirmado"
+    assert d["resultado_informado"]["resultado"] == "LEGITIMA"
+    assert {p["paso"] for p in d["como_se_decidio"]} >= {"Revisión manual", "Resultado posterior"}
+    filas = {t["id_transaccion"]: t for t in panel(ctx, "transacciones").json()["transacciones"]}
+    assert filas["D2"]["decision"] == "EN_REVISION" and filas["D2"]["decision_final"] == "APROBADA"
+
+
+def test_el_detalle_de_otro_comercio_da_404_y_muestra_relacionados(ctx):
+    a1 = ctx.evaluar(pago_ip("X1", "CX1", "192.0.2.90")).json()["id_seguimiento"]
+    ctx.evaluar(pago_ip("X2", "CX2", "192.0.2.90"))
+    ctx.evaluar(pago_ip("Y1", "CY1", "192.0.2.90"), "B")
+    assert panel(ctx, f"transacciones/{a1}", "B").status_code == 404
+    assert panel(ctx, f"transacciones/{a1}").json()["relacionados"]["misma_ip"]["otros_pagos"] == 2          # el analista ve también el otro comercio
+    mio = panel(ctx, f"transacciones/{a1}", "A").json()["relacionados"]
+    assert mio["misma_ip"]["otros_pagos"] == 1 and mio["mismo_cliente"]["otros_pagos"] == 0                 # el comercio, solo lo suyo
+
+
+def test_el_resumen_cuadra_con_el_listado_y_respeta_comercios(ctx):
+    ctx.cliente.put("/v1/lista-negra/CMAL", json={"motivo": "prueba"}, headers=ctx.h("A"))
+    ctx.evaluar(pago("Z1", "CZ1", monto_cop=100000)); ctx.evaluar(pago("Z2", "CMAL", monto_cop=700000)); ctx.evaluar(pago_minimo("Z3", "CZ3"))
+    ctx.evaluar(pago("W1", "CW1", monto_cop=50000), "B")
+    r = panel(ctx, "resumen").json()
+    lista = panel(ctx, "transacciones", limite=200).json()
+    t = r["totales"]
+    assert t["pagos"] == lista["total"] == 4 and t["aprobadas"] + t["en_revision"] + t["rechazadas"] == 4
+    assert t["monto_cop"] == 100000 + 700000 + 200000 + 50000 and t["monto_rechazado_cop"] == 700000 and t["modo_degradado"] == 1
+    assert sum(d["aprobadas"] + d["en_revision"] + d["rechazadas"] for d in r["por_dia"]) == 4
+    assert {c["nombre"] for c in r["por_comercio"]} == {"Tienda A", "Tienda B"} and sum(c["pagos"] for c in r["por_comercio"]) == 4
+    assert sum(b["pagos"] for b in r["distribucion_del_puntaje"]) == 3 and any(x["regla"] == "lista_negra_cliente" for x in r["reglas_mas_activadas"])
+    solo_a = panel(ctx, "resumen", "A").json()
+    assert solo_a["totales"]["pagos"] == 3 and [c["nombre"] for c in solo_a["por_comercio"]] == ["Tienda A"]
+    assert panel(ctx, "resumen", desde="2030-01-01").json()["totales"]["pagos"] == 0                       # un periodo vacío no rompe nada
+
+
+def test_los_vinculos_encuentran_misma_ip_dispositivo_cliente_y_rafagas(ctx):
+    for i in range(4):                                                                                      # 4 clientes, una IP, minutos de diferencia
+        ctx.evaluar(pago_ip(f"I{i}", f"CI{i}", "198.51.100.5", fecha_pago=f"2026-11-11T09:0{i}:00"))
+    for i in range(3):                                                                                      # 3 clientes, un dispositivo
+        ctx.evaluar(pago(f"G{i}", f"CG{i}", dispositivo={"huella": "FP-GRANJA"}, red={"ip": f"192.0.2.{20 + i}"}))
+    for i in range(3):                                                                                      # 1 cliente, 3 IPs
+        ctx.evaluar(pago_ip(f"K{i}", "CKK", f"192.0.2.{40 + i}"))
+    ctx.evaluar(pago_ip("O1", "COTRO", "198.51.100.5"), "B")                                                 # otro comercio, misma IP
+    v = panel(ctx, "vinculos", minimo=3).json()
+    ip = [x for x in v["misma_ip_varios_clientes"] if x["pagos"] >= 4]
+    assert len(ip) == 1 and ip[0]["clientes"] == 5 and ip[0]["comercios"] == 2                              # el analista ve lo que cruza comercios
+    assert [x["clientes"] for x in v["mismo_dispositivo_varios_clientes"]] == [3]
+    assert [(x["id_cliente"], x["ips"]) for x in v["cliente_con_varias_ips"]] == [("CKK", 3)]
+    assert v["rafagas_por_ip"][0]["pagos_en_ventana"] == 4 and v["rafagas_por_ip"][0]["pagos_totales"] == 5          # 4 en 3 minutos; el 5.º es de otro día
+    assert panel(ctx, "vinculos", minimo=6).json()["misma_ip_varios_clientes"] == []                          # el umbral manda
+    a = [x for x in panel(ctx, "vinculos", "A", minimo=3).json()["misma_ip_varios_clientes"] if x["pagos"] >= 4]
+    assert a[0]["clientes"] == 4 and a[0]["comercios"] == 1                                                  # un comercio no ve el cruce con otros
+
+
+def test_el_panel_es_de_solo_lectura_y_no_cambia_la_base(ctx):
+    ctx.evaluar(pago_ip("Q1", "CQ1", "192.0.2.5")); ctx.evaluar(pago_minimo("Q2", "CQ2"))
+    seg = panel(ctx, "transacciones").json()["transacciones"][0]["id_seguimiento"]
+    cuenta = lambda: [sqlite3.connect(ctx.bd).execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("evaluaciones", "revisiones", "auditoria", "resultados", "lista_negra")]
+    antes = cuenta()
+    for ruta in ("transacciones", f"transacciones/{seg}", "resumen", "vinculos", "comercios"):
+        assert panel(ctx, ruta).status_code == 200
+        assert ctx.cliente.post("/v1/panel/" + ruta, json={}, headers=ctx.h("analista")).status_code in (404, 405)       # no hay forma de escribir
+    assert cuenta() == antes
+
+
+def test_el_panel_exige_clave_y_los_comercios_solo_son_para_analistas(ctx):
+    for ruta in ("transacciones", "resumen", "vinculos", "comercios"):
+        assert ctx.cliente.get("/v1/panel/" + ruta).status_code == 401
+    assert panel(ctx, "comercios", "A").status_code == 403
+    nombres = {c["nombre"] for c in panel(ctx, "comercios").json()}
+    assert nombres == {"Tienda A", "Tienda B"} and "PLATAFORMA" not in nombres

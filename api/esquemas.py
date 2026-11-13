@@ -245,6 +245,8 @@ class InfoRevision(BaseModel):
 
 class RespuestaEvaluacion(BaseModel):
     id_evaluacion: str
+    id_seguimiento: str = Field(description="Identificador de seguimiento que asigna ESTE sistema a cada pago, legible (p. ej. `AF-7K3Q-9M2X`). Guárdalo junto a tu `id_transaccion`: "
+                                            "sirve para rastrear el pago en el panel y para hablar de él con soporte. También llega en la cabecera `X-Id-Seguimiento`.")
     id_transaccion: str
     decision: Decision = Field(description="Decisión inicial: APROBADA, RECHAZADA o EN_REVISION.")
     decision_final: Optional[Decision] = Field(None, description="La decisión que debes aplicar. Es igual a `decision` salvo en revisión: vale null mientras un analista no resuelve y luego APROBADA o RECHAZADA.")
@@ -264,6 +266,7 @@ class RespuestaEvaluacion(BaseModel):
 
 class FilaRevision(BaseModel):
     id_evaluacion: str
+    id_seguimiento: Optional[str] = None
     comercio_id: int
     id_transaccion: str
     puntaje_riesgo: Optional[float]

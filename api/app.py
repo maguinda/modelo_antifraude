@@ -1,7 +1,7 @@
 """Aplicación FastAPI: endpoints, seguridad y documentación OpenAPI/Swagger."""
 import logging
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import Body, Depends, FastAPI, Path, Query, Request, Response, Security
 from fastapi.exceptions import RequestValidationError
@@ -20,12 +20,13 @@ from .ejemplos import EJEMPLOS_SOLICITUD
 from .ajustes import Ajustes
 from .almacen import PLATAFORMA, Almacen, Principal
 from .seguridad import LimitadorTasa
+from .consultas import ConsultasPanel, Filtros, ORDENES
 from .servicio import ErrorAPI, ServicioEvaluacion
 
 log = logging.getLogger("modelo_ia.api")
 VERSION_API = "1.0.0"
 MEDIA_PROBLEMA = "application/problem+json"
-PATRON_UUID = r"^[0-9a-fA-F\-]{36}$"
+PATRON_UUID = r"^(?:[0-9a-fA-F\-]{36}|[Aa][Ff]-[0-9A-Za-z]{4}-[0-9A-Za-z]{4})$"        # el identificador interno o el de seguimiento (AF-XXXX-XXXX)
 
 DESCRIPCION = """
 API para decidir, **antes de aprobar un pago**, si una transacción se **aprueba**, se **rechaza** o queda **en revisión**.
@@ -87,19 +88,19 @@ def _problema(status: int, titulo: str, detalle: str, instancia: str, errores=No
 
 EJEMPLOS_RESPUESTA = {
     "aprobada": {"summary": "Aprobada", "value": {
-        "id_evaluacion": "3f1c9a52-8e0b-4d1f-9a54-0c6f6c2a7b11", "id_transaccion": "PED-100234", "decision": "APROBADA",
+        "id_evaluacion": "3f1c9a52-8e0b-4d1f-9a54-0c6f6c2a7b11", "id_seguimiento": "AF-7K3Q-9M2X", "id_transaccion": "PED-100234", "decision": "APROBADA",
         "decision_final": "APROBADA", "puntaje_riesgo": 0.053, "motivos": [], "reglas_activadas": [], "modo": "normal",
         "modelo": {"nombre": "gradient_boosting", "version": "0.2.0", "conjunto_variables": "completo"}, "revision": None,
         "resultado_informado": None, "evaluada_en": "2026-11-12T18:30:00.123456", "latencia_ms": 18.4, "repetida": False}},
     "rechazada": {"summary": "Rechazada por el modelo y una regla de seguridad", "value": {
-        "id_evaluacion": "7a2d41f0-1b7c-4b0e-8d2a-52e2f5b3c9aa", "id_transaccion": "PED-100235", "decision": "RECHAZADA",
+        "id_evaluacion": "7a2d41f0-1b7c-4b0e-8d2a-52e2f5b3c9aa", "id_seguimiento": "AF-4H8D-2WZN", "id_transaccion": "PED-100235", "decision": "RECHAZADA",
         "decision_final": "RECHAZADA", "puntaje_riesgo": 0.997, "motivos": [],
         "reglas_activadas": [{"regla": "dispositivo_no_reconocido_con_ip_anonima", "accion": "BLOQUEAR",
                               "motivo": "Dispositivo no reconocido y desde una IP anónima"}], "modo": "normal",
         "modelo": {"nombre": "gradient_boosting", "version": "0.2.0", "conjunto_variables": "completo"}, "revision": None,
         "resultado_informado": None, "evaluada_en": "2026-11-12T03:12:01.004211", "latencia_ms": 21.7, "repetida": False}},
     "en_revision": {"summary": "En revisión: espera la decisión de un analista", "value": {
-        "id_evaluacion": "b9e0c8d3-5a64-49c1-b0a7-1f3d2e4c5d66", "id_transaccion": "PED-100237", "decision": "EN_REVISION",
+        "id_evaluacion": "b9e0c8d3-5a64-49c1-b0a7-1f3d2e4c5d66", "id_seguimiento": "AF-B6TC-0R5J", "id_transaccion": "PED-100237", "decision": "EN_REVISION",
         "decision_final": None, "puntaje_riesgo": 0.41, "motivos": [], "reglas_activadas": [], "modo": "normal",
         "modelo": {"nombre": "gradient_boosting", "version": "0.2.0", "conjunto_variables": "completo"},
         "revision": {"estado": "pendiente", "decision_analista": None, "nota": None, "resuelta_en": None},
@@ -117,6 +118,7 @@ def crear_app(ajustes: Optional[Ajustes] = None, artefacto: Optional[Dict] = Non
         if artefacto_sin_estado is None:
             artefacto_sin_estado = predecir.cargar_artefacto_sin_estado()
     servicio = ServicioEvaluacion(almacen, artefacto, ajustes, reloj, proveedor_ip or crear_proveedor(ajustes.proveedor_ip), artefacto_sin_estado)
+    consultas = ConsultasPanel(almacen, servicio)
 
     app = FastAPI(title="API antifraude para pymes", version=VERSION_API, description=DESCRIPCION, openapi_tags=ETIQUETAS,
                   contact={"name": "Equipo antifraude"}, docs_url=None, redoc_url=None)
@@ -211,15 +213,18 @@ def crear_app(ajustes: Optional[Ajustes] = None, artefacto: Optional[Dict] = Non
                 p: Principal = Depends(exigir("comercio"))):
         r = servicio.evaluar(p, solicitud)
         response.status_code = 200 if r["repetida"] else 201
+        response.headers["X-Id-Seguimiento"] = r["id_seguimiento"]
         return r
 
     @app.get("/v1/evaluaciones/{id_evaluacion}", tags=["Evaluaciones"], response_model=es.RespuestaEvaluacion,
              summary="Consultar una evaluación", operation_id="consultar_evaluacion",
              description="Devuelve la decisión guardada. Para pagos `EN_REVISION`, mira `decision_final`: es `null` hasta que un analista resuelve.",
              responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 404, 429)})
-    def consultar(id_evaluacion: str = Path(pattern=PATRON_UUID, description="Identificador devuelto al evaluar."),
+    def consultar(response: Response, id_evaluacion: str = Path(pattern=PATRON_UUID, description="`id_evaluacion` o `id_seguimiento` (AF-XXXX-XXXX) devueltos al evaluar."),
                   p: Principal = Depends(exigir("comercio", "analista", "admin"))):
-        return servicio.obtener(p, id_evaluacion)
+        r = servicio.obtener(p, id_evaluacion)
+        response.headers["X-Id-Seguimiento"] = r["id_seguimiento"]
+        return r
 
     @app.post("/v1/evaluaciones/{id_evaluacion}/resultado", tags=["Resultados"], response_model=es.RespuestaEvaluacion,
               summary="Informar qué pasó con el pago", operation_id="informar_resultado",
@@ -248,6 +253,57 @@ def crear_app(ajustes: Optional[Ajustes] = None, artefacto: Optional[Dict] = Non
         return servicio.resolver_revision(p, id_evaluacion, solicitud)
 
     # ------------------------------------------------------------- lista negra
+    # ------------------------------------------------------------- panel de control (solo lectura)
+    def filtros_panel(comercio_id: Optional[int] = Query(None, ge=1, description="Solo analistas y administradores; un comercio solo ve lo suyo."),
+                      desde: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="Fecha del pago, AAAA-MM-DD (incluida)."),
+                      hasta: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="Fecha del pago, AAAA-MM-DD (incluida)."),
+                      decision: Optional[str] = Query(None, description="APROBADA, RECHAZADA o EN_REVISION (la decisión inicial)."),
+                      modo: Optional[str] = Query(None, description="normal o degradado."),
+                      monto_min: Optional[float] = Query(None, ge=0), monto_max: Optional[float] = Query(None, ge=0),
+                      id_cliente: Optional[str] = Query(None, max_length=64), id_transaccion: Optional[str] = Query(None, max_length=64),
+                      id_seguimiento: Optional[str] = Query(None, max_length=16, description="Identificador de seguimiento (AF-XXXX-XXXX)."),
+                      regla: Optional[str] = Query(None, max_length=64, description="Nombre exacto de una regla que se activó."),
+                      ip: Optional[str] = Query(None, max_length=8, description="Código corto de IP (8 caracteres) como el que muestra el panel."),
+                      dispositivo: Optional[str] = Query(None, max_length=8, description="Código corto de dispositivo (8 caracteres)."),
+                      p: Principal = Depends(exigir("comercio", "analista", "admin"))) -> Filtros:
+        return Filtros(p, comercio_id, desde, hasta, decision, modo, monto_min, monto_max, id_cliente, id_transaccion, id_seguimiento, regla, ip, dispositivo)
+
+    _err_panel = {k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 404, 422, 429)}
+
+    @app.get("/v1/panel/transacciones", tags=["Panel de control"], summary="Pagos con filtros (solo lectura)", operation_id="panel_transacciones",
+             description="Lista paginada de pagos evaluados. Filtra por comercio, fechas, decisión, modo, monto, cliente, regla, IP o dispositivo. "
+                         "La IP y la huella del dispositivo se muestran como **códigos cortos**, nunca en claro. Analistas y administradores ven todos los comercios; "
+                         "un comercio, solo los suyos.", response_model=Dict[str, Any], responses=_err_panel)
+    def panel_transacciones(f: Filtros = Depends(filtros_panel), orden: str = Query("fecha_desc", pattern="^(" + "|".join(ORDENES) + ")$"),
+                            limite: int = Query(50, ge=1, le=200), desplazamiento: int = Query(0, ge=0, le=100000)):
+        return consultas.transacciones(f, orden, limite, desplazamiento)
+
+    @app.get("/v1/panel/transacciones/{id_pago}", tags=["Panel de control"], summary="Todo sobre un pago: cómo se decidió", operation_id="panel_detalle",
+             description="Detalle completo: identificadores (el del comercio y el de seguimiento), datos recibidos y cuáles NO se mandaron, puntaje y umbrales, "
+                         "reglas activadas y su efecto, revisión, resultado posterior, auditoría y pagos relacionados (misma IP, mismo dispositivo, mismo cliente). "
+                         "Acepta `id_seguimiento` (AF-XXXX-XXXX) o `id_evaluacion`.", response_model=Dict[str, Any], responses=_err_panel)
+    def panel_detalle(id_pago: str = Path(pattern=PATRON_UUID), p: Principal = Depends(exigir("comercio", "analista", "admin"))):
+        return consultas.detalle(p, id_pago)
+
+    @app.get("/v1/panel/resumen", tags=["Panel de control"], summary="Resumen: totales, por día, por comercio, reglas y calidad", operation_id="panel_resumen",
+             description="Indicadores del periodo y los filtros pedidos. `por_comercio` solo trae varios comercios para analistas y administradores.",
+             response_model=Dict[str, Any], responses=_err_panel)
+    def panel_resumen(f: Filtros = Depends(filtros_panel)):
+        return consultas.resumen(f)
+
+    @app.get("/v1/panel/vinculos", tags=["Panel de control"], summary="Patrones entre pagos: misma IP, mismo dispositivo, ráfagas", operation_id="panel_vinculos",
+             description="Varios clientes desde una misma IP, varios clientes con un mismo dispositivo, un cliente con varias IPs y ráfagas de pagos desde una IP. "
+                         "`minimo` es cuántos clientes, IPs o pagos hacen falta para listarlo. Cada fila trae un `filtro` para ver esos pagos.",
+             response_model=Dict[str, Any], responses=_err_panel)
+    def panel_vinculos(f: Filtros = Depends(filtros_panel), minimo: int = Query(3, ge=2, le=1000)):
+        return consultas.vinculos(f, minimo)
+
+    @app.get("/v1/panel/comercios", tags=["Panel de control"], summary="Comercios (para el filtro del panel)", operation_id="panel_comercios",
+             description="Solo analistas y administradores.", response_model=List[Dict[str, Any]],
+             responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 429)})
+    def panel_comercios(p: Principal = Depends(exigir("analista", "admin"))):
+        return consultas.comercios()
+
     @app.get("/v1/lista-negra", tags=["Lista negra"], response_model=List[es.EntradaListaNegra], summary="Ver tu lista negra",
              operation_id="ver_lista_negra", responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 429)})
     def ver_lista_negra(p: Principal = Depends(exigir("comercio"))):
