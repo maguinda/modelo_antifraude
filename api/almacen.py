@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional
 
 PLATAFORMA = 1          # id del «comercio» al que pertenecen las claves de analistas y administradores
 
@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS evaluaciones (
     decision TEXT NOT NULL, decision_modelo TEXT, probabilidad REAL, motivos_json TEXT NOT NULL, reglas_json TEXT NOT NULL,
     modelo_nombre TEXT NOT NULL, modelo_version TEXT NOT NULL, modelo_conjunto TEXT NOT NULL, modo TEXT NOT NULL,
     latencia_ms REAL NOT NULL, creada TEXT NOT NULL, red_origen TEXT NOT NULL DEFAULT 'comercio', estado_origen TEXT NOT NULL DEFAULT 'comercio',
+    id_seguimiento TEXT, ip_codigo TEXT, disp_codigo TEXT, monto_cop REAL, no_enviados_json TEXT,
     UNIQUE (comercio_id, id_transaccion));
 CREATE INDEX IF NOT EXISTS ix_eval_cliente ON evaluaciones (comercio_id, id_cliente, fecha);
 CREATE INDEX IF NOT EXISTS ix_eval_huella ON evaluaciones (comercio_id, huella, fecha);
@@ -51,8 +52,36 @@ CREATE TRIGGER IF NOT EXISTS auditoria_no_se_borra BEFORE DELETE ON auditoria BE
 """
 
 
+INDICES_PANEL = """
+CREATE UNIQUE INDEX IF NOT EXISTS ux_eval_seguimiento ON evaluaciones (id_seguimiento);
+CREATE INDEX IF NOT EXISTS ix_eval_fecha ON evaluaciones (fecha);
+CREATE INDEX IF NOT EXISTS ix_eval_comercio_fecha ON evaluaciones (comercio_id, fecha);
+CREATE INDEX IF NOT EXISTS ix_eval_decision ON evaluaciones (decision, fecha);
+CREATE INDEX IF NOT EXISTS ix_eval_ip ON evaluaciones (ip_codigo, fecha);
+CREATE INDEX IF NOT EXISTS ix_eval_disp ON evaluaciones (disp_codigo, fecha);
+"""
+
+
 def ahora_iso() -> str:
     return datetime.now().isoformat(timespec="microseconds")
+
+
+ALFABETO_SEGUIMIENTO = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"        # sin I, L, O, U: no se confunden al leerlos por teléfono
+
+
+def id_seguimiento_libre(ya_existe: Callable[[str], bool]) -> str:
+    """Un identificador de seguimiento que `ya_existe` no reconoce. Con tope de intentos: un generador roto da un error claro y no un ciclo infinito."""
+    for _ in range(20):
+        candidato = nuevo_id_seguimiento()
+        if not ya_existe(candidato):
+            return candidato
+    raise RuntimeError("No se pudo generar un identificador de seguimiento único tras 20 intentos.")
+
+
+def nuevo_id_seguimiento() -> str:
+    """Identificador propio de cada pago, legible: AF-7K3Q-9M2X (40 bits al azar; quien lo guarda verifica que no exista)."""
+    c = "".join(secrets.choice(ALFABETO_SEGUIMIENTO) for _ in range(8))
+    return f"AF-{c[:4]}-{c[4:]}"
 
 
 @dataclass(frozen=True)
@@ -80,6 +109,23 @@ class Almacen:
         con.execute(f"PRAGMA synchronous={self.durabilidad}")
         return con
 
+    def _rellenar_columnas_nuevas(self, con: sqlite3.Connection) -> None:
+        """Pagos guardados antes de existir las columnas del panel: se les calculan desde lo que ya había (sin tocar la decisión)."""
+        pendientes = con.execute("SELECT id, fila_json FROM evaluaciones WHERE id_seguimiento IS NULL").fetchall()
+        if not pendientes:
+            return
+        usados = {r[0] for r in con.execute("SELECT id_seguimiento FROM evaluaciones WHERE id_seguimiento IS NOT NULL")}
+        con.execute("BEGIN IMMEDIATE")
+        for r in pendientes:
+            fila = json.loads(r["fila_json"])
+            nuevo = id_seguimiento_libre(usados.__contains__)
+            usados.add(nuevo)
+            huella = fila.get("huella_dispositivo")
+            con.execute("UPDATE evaluaciones SET id_seguimiento=?, ip_codigo=?, disp_codigo=?, monto_cop=? WHERE id=?",
+                        (nuevo, self.codigo_ip(fila.get("ip_huella")), None if not huella or str(huella).startswith("SIN-") else self.codigo_dispositivo(huella),
+                         fila.get("monto_cop"), r["id"]))
+        con.execute("COMMIT")
+
     def inicializar(self) -> None:
         con = self.abrir()
         try:
@@ -89,6 +135,11 @@ class Almacen:
             for nueva in ("red_origen", "estado_origen"):          # bases creadas antes de existir estas columnas
                 if nueva not in columnas:
                     con.execute(f"ALTER TABLE evaluaciones ADD COLUMN {nueva} TEXT NOT NULL DEFAULT 'comercio'")
+            for nueva, tipo in (("id_seguimiento", "TEXT"), ("ip_codigo", "TEXT"), ("disp_codigo", "TEXT"), ("monto_cop", "REAL"), ("no_enviados_json", "TEXT")):
+                if nueva not in columnas:
+                    con.execute(f"ALTER TABLE evaluaciones ADD COLUMN {nueva} {tipo}")
+            self._rellenar_columnas_nuevas(con)
+            con.executescript(INDICES_PANEL)
             if con.execute("SELECT 1 FROM comercios WHERE id=?", (PLATAFORMA,)).fetchone() is None:
                 con.execute("INSERT INTO comercios (id, nombre, creado) VALUES (?, 'PLATAFORMA', ?)", (PLATAFORMA, ahora_iso()))
         finally:
@@ -131,6 +182,14 @@ class Almacen:
     def huella_ip(self, ip: str) -> str:
         """Huella IRREVERSIBLE de una IP (HMAC con el secreto del servicio): sirve para reconocer repeticiones sin guardar la IP."""
         return hmac.new(self.pepper, ("ip|" + str(ipaddress.ip_address(ip))).encode("utf-8"), hashlib.sha256).hexdigest()[:16]
+
+    def codigo_ip(self, ip_huella: Optional[str]) -> Optional[str]:
+        """Código corto (8 caracteres) de la huella de una IP, para agrupar y mostrar sin revelar la IP."""
+        return str(ip_huella)[:8].upper() if ip_huella else None
+
+    def codigo_dispositivo(self, huella: str) -> str:
+        """Código corto e irreversible de la huella del dispositivo (la huella real no se muestra)."""
+        return hmac.new(self.pepper, ("disp|" + str(huella)).encode("utf-8"), hashlib.sha256).hexdigest()[:8].upper()
 
     def crear_comercio(self, nombre: str) -> int:
         with self.transaccion() as con:

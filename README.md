@@ -298,6 +298,23 @@ La primera prueba de carga **encontró un problema real**: con muchas peticiones
 - **Gradient Boosting no devuelve motivos por variable** (solo las reglas activadas).
 - **No se probó un celular real ni Android real**, solo perfiles emulados de Chromium y WebKit.
 
+## Panel de control: ver todo, filtrar y rastrear (API de solo lectura)
+
+**Identificador de seguimiento.** Cada pago recibe, además del `id_transaccion` que pone el comercio, un **`id_seguimiento` que asigna este sistema** (por ejemplo `AF-7K3Q-9M2X`: 8 caracteres legibles, sin letras que se confundan). Llega en la respuesta y en la cabecera `X-Id-Seguimiento`, se conserva igual si el comercio repite el pago, y sirve para consultar (`GET /v1/evaluaciones/AF-7K3Q-9M2X`), buscar en el panel y hablar con soporte. Quedan tres identificadores por pago: el del comercio, el de seguimiento (para personas) y el interno (`id_evaluacion`).
+
+**Endpoints** (etiqueta «Panel de control» en Swagger; todos son `GET`):
+- `/v1/panel/transacciones`: pagos con filtros por comercio, fechas, decisión, modo, monto, cliente, regla, IP y dispositivo; orden y paginación.
+- `/v1/panel/transacciones/{id}`: **todo sobre un pago**: identificadores, datos recibidos y cuáles NO se mandaron, probabilidad y umbrales, reglas activadas y su efecto, la cadena de decisión paso a paso, revisión, resultado posterior, auditoría y pagos relacionados.
+- `/v1/panel/resumen`: totales, por día, por comercio, reglas más activadas, distribución del puntaje, calidad (modo degradado, sin estado, latencia).
+- `/v1/panel/vinculos`: varios clientes desde una misma IP, un mismo dispositivo con varios clientes, un cliente con varias IPs y ráfagas desde una IP.
+- `/v1/panel/comercios`: lista para el filtro (solo analistas y administradores).
+
+**Qué garantiza:** analistas y administradores ven todos los comercios; un comercio solo ve lo suyo (si pide otro, 404). La **IP y la huella del dispositivo nunca se muestran**: solo códigos cortos de 8 caracteres que permiten reconocer repeticiones. Nada del usuario entra al SQL como texto (parámetros, listas fijas y validación). No hay ninguna forma de escribir desde el panel.
+
+**Para llenar la demo:** `python -m modelo_ia.api.cargar_ejemplos` crea 3 comercios de ejemplo y envía ~2.000 pagos **por la API real**, con escenarios sospechosos (misma IP, mismo dispositivo, un cliente con muchas IPs, viaje imposible, ráfagas, proxy). Todo es inventado.
+
+**Límites:** el análisis entre comercios (misma IP en comercios distintos) es lo que dejó pendiente la decisión de la Ley 1581: aquí lo ve el analista, no el comercio. Las ráfagas usan una ventana fija de 10 minutos. Con millones de filas habrá que medir el rendimiento de los resúmenes (hoy hay índices, pero se probó con unos miles).
+
 ## Prueba de la metodología con datos públicos y reales
 
 `python -m modelo_ia.validacion_publica` repite la forma de trabajar (corte por tiempo, umbral elegido por costo en validación, logística frente a Gradient Boosting) sobre un conjunto **público y real**: 284.807 pagos con tarjeta de comerciantes europeos, 492 fraudes (copia de OpenML, id 1597). Se descarga solo y no se guarda en el repositorio.

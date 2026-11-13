@@ -20,7 +20,7 @@ from ..reglas import SEVERIDAD, MotorReglas
 from ..reglas.seguridad import construir_reglas_seguridad
 from . import proveedores_ip, traduccion
 from .ajustes import Ajustes
-from .almacen import PLATAFORMA, Almacen, Principal, ahora_iso
+from .almacen import PLATAFORMA, Almacen, Principal, ahora_iso, id_seguimiento_libre
 
 log = logging.getLogger("modelo_ia.api")
 
@@ -210,16 +210,23 @@ class ServicioEvaluacion:
 
     def _guardar(self, con: sqlite3.Connection, principal: Principal, solicitud, fila: Dict, id_eval: str, resultado: Dict,
                  fila_con_24h: Dict, huella_solicitud: str, latencia: float, red_origen: str = "comercio") -> Dict:
+        no_enviados = sorted(k for k in traduccion.NEUTROS if fila_con_24h.get(k) is None)         # lo que NO mandó el comercio (se rellenó con un valor neutro)
         guardada = traduccion.con_neutros(fila_con_24h, id_eval)
+        id_seguimiento = id_seguimiento_libre(           # dentro del bloqueo de escritura: nadie más puede tomarlo entre la revisión y el guardado
+            lambda c: con.execute("SELECT 1 FROM evaluaciones WHERE id_seguimiento=?", (c,)).fetchone() is not None)
         con.execute(
             "INSERT INTO evaluaciones (id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, solicitud_hash, "
             "decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, "
-            "modelo_conjunto, modo, latencia_ms, creada, red_origen, estado_origen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "modelo_conjunto, modo, latencia_ms, creada, red_origen, estado_origen, id_seguimiento, ip_codigo, disp_codigo, monto_cop, no_enviados_json) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (id_eval, principal.comercio_id, solicitud.id_transaccion, solicitud.id_cliente, fila["fecha"],
              guardada["huella_dispositivo"], json.dumps(guardada, ensure_ascii=False, default=str), huella_solicitud,
              resultado["decision"], resultado["decision_modelo"], resultado["probabilidad"],
              json.dumps(resultado["motivos"], ensure_ascii=False), json.dumps(resultado["reglas"], ensure_ascii=False),
-             self.meta["modelo"], self.meta["version"], self.meta["conjunto"], resultado["modo"], latencia, ahora_iso(), red_origen, resultado["estado_origen"]))
+             self.meta["modelo"], self.meta["version"], self.meta["conjunto"], resultado["modo"], latencia, ahora_iso(), red_origen, resultado["estado_origen"],
+             id_seguimiento, self.alm.codigo_ip(fila_con_24h.get("ip_huella")),
+             None if fila.get("huella_dispositivo") is None else self.alm.codigo_dispositivo(fila["huella_dispositivo"]),
+             fila.get("monto_cop"), json.dumps(no_enviados)))
         if resultado["decision"] == "EN_REVISION":
             con.execute("INSERT INTO revisiones (id_evaluacion, comercio_id, estado, creada) VALUES (?,?,'pendiente',?)",
                         (id_eval, principal.comercio_id, ahora_iso()))
@@ -323,7 +330,7 @@ class ServicioEvaluacion:
             revision = {"estado": rev["estado"], "decision_analista": rev["decision_analista"], "nota": rev["nota"],
                         "resuelta_en": rev["resuelta"]}
             decision_final = rev["decision_analista"] if rev["estado"] == "resuelta" else None
-        return {"id_evaluacion": e["id"], "id_transaccion": e["id_transaccion"], "decision": e["decision"],
+        return {"id_evaluacion": e["id"], "id_seguimiento": e["id_seguimiento"], "id_transaccion": e["id_transaccion"], "decision": e["decision"],
                 "decision_final": decision_final, "puntaje_riesgo": e["probabilidad"],
                 "motivos": json.loads(e["motivos_json"]), "reglas_activadas": json.loads(e["reglas_json"]), "modo": e["modo"],
                 "modelo": {"nombre": e["modelo_nombre"], "version": e["modelo_version"], "conjunto_variables": e["modelo_conjunto"]},
@@ -331,7 +338,8 @@ class ServicioEvaluacion:
                 "evaluada_en": e["creada"], "latencia_ms": e["latencia_ms"], "repetida": repetida}
 
     def _evaluacion_visible(self, con: sqlite3.Connection, principal: Principal, id_eval: str) -> sqlite3.Row:
-        e = con.execute("SELECT * FROM evaluaciones WHERE id=?", (id_eval,)).fetchone()
+        columna = "id_seguimiento" if id_eval.upper().startswith("AF-") else "id"          # se acepta el identificador de seguimiento o el interno
+        e = con.execute(f"SELECT * FROM evaluaciones WHERE {columna}=?", (id_eval.upper() if columna == "id_seguimiento" else id_eval,)).fetchone()
         if e is None or (principal.rol == "comercio" and e["comercio_id"] != principal.comercio_id):
             raise ErrorAPI(404, "No encontrada", "No existe esa evaluación.")        # 404 también si es de otro comercio
         return e
@@ -363,7 +371,7 @@ class ServicioEvaluacion:
                 "SELECT e.*, r.estado AS rev_estado, r.creada AS rev_creada FROM revisiones r JOIN evaluaciones e ON e.id=r.id_evaluacion "
                 "WHERE r.estado=? ORDER BY r.creada LIMIT ? OFFSET ?", (estado, limite, desplazamiento)).fetchall()
         return {"total": total, "revisiones": [
-            {"id_evaluacion": f["id"], "comercio_id": f["comercio_id"], "id_transaccion": f["id_transaccion"],
+            {"id_evaluacion": f["id"], "id_seguimiento": f["id_seguimiento"], "comercio_id": f["comercio_id"], "id_transaccion": f["id_transaccion"],
              "puntaje_riesgo": f["probabilidad"], "motivos": json.loads(f["motivos_json"]),
              "reglas_activadas": json.loads(f["reglas_json"]), "creada_en": f["rev_creada"], "estado": f["rev_estado"],
              "resumen_pago": _resumen(json.loads(f["fila_json"]))} for f in filas]}

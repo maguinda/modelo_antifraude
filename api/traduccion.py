@@ -81,13 +81,16 @@ def fila_cruda(sol, fecha: datetime, red: Optional[Dict] = None) -> Dict:
 # Valores neutros para guardar un pago al que le faltan campos opcionales (así el historial no se rompe).
 # Solo se usan para lo que se guarda: si el modelo en uso necesita un campo que no llegó, el pago NO se
 # puntúa con el modelo (queda en revisión) y estos valores nunca influyen en su decisión.
+NEUTROS = {"huella_dispositivo": None, "sistema_operativo": "Desconocido", "navegador": "Desconocido",
+           "resolucion_pantalla": "Desconocida", "zona_horaria_dispositivo": "America/Bogota", "es_emulador": 0,
+           "ip_pais": "Desconocido", "ip_ciudad_estimada": "Desconocida", "tipo_ip": "IP desconocida", "estado_dispositivo": "Conocido", "ip_es_datacenter": 0,
+           "ip_reputacion": 50, "kyc_nivel": "Sin verificar", "edad_cuenta_dias": 365,
+           "autenticacion_2fa": "No disponible", "intentos_fallidos_24h": 0, "cambio_credenciales_7d": 0}
+
+
 def con_neutros(fila: Dict, id_unico: str) -> Dict:
     f = dict(fila)
-    por_defecto = {"huella_dispositivo": f"SIN-{id_unico}", "sistema_operativo": "Desconocido", "navegador": "Desconocido",
-                   "resolucion_pantalla": "Desconocida", "zona_horaria_dispositivo": "America/Bogota", "es_emulador": 0,
-                   "ip_pais": "Desconocido", "ip_ciudad_estimada": "Desconocida", "tipo_ip": "IP desconocida", "estado_dispositivo": "Conocido", "ip_es_datacenter": 0,
-                   "ip_reputacion": 50, "kyc_nivel": "Sin verificar", "edad_cuenta_dias": 365,
-                   "autenticacion_2fa": "No disponible", "intentos_fallidos_24h": 0, "cambio_credenciales_7d": 0}
+    por_defecto = dict(NEUTROS, huella_dispositivo=f"SIN-{id_unico}")
     for k, v in por_defecto.items():
         if f.get(k) is None:
             f[k] = v
