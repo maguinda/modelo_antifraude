@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel de control · antifraude</title>
+<link rel="icon" href="/estaticos/favicon.png">
+<link rel="stylesheet" href="/estaticos/dashboard/dashboard.css">
+</head>
+<body>
+<header class="barra">
+  <a class="marca" href="#/resumen" aria-label="Antifraude, ir al resumen"><span class="marca-punto" aria-hidden="true"></span>antifraude</a>
+  <nav class="nav" id="nav" aria-label="Secciones" hidden>
+    <a class="pildora-nav" data-ruta="resumen" href="#/resumen">Resumen</a>
+    <a class="pildora-nav" data-ruta="transacciones" href="#/transacciones">Transacciones</a>
+    <a class="pildora-nav" data-ruta="vinculos" href="#/vinculos">Vínculos</a>
+    <a class="pildora-nav" href="/panel">Revisión manual</a>
+  </nav>
+  <div class="barra-acciones">
+    <button id="salir" type="button" class="btn suave" hidden>Salir</button>
+  </div>
+</header>
+<main class="contenido" id="vista" aria-live="polite">
+  <section id="acceso" class="tarjeta acceso" hidden aria-labelledby="tituloAcceso">
+    <h2 id="tituloAcceso">Entrar al panel</h2>
+    <p>Escribe tu clave de analista. Solo se guarda mientras esta pestaña esté abierta.</p>
+    <form id="formAcceso" autocomplete="off" novalidate>
+      <div class="campo"><label for="clave">Clave de analista</label><input id="clave" name="clave" type="password" autocomplete="off"></div>
+      <button type="submit" class="btn azul">Entrar</button>
+    </form>
+    <p id="errorAcceso" class="error" role="alert" hidden></p>
+  </section>
+  <div id="contenido"></div>
+</main>
+<script src="/init/panel-config.js"></script>
+<script src="/estaticos/dashboard/dashboard.js"></script>
+</body>
+</html>
