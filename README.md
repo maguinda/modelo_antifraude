@@ -6,7 +6,16 @@ Modelo de aprendizaje automático que, dado un pago, calcula la probabilidad de 
 
 ## Cómo usarlo
 
-Desde la carpeta `IA/` (la que contiene `modelo_ia/`):
+**Clona con este nombre de carpeta.** El código se importa como `modelo_ia` (`python -m modelo_ia...`), así que la carpeta debe llamarse exactamente así, aunque el repositorio en GitHub se llame `modelo_antifraude`:
+
+```bash
+mkdir proyecto && cd proyecto
+git clone https://github.com/maguinda/modelo_antifraude.git modelo_ia
+```
+
+Los datasets grandes no se suben a GitHub: se regeneran con los scripts de `modelo_ia/datos/generadores/` (semilla fija).
+
+Desde la carpeta `proyecto/` (la que contiene `modelo_ia/`):
 
 ```bash
 # 1. Una sola vez: crear el entorno e instalar lo necesario
