@@ -1521,3 +1521,44 @@ def test_el_panel_exige_clave_y_los_comercios_solo_son_para_analistas(ctx):
     assert panel(ctx, "comercios", "A").status_code == 403
     nombres = {c["nombre"] for c in panel(ctx, "comercios").json()}
     assert nombres == {"Tienda A", "Tienda B"} and "PLATAFORMA" not in nombres
+
+
+# ------------------------------------------------------------------ pantalla del panel de control (/dashboard)
+DASH = documentacion.ESTATICOS / "dashboard"
+
+
+def test_el_dashboard_se_sirve_con_politica_de_contenido_y_sin_cache(ctx):
+    r = ctx.cliente.get("/dashboard")
+    assert r.status_code == 200 and "text/html" in r.headers["content-type"] and r.headers["cache-control"] == "no-store"
+    assert "default-src 'none'" in r.headers["content-security-policy-report-only"] and "script-src 'self'" in r.headers["content-security-policy-report-only"]
+    for ruta in ("index.html", "dashboard.js", "dashboard.css"):
+        assert ctx.cliente.get(f"/estaticos/dashboard/{ruta}").status_code == 200
+    assert "Panel de control" in r.text
+
+
+def test_el_dashboard_no_tiene_scripts_ni_estilos_en_linea_ni_nada_externo():
+    html = (DASH / "index.html").read_text(encoding="utf-8")
+    assert not re.findall(r"<script(?![^>]*\bsrc=)", html) and "style=" not in html and "onclick" not in html.lower() and "<style" not in html.lower()
+    css = (DASH / "dashboard.css").read_text(encoding="utf-8")
+    js = (DASH / "dashboard.js").read_text(encoding="utf-8")
+    for nombre, texto in (("html", html), ("css", css), ("js", js)):
+        externos = [u for u in re.findall(r"https?://[^\s\"')]+", texto) if "www.w3.org" not in u]
+        assert not externos, (nombre, externos)                                           # ni CDN, ni fuentes, ni imágenes de terceros
+    assert "@import" not in css and "url(" not in css
+
+
+def test_el_script_del_dashboard_nunca_inserta_datos_como_html_y_solo_lee():
+    js = (DASH / "dashboard.js").read_text(encoding="utf-8")
+    for peligroso in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "localStorage", "setAttribute(\"style\""):
+        assert peligroso not in js, peligroso
+    assert "textContent" in js
+    metodos = set(re.findall(r"method:\s*\"([A-Z]+)\"", js))
+    assert metodos == {"GET"}, metodos                                                    # el panel de control no puede escribir nada
+    assert not re.findall(r"""fetch\([^)]*\{[^}]*method:\s*["'](?!GET)""", js)
+    assert "XMLHttpRequest" not in js and "sendBeacon" not in js and "FormData" not in js
+
+
+def test_el_dashboard_lee_la_api_del_panel_y_no_las_de_escritura():
+    js = (DASH / "dashboard.js").read_text(encoding="utf-8")
+    rutas = set(re.findall(r"\"(/v1/[a-z\-/]+)", js))
+    assert rutas and all(r.startswith("/v1/panel/") for r in rutas), rutas

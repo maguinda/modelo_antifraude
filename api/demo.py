@@ -8,6 +8,7 @@ Páginas (solo en tu computador, http://127.0.0.1:8000):
     /docs-analista   Swagger YA autorizado como ANALISTA  (cola de revisión y resolverla)
     /docs-admin      Swagger YA autorizado como ADMIN     (crear comercios)
     /panel           Pantalla de ANALISTAS ya dentro      (cola de revisión manual)
+    /dashboard       Panel de control (solo lectura)      (pagos, filtros, detalle de cada decisión, vínculos)
     /tienda          Tienda de prueba con el SDK          (compras de ejemplo de punta a punta)
 
 Las claves de la demo se guardan en api/demo/claves_demo.txt (solo lectura para ti). Sirven únicamente para esta
