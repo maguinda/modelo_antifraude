@@ -13,8 +13,6 @@ from .seudonimos import Seudonimizador
 
 
 @dataclass(frozen=True)
-
-
 class Principal:
     clave_id: int
     comercio_id: int

@@ -19,6 +19,11 @@ from .repositorios.claves import ClavesRepositorio, Principal, normalizar_nombre
 from .repositorios.comercios import ComercioInexistente, ComercioNoAutorizado, ComerciosRepositorio, OperacionNoPermitida, estado_acuerdo
 from .repositorios.comunes import PLATAFORMA, ahora_iso, id_seguimiento_libre, nuevo_id_seguimiento
 from .repositorios.esquema import DDL, INDICES_PANEL, Esquema
+from .repositorios.evaluaciones import EvaluacionesRepositorio
+from .repositorios.interfaces import EvaluacionesRepo, ListaNegraRepo, ResultadosRepo, RevisionesRepo
+from .repositorios.lista_negra import ListaNegraRepositorio
+from .repositorios.resultados import ResultadosRepositorio
+from .repositorios.revisiones import RevisionesRepositorio
 from .repositorios.seudonimos import Seudonimizador
 
 __all__ = ["Almacen", "ComercioInexistente", "ComercioNoAutorizado", "DDL", "INDICES_PANEL", "OperacionNoPermitida", "PLATAFORMA", "Principal", "ahora_iso",
@@ -34,6 +39,11 @@ class Almacen:
         self.comercios = ComerciosRepositorio(self.base)
         self.claves = ClavesRepositorio(self.base, self.seudonimos)
         self.esquema = Esquema(self.base, self.seudonimos)
+        # lo que el servicio de evaluaciones necesita, tipado por INTERFAZ (el servicio no sabe que detrás hay SQLite)
+        self.evaluaciones: EvaluacionesRepo = EvaluacionesRepositorio()
+        self.revisiones: RevisionesRepo = RevisionesRepositorio()
+        self.resultados: ResultadosRepo = ResultadosRepositorio()
+        self.lista_negra: ListaNegraRepo = ListaNegraRepositorio()
 
     # ------------------------------------------------------------ conexión y transacciones
     def abrir(self) -> sqlite3.Connection:

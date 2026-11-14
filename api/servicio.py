@@ -21,6 +21,7 @@ from ..reglas.seguridad import construir_reglas_seguridad
 from . import proveedores_ip, traduccion
 from .ajustes import Ajustes
 from .almacen import Almacen, ComercioNoAutorizado, Principal, ahora_iso, id_seguimiento_libre
+from .repositorios.revisiones import RevisionesRepositorio
 
 log = logging.getLogger("modelo_ia.api")
 
@@ -167,8 +168,7 @@ class ServicioEvaluacion:
         except sqlite3.IntegrityError:
             # Dos solicitudes idénticas llegaron a la vez: la segunda ya no puede insertar; devolvemos la guardada.
             with self.alm.lectura() as con:
-                previa = con.execute("SELECT * FROM evaluaciones WHERE comercio_id=? AND id_transaccion=?",
-                                     (principal.comercio_id, solicitud.id_transaccion)).fetchone()
+                previa = self.alm.evaluaciones.por_transaccion(con, principal.comercio_id, solicitud.id_transaccion)
                 if previa is not None and previa["solicitud_hash"] == huella_solicitud:
                     return self._respuesta(con, previa, repetida=True)
             raise ErrorAPI(409, "Transacción repetida con datos distintos", "Ya existe una evaluación con ese id_transaccion.")
@@ -195,8 +195,7 @@ class ServicioEvaluacion:
         return campos, f"proveedor:{self.proveedor.nombre}"
 
     def _repetida(self, con: sqlite3.Connection, principal: Principal, solicitud, huella_solicitud: str) -> Optional[Dict]:
-        previa = con.execute("SELECT * FROM evaluaciones WHERE comercio_id=? AND id_transaccion=?",
-                             (principal.comercio_id, solicitud.id_transaccion)).fetchone()
+        previa = self.alm.evaluaciones.por_transaccion(con, principal.comercio_id, solicitud.id_transaccion)
         if previa is None:
             return None
         if previa["solicitud_hash"] != huella_solicitud:
@@ -204,18 +203,12 @@ class ServicioEvaluacion:
                            "Ya existe una evaluación con ese id_transaccion pero con datos diferentes.")
         return self._respuesta(con, previa, repetida=True)
 
-    @staticmethod
-    def _marcas(con: sqlite3.Connection, comercio_id: int, fila: Dict):
+    def _marcas(self, con: sqlite3.Connection, comercio_id: int, fila: Dict):
         """Último pago guardado del cliente y de la huella: si cambian entre calcular y guardar, el historial cambió."""
-        cliente = con.execute("SELECT COALESCE(MAX(rowid), 0) FROM evaluaciones WHERE comercio_id=? AND id_cliente=?",
-                              (comercio_id, fila["id_cliente"])).fetchone()[0]
-        huella = con.execute("SELECT COALESCE(MAX(rowid), 0) FROM evaluaciones WHERE comercio_id=? AND huella=?",
-                             (comercio_id, fila.get("huella_dispositivo"))).fetchone()[0] if fila.get("huella_dispositivo") else 0
-        return cliente, huella
+        return self.alm.evaluaciones.marcas(con, comercio_id, fila["id_cliente"], fila.get("huella_dispositivo"))
 
     def _calcular(self, con: sqlite3.Connection, comercio_id: int, fila: Dict, solicitud, id_eval: str):
-        negra = [r["id_cliente"] for r in con.execute("SELECT id_cliente FROM lista_negra WHERE comercio_id=? AND id_cliente=?",
-                                                       (comercio_id, solicitud.id_cliente))]
+        negra = self.alm.lista_negra.ids_de_cliente(con, comercio_id, solicitud.id_cliente)
         resultado, fila_con_24h = self._decidir(con, comercio_id, fila, negra, id_eval)
         return resultado, fila_con_24h, negra
 
@@ -224,27 +217,23 @@ class ServicioEvaluacion:
         no_enviados = sorted(k for k in traduccion.NEUTROS if fila_con_24h.get(k) is None)         # lo que NO mandó el comercio (se rellenó con un valor neutro)
         guardada = traduccion.con_neutros(fila_con_24h, id_eval)
         id_seguimiento = id_seguimiento_libre(           # dentro del bloqueo de escritura: nadie más puede tomarlo entre la revisión y el guardado
-            lambda c: con.execute("SELECT 1 FROM evaluaciones WHERE id_seguimiento=?", (c,)).fetchone() is not None)
-        con.execute(
-            "INSERT INTO evaluaciones (id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, solicitud_hash, "
-            "decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, "
-            "modelo_conjunto, modo, latencia_ms, creada, red_origen, estado_origen, id_seguimiento, ip_codigo, disp_codigo, monto_cop, no_enviados_json, senales_json) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (id_eval, principal.comercio_id, solicitud.id_transaccion, solicitud.id_cliente, fila["fecha"],
-             guardada["huella_dispositivo"], json.dumps(guardada, ensure_ascii=False, default=str), huella_solicitud,
-             resultado["decision"], resultado["decision_modelo"], resultado["probabilidad"],
-             json.dumps(resultado["motivos"], ensure_ascii=False), json.dumps(resultado["reglas"], ensure_ascii=False),
-             self.meta["modelo"], self.meta["version"], self.meta["conjunto"], resultado["modo"], latencia, ahora_iso(), red_origen, resultado["estado_origen"],
-             id_seguimiento, self.alm.codigo_ip(fila_con_24h.get("ip_huella")),
-             None if fila.get("huella_dispositivo") is None else self.alm.codigo_dispositivo(fila["huella_dispositivo"]),
-             fila.get("monto_cop"), json.dumps(no_enviados),
-             json.dumps(resultado["senales"], ensure_ascii=False) if (resultado["senales"]["suben"] or resultado["senales"]["bajan"]) else None))
+            lambda c: self.alm.evaluaciones.seguimiento_existe(con, c))
+        self.alm.evaluaciones.insertar(
+            con, id=id_eval, comercio_id=principal.comercio_id, id_transaccion=solicitud.id_transaccion, id_cliente=solicitud.id_cliente, fecha=fila["fecha"],
+            huella=guardada["huella_dispositivo"], fila_json=json.dumps(guardada, ensure_ascii=False, default=str), solicitud_hash=huella_solicitud,
+            decision=resultado["decision"], decision_modelo=resultado["decision_modelo"], probabilidad=resultado["probabilidad"],
+            motivos_json=json.dumps(resultado["motivos"], ensure_ascii=False), reglas_json=json.dumps(resultado["reglas"], ensure_ascii=False),
+            modelo_nombre=self.meta["modelo"], modelo_version=self.meta["version"], modelo_conjunto=self.meta["conjunto"], modo=resultado["modo"], latencia_ms=latencia,
+            creada=ahora_iso(), red_origen=red_origen, estado_origen=resultado["estado_origen"], id_seguimiento=id_seguimiento,
+            ip_codigo=self.alm.codigo_ip(fila_con_24h.get("ip_huella")),
+            disp_codigo=None if fila.get("huella_dispositivo") is None else self.alm.codigo_dispositivo(fila["huella_dispositivo"]),
+            monto_cop=fila.get("monto_cop"), no_enviados_json=json.dumps(no_enviados),
+            senales_json=json.dumps(resultado["senales"], ensure_ascii=False) if (resultado["senales"]["suben"] or resultado["senales"]["bajan"]) else None)
         if resultado["decision"] == "EN_REVISION":
-            con.execute("INSERT INTO revisiones (id_evaluacion, comercio_id, estado, creada) VALUES (?,?,'pendiente',?)",
-                        (id_eval, principal.comercio_id, ahora_iso()))
+            self.alm.revisiones.crear_pendiente(con, id_eval, principal.comercio_id, ahora_iso())
         self.alm.auditar(con, principal.comercio_id, principal.clave_id, "evaluacion", id_eval,
                          {"decision": resultado["decision"], "modo": resultado["modo"], "latencia_ms": latencia})
-        return self._respuesta(con, con.execute("SELECT * FROM evaluaciones WHERE id=?", (id_eval,)).fetchone(), repetida=False)
+        return self._respuesta(con, self.alm.evaluaciones.por_id(con, id_eval), repetida=False)
 
     # ----------------------------------------------------------- decisión
     def _campos_faltantes(self, fila: Dict) -> List[str]:
@@ -261,25 +250,16 @@ class ServicioEvaluacion:
             faltan.append("estado_dispositivo")
         return faltan
 
-    def _previos(self, con: sqlite3.Connection, consulta: str, parametros: tuple) -> List[Dict]:
-        filas = [json.loads(r["fila_json"]) for r in con.execute(consulta, parametros)]
-        return list(reversed(filas))                        # de la más vieja a la más nueva
-
     def _variables(self, con: sqlite3.Connection, comercio_id: int, fila: Dict, id_eval: str):
         """Calcula las variables con LAS MISMAS funciones del entrenamiento sobre el historial guardado."""
         fecha = fila["fecha"]
-        previos_cliente = self._previos(
-            con, "SELECT fila_json FROM evaluaciones WHERE comercio_id=? AND id_cliente=? AND fecha<=? "
-                 "ORDER BY fecha DESC, rowid DESC LIMIT ?", (comercio_id, fila["id_cliente"], fecha, self.aj.max_historial_cliente))
+        previos_cliente = self.alm.evaluaciones.previos_cliente(con, comercio_id, fila["id_cliente"], fecha, self.aj.max_historial_cliente)
         desde = (datetime.fromisoformat(fecha) - timedelta(hours=24)).isoformat()
         n24 = 1 + sum(1 for p in previos_cliente if p["fecha"] > desde)         # incluye la compra actual, como en el entrenamiento
         actual = dict(fila, transacciones_ultimas_24h=n24)
         filas = list(previos_cliente)
         if "huella" in self.grupos and fila.get("huella_dispositivo"):
-            filas = self._previos(
-                con, "SELECT fila_json FROM evaluaciones WHERE comercio_id=? AND huella=? AND id_cliente<>? AND fecha<=? "
-                     "ORDER BY fecha DESC, rowid DESC LIMIT ?",
-                (comercio_id, fila["huella_dispositivo"], fila["id_cliente"], fecha, self.aj.max_historial_huella)) + filas
+            filas = self.alm.evaluaciones.previos_huella(con, comercio_id, fila["huella_dispositivo"], fila["id_cliente"], fecha, self.aj.max_historial_huella) + filas
         mini = pd.DataFrame(filas + [actual])
         mini["fecha"] = pd.to_datetime(mini["fecha"])
         for c in NUMERICAS_CRUDAS:
@@ -336,8 +316,8 @@ class ServicioEvaluacion:
 
     # ----------------------------------------------------------- respuestas
     def _respuesta(self, con: sqlite3.Connection, e: sqlite3.Row, repetida: bool) -> Dict:
-        rev = con.execute("SELECT * FROM revisiones WHERE id_evaluacion=?", (e["id"],)).fetchone()
-        res = con.execute("SELECT resultado FROM resultados WHERE id_evaluacion=?", (e["id"],)).fetchone()
+        rev = self.alm.revisiones.por_evaluacion(con, e["id"])
+        res = self.alm.resultados.por_evaluacion(con, e["id"])
         revision = None
         decision_final = e["decision"]
         if rev is not None:
@@ -352,8 +332,7 @@ class ServicioEvaluacion:
                 "evaluada_en": e["creada"], "latencia_ms": e["latencia_ms"], "repetida": repetida}
 
     def _evaluacion_visible(self, con: sqlite3.Connection, principal: Principal, id_eval: str) -> sqlite3.Row:
-        columna = "id_seguimiento" if id_eval.upper().startswith("AF-") else "id"          # se acepta el identificador de seguimiento o el interno
-        e = con.execute(f"SELECT * FROM evaluaciones WHERE {columna}=?", (id_eval.upper() if columna == "id_seguimiento" else id_eval,)).fetchone()
+        e = self.alm.evaluaciones.por_identificador(con, id_eval)                          # se acepta el identificador de seguimiento o el interno
         if e is None or (principal.rol == "comercio" and e["comercio_id"] != principal.comercio_id):
             raise ErrorAPI(404, "No encontrada", "No existe esa evaluación.")        # 404 también si es de otro comercio
         return e
@@ -368,31 +347,23 @@ class ServicioEvaluacion:
             self._comercio_puede_operar(con, principal, acuerdo=False)
             e = self._evaluacion_visible(con, principal, id_eval)
             fecha = (sol.fecha_confirmacion or self.reloj()).isoformat()
-            previo = con.execute("SELECT resultado FROM resultados WHERE id_evaluacion=?", (id_eval,)).fetchone()
+            previo = self.alm.resultados.por_evaluacion(con, id_eval)
             if previo is not None:
                 if previo["resultado"] == sol.resultado.value:
                     return self._respuesta(con, e, repetida=True)
                 raise ErrorAPI(409, "Resultado ya informado", "Esa evaluación ya tiene un resultado distinto registrado.")
-            con.execute("INSERT INTO resultados (id_evaluacion, comercio_id, resultado, fecha_confirmacion, nota, recibido) VALUES (?,?,?,?,?,?)",
-                        (id_eval, e["comercio_id"], sol.resultado.value, fecha, sol.nota, ahora_iso()))
+            self.alm.resultados.registrar(con, id_eval, e["comercio_id"], sol.resultado.value, fecha, sol.nota, ahora_iso())
             self.alm.auditar(con, principal.comercio_id, principal.clave_id, "resultado", id_eval, {"resultado": sol.resultado.value})
             return self._respuesta(con, e, repetida=False)
 
     # ----------------------------------------------------------- revisiones
-    ORDEN_REVISIONES = {"antiguos": "r.creada, e.id", "recientes": "r.creada DESC, e.id", "riesgo_desc": "e.probabilidad DESC, r.creada", "monto_desc": "e.monto_cop DESC, r.creada"}
+    ORDEN_REVISIONES = RevisionesRepositorio.ORDEN
 
     def listar_revisiones(self, estado: str, limite: int, desplazamiento: int, condiciones: Optional[List[str]] = None,
                           parametros: tuple = (), orden: str = "antiguos") -> Dict:
         """La cola de revisión. `condiciones` y `parametros` vienen ya armados (y validados) por consultas.Filtros; el orden sale de una lista fija."""
-        donde = " AND ".join(["r.estado = ?"] + list(condiciones or []))
         with self.alm.lectura() as con:
-            tot = con.execute(f"SELECT COUNT(*), COALESCE(SUM(e.monto_cop), 0) FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion WHERE {donde}",
-                              (estado,) + tuple(parametros)).fetchone()
-            filas = con.execute(
-                "SELECT e.*, c.nombre AS comercio_nombre, r.estado AS rev_estado, r.creada AS rev_creada, r.resuelta AS rev_resuelta, "
-                "COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS rev_por FROM revisiones r JOIN evaluaciones e ON e.id=r.id_evaluacion "
-                f"JOIN comercios c ON c.id = e.comercio_id LEFT JOIN claves k ON k.id = r.clave_analista WHERE {donde} ORDER BY {self.ORDEN_REVISIONES[orden]} LIMIT ? OFFSET ?",
-                (estado,) + tuple(parametros) + (limite, desplazamiento)).fetchall()
+            tot, filas = self.alm.revisiones.listar(con, estado, condiciones, parametros, orden, limite, desplazamiento)
         return {"total": tot[0], "monto_total_cop": tot[1], "revisiones": [
             {"id_evaluacion": f["id"], "id_seguimiento": f["id_seguimiento"], "comercio_id": f["comercio_id"], "comercio": f["comercio_nombre"], "id_transaccion": f["id_transaccion"],
              "puntaje_riesgo": f["probabilidad"], "motivos": json.loads(f["motivos_json"]),
@@ -403,13 +374,11 @@ class ServicioEvaluacion:
 
     def resolver_revision(self, principal: Principal, id_eval: str, sol) -> Dict:
         with self.alm.transaccion() as con:
-            e = con.execute("SELECT * FROM evaluaciones WHERE id=?", (id_eval,)).fetchone()
-            if e is None or con.execute("SELECT 1 FROM revisiones WHERE id_evaluacion=?", (id_eval,)).fetchone() is None:
+            e = self.alm.evaluaciones.por_id(con, id_eval)
+            if e is None or not self.alm.revisiones.existe(con, id_eval):
                 raise ErrorAPI(404, "No encontrada", "Esa evaluación no tiene una revisión.")
-            cur = con.execute("UPDATE revisiones SET estado='resuelta', decision_analista=?, nota=?, clave_analista=?, resuelta=? "
-                              "WHERE id_evaluacion=? AND estado='pendiente'",
-                              (sol.decision.value, sol.nota, principal.clave_id, ahora_iso(), id_eval))
-            if cur.rowcount != 1:
+            cambiadas = self.alm.revisiones.resolver(con, id_eval, sol.decision.value, sol.nota, principal.clave_id, ahora_iso())
+            if cambiadas != 1:
                 raise ErrorAPI(409, "Revisión ya resuelta", "Esa revisión ya fue resuelta.")
             self.alm.auditar(con, principal.comercio_id, principal.clave_id, "revision_resuelta", id_eval, {"decision": sol.decision.value})
             return self._respuesta(con, e, repetida=False)
@@ -418,20 +387,18 @@ class ServicioEvaluacion:
     def agregar_lista_negra(self, principal: Principal, id_cliente: str, motivo: Optional[str]) -> Dict:
         with self.alm.transaccion() as con:
             self._comercio_puede_operar(con, principal, acuerdo=False)
-            con.execute("INSERT OR REPLACE INTO lista_negra (comercio_id, id_cliente, motivo, creada) VALUES (?,?,?,?)",
-                        (principal.comercio_id, id_cliente, motivo, ahora_iso()))
+            self.alm.lista_negra.agregar(con, principal.comercio_id, id_cliente, motivo, ahora_iso())
             self.alm.auditar(con, principal.comercio_id, principal.clave_id, "lista_negra_agregar", None, {"id_cliente": id_cliente})
         return {"id_cliente": id_cliente, "motivo": motivo, "creada_en": ahora_iso()}
 
     def quitar_lista_negra(self, principal: Principal, id_cliente: str) -> None:
         with self.alm.transaccion() as con:
             self._comercio_puede_operar(con, principal, acuerdo=False)
-            cur = con.execute("DELETE FROM lista_negra WHERE comercio_id=? AND id_cliente=?", (principal.comercio_id, id_cliente))
-            if cur.rowcount != 1:
+            borradas = self.alm.lista_negra.quitar(con, principal.comercio_id, id_cliente)
+            if borradas != 1:
                 raise ErrorAPI(404, "No encontrado", "Ese cliente no está en la lista negra.")
             self.alm.auditar(con, principal.comercio_id, principal.clave_id, "lista_negra_quitar", None, {"id_cliente": id_cliente})
 
     def listar_lista_negra(self, principal: Principal) -> List[Dict]:
         with self.alm.lectura() as con:
-            return [{"id_cliente": r["id_cliente"], "motivo": r["motivo"], "creada_en": r["creada"]} for r in con.execute(
-                "SELECT * FROM lista_negra WHERE comercio_id=? ORDER BY creada", (principal.comercio_id,))]
+            return [{"id_cliente": r["id_cliente"], "motivo": r["motivo"], "creada_en": r["creada"]} for r in self.alm.lista_negra.listar(con, principal.comercio_id)]
