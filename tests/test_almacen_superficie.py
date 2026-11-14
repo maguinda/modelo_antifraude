@@ -114,7 +114,9 @@ def test_los_repositorios_no_dependen_de_la_fachada_y_la_fachada_no_tiene_sql():
     for archivo in sorted(REPOS.glob("*.py")):
         for nodo in ast.walk(ast.parse(archivo.read_text(encoding="utf-8"))):
             if isinstance(nodo, ast.ImportFrom) and nodo.module:
-                assert not (nodo.level == 2 and nodo.module == "almacen") and "almacen" not in (nodo.module if nodo.level == 0 else ""), f"{archivo.name} importa la fachada"
+                nombres = {a.name for a in nodo.names}
+                importa_la_fachada = (nodo.module or "").split(".")[-1] == "almacen" or (not nodo.module and "almacen" in nombres)         # «from ..almacen import x» y «from .. import almacen»
+                assert not importa_la_fachada, f"{archivo.name} importa la fachada"
     fuente = inspect.getsource(modulo)
     for palabra in ("SELECT ", "INSERT ", "UPDATE ", "DELETE ", "CREATE ", "ALTER ", "PRAGMA "):
         assert palabra not in fuente, f"almacen.py (la fachada) no debe tener SQL: encontré «{palabra.strip()}»"
@@ -126,7 +128,7 @@ def test_las_derivaciones_con_el_secreto_dan_siempre_los_mismos_valores():
     a = Almacen(Path(mkdtemp()) / "k.sqlite3", "p" * 40)
     assert a.seudonimos.hash_clave("mia_comercio_ejemplo") == "4a8333810ab93f439716a7945c2ed40658a2a507dc99256a749049fa96b0d501"
     assert a.huella_ip("192.0.2.1") == "577177ca935572a9" and a.codigo_ip("577177ca935572a9") == "577177CA" and a.codigo_dispositivo("FP-1") == "90986733"
-    assert a.huella_ip("192.0.2.1") == a.huella_ip("192.000.002.001".replace("000", "0").replace("002", "2").replace("001", "1"))      # la misma IP escrita distinto
+    assert a.huella_ip("2001:db8:0:0:0:0:0:1") == a.huella_ip("2001:db8::1") == a.huella_ip("2001:0DB8::0001")                      # la misma IP escrita de tres formas
     assert a.huella_ip("2001:db8::1") != a.huella_ip("2001:db8::2")
     assert Almacen(Path(mkdtemp()) / "k2.sqlite3", "otro" * 10).huella_ip("192.0.2.1") != a.huella_ip("192.0.2.1")                   # y con otro secreto, otro valor
 
