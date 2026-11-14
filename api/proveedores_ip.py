@@ -89,6 +89,9 @@ PROVEEDORES = {"simulado": ProveedorSimulado}
 
 
 def crear_proveedor(nombre: str) -> ProveedorIP:
+    if nombre == "propio":                                      # se importa aquí: así quien usa el simulado no necesita las bases ni la librería
+        from .ip_propia import ProveedorPropio
+        return ProveedorPropio()
     if nombre not in PROVEEDORES:
-        raise ValueError(f"Proveedor de IP desconocido '{nombre}'. Opciones: {list(PROVEEDORES)}")
+        raise ValueError(f"Proveedor de IP desconocido '{nombre}'. Opciones: {list(PROVEEDORES) + ['propio']}")
     return PROVEEDORES[nombre]()
