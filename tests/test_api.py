@@ -1,4 +1,5 @@
 """Pruebas del API: contrato, seguridad, aislamiento entre comercios, datos raros, modo degradado y concurrencia."""
+
 import json
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -29,8 +30,15 @@ def artefacto(tmp_path_factory):
     hacer_datos_completos().to_csv(ruta, index=False, encoding="utf-8-sig")
     df, m = entrenar.preparar_datos(ruta, "completo")
     r = entrenar.ajustar_y_evaluar(df, m, "logistica", "completo")
-    meta = {"modelo": "logistica", "version": config.VERSION, "conjunto": "completo", "numericas": r["numericas"],
-            "categoricas": r["categoricas"], "umbral_revisar": r["umbral_revisar"], "umbral_bloquear": r["umbral_bloquear"]}
+    meta = {
+        "modelo": "logistica",
+        "version": config.VERSION,
+        "conjunto": "completo",
+        "numericas": r["numericas"],
+        "categoricas": r["categoricas"],
+        "umbral_revisar": r["umbral_revisar"],
+        "umbral_bloquear": r["umbral_bloquear"],
+    }
     return {"pipeline": r["pipeline"], "meta": meta}
 
 
@@ -41,8 +49,16 @@ def artefacto_sin_estado(tmp_path_factory):
     hacer_datos_completos().to_csv(ruta, index=False, encoding="utf-8-sig")
     df, m = entrenar.preparar_datos(ruta, "completo")
     r = entrenar.ajustar_y_evaluar(df, m, "logistica", "completo", sin_estado=True)
-    meta = {"modelo": "logistica", "version": config.VERSION, "conjunto": "completo", "numericas": r["numericas"], "categoricas": r["categoricas"],
-            "umbral_revisar": r["umbral_revisar"], "umbral_bloquear": r["umbral_bloquear"], "sin_estado": True}
+    meta = {
+        "modelo": "logistica",
+        "version": config.VERSION,
+        "conjunto": "completo",
+        "numericas": r["numericas"],
+        "categoricas": r["categoricas"],
+        "umbral_revisar": r["umbral_revisar"],
+        "umbral_bloquear": r["umbral_bloquear"],
+        "sin_estado": True,
+    }
     return {"pipeline": r["pipeline"], "meta": meta}
 
 
@@ -71,8 +87,12 @@ def construir_contexto(tmp_path, artefacto, art_sin_estado=None, **ajustes_extra
     app = crear_app(ajustes, artefacto, reloj=lambda: RELOJ, artefacto_sin_estado=art_sin_estado)
     alm = app.state.almacen
     a, b = alm.crear_comercio("Tienda A"), alm.crear_comercio("Tienda B")
-    claves = {"A": alm.crear_clave(a, "comercio"), "B": alm.crear_clave(b, "comercio"),
-              "analista": alm.crear_clave(1, "analista"), "admin": alm.crear_clave(1, "admin")}
+    claves = {
+        "A": alm.crear_clave(a, "comercio"),
+        "B": alm.crear_clave(b, "comercio"),
+        "analista": alm.crear_clave(1, "analista"),
+        "admin": alm.crear_clave(1, "admin"),
+    }
     ctx = Contexto(app, claves)
     ctx.comercios = {"A": a, "B": b}
     return ctx
@@ -85,15 +105,47 @@ def ctx(tmp_path, artefacto):
 
 def pago(tx="T1", cliente="C1", sin=(), **cambios):
     """Un pago normal y completo; cada prueba cambia solo lo que necesita."""
-    base = {"id_transaccion": tx, "id_cliente": cliente, "fecha_pago": FECHA, "monto_cop": 200000, "metodo_pago": "VISA",
-            "canal_pago": "WEB", "categoria": "ROPA", "ciudad": "Bogotá",
-            "dispositivo": {"tipo": "IPHONE", "estado": "CONOCIDO", "huella": f"FP-{cliente}", "sistema_operativo": "iOS",
-                            "navegador": "Safari", "resolucion_pantalla": "390x844", "zona_horaria": "America/Bogota", "es_emulador": False},
-            "red": {"tipo_ip": "RESIDENCIAL", "pais": "Colombia", "ciudad_estimada": "Bogotá", "distancia_a_ciudad_km": 5,
-                    "es_datacenter": False, "reputacion": 90},
-            "identidad": {"kyc_nivel": "COMPLETO", "edad_cuenta_dias": 500, "autenticacion_2fa": "NO_EXIGIDA",
-                          "intentos_fallidos_24h": 0, "cambio_credenciales_7d": False},
-            "comportamiento": {"tiempo_formulario_seg": 40, "velocidad_tecleo_ms": 170, "pego_numero_tarjeta": False, "mouse_natural": 0.8}}
+    base = {
+        "id_transaccion": tx,
+        "id_cliente": cliente,
+        "fecha_pago": FECHA,
+        "monto_cop": 200000,
+        "metodo_pago": "VISA",
+        "canal_pago": "WEB",
+        "categoria": "ROPA",
+        "ciudad": "Bogotá",
+        "dispositivo": {
+            "tipo": "IPHONE",
+            "estado": "CONOCIDO",
+            "huella": f"FP-{cliente}",
+            "sistema_operativo": "iOS",
+            "navegador": "Safari",
+            "resolucion_pantalla": "390x844",
+            "zona_horaria": "America/Bogota",
+            "es_emulador": False,
+        },
+        "red": {
+            "tipo_ip": "RESIDENCIAL",
+            "pais": "Colombia",
+            "ciudad_estimada": "Bogotá",
+            "distancia_a_ciudad_km": 5,
+            "es_datacenter": False,
+            "reputacion": 90,
+        },
+        "identidad": {
+            "kyc_nivel": "COMPLETO",
+            "edad_cuenta_dias": 500,
+            "autenticacion_2fa": "NO_EXIGIDA",
+            "intentos_fallidos_24h": 0,
+            "cambio_credenciales_7d": False,
+        },
+        "comportamiento": {
+            "tiempo_formulario_seg": 40,
+            "velocidad_tecleo_ms": 170,
+            "pego_numero_tarjeta": False,
+            "mouse_natural": 0.8,
+        },
+    }
     for k, v in cambios.items():
         base[k] = {**base[k], **v} if isinstance(v, dict) and isinstance(base.get(k), dict) else v
     for k in sin:
@@ -128,7 +180,7 @@ def test_swagger_y_openapi_estan_disponibles(ctx):
     assert spec["openapi"].startswith("3.") and "/v1/evaluaciones" in spec["paths"]
     assert "X-API-Key" in json.dumps(spec["components"]["securitySchemes"])
     ops = [o["operationId"] for p in spec["paths"].values() for o in p.values()]
-    assert len(ops) == len(set(ops))                                           # sin nombres repetidos
+    assert len(ops) == len(set(ops))  # sin nombres repetidos
 
 
 def test_el_contrato_publicado_coincide_con_el_codigo():
@@ -143,7 +195,9 @@ def test_el_contrato_documenta_errores_y_ejemplos():
     post = spec["paths"]["/v1/evaluaciones"]["post"]
     assert {"401", "403", "409", "413", "422", "429", "503"} <= set(post["responses"])
     ejemplos = post["requestBody"]["content"]["application/json"]["examples"]
-    assert {"01_aprobada_pago_normal", "04_rechazada_pago_sospechoso", "07_degradado_solo_campos_obligatorios"} <= set(ejemplos)
+    assert {"01_aprobada_pago_normal", "04_rechazada_pago_sospechoso", "07_degradado_solo_campos_obligatorios"} <= set(
+        ejemplos
+    )
     assert "application/problem+json" in json.dumps(spec["paths"]["/v1/evaluaciones"]["post"]["responses"]["401"])
 
 
@@ -159,16 +213,24 @@ def test_modelo_en_uso(ctx):
 
 # ------------------------------------------------------------------ cabeceras de seguridad
 def test_todas_las_respuestas_llevan_cabeceras_de_seguridad(ctx):
-    respuestas = [ctx.cliente.get("/v1/salud"), ctx.cliente.get("/docs"), ctx.cliente.get("/openapi.json"),
-                  ctx.cliente.post("/v1/evaluaciones", json=pago()),                                # 401
-                  ctx.evaluar(pago("CAB1")), ctx.evaluar(pago(monto_cop=-1)),                       # 201 y 422
-                  ctx.cliente.get("/v1/no-existe", headers=ctx.h("A"))]                             # 404
+    respuestas = [
+        ctx.cliente.get("/v1/salud"),
+        ctx.cliente.get("/docs"),
+        ctx.cliente.get("/openapi.json"),
+        ctx.cliente.post("/v1/evaluaciones", json=pago()),  # 401
+        ctx.evaluar(pago("CAB1")),
+        ctx.evaluar(pago(monto_cop=-1)),  # 201 y 422
+        ctx.cliente.get("/v1/no-existe", headers=ctx.h("A")),
+    ]  # 404
     for r in respuestas:
         assert r.headers["X-Content-Type-Options"] == "nosniff", r.url
         assert r.headers["X-Frame-Options"] == "DENY" and r.headers["Referrer-Policy"] == "no-referrer", r.url
     for r in respuestas:
         if str(r.url).split("testserver")[1].startswith("/v1/"):
-            assert r.headers["Cache-Control"] == "no-store" and "default-src 'none'" in r.headers["Content-Security-Policy"], r.url
+            assert (
+                r.headers["Cache-Control"] == "no-store"
+                and "default-src 'none'" in r.headers["Content-Security-Policy"]
+            ), r.url
 
 
 def test_el_error_de_tamano_tambien_lleva_cabeceras(tmp_path, artefacto):
@@ -187,9 +249,9 @@ def test_sin_clave_o_con_clave_falsa_da_401_con_formato_estandar(ctx):
 
 
 def test_cada_rol_solo_puede_lo_suyo(ctx):
-    assert ctx.post("/v1/evaluaciones", pago(), "analista").status_code == 403         # el analista no evalúa
+    assert ctx.post("/v1/evaluaciones", pago(), "analista").status_code == 403  # el analista no evalúa
     assert ctx.post("/v1/evaluaciones", pago(), "admin").status_code == 403
-    assert ctx.cliente.get("/v1/revisiones", headers=ctx.h("A")).status_code == 403    # el comercio no ve la cola
+    assert ctx.cliente.get("/v1/revisiones", headers=ctx.h("A")).status_code == 403  # el comercio no ve la cola
     assert ctx.post("/v1/comercios", {"nombre": "Nueva"}, "A").status_code == 403
     assert ctx.post("/v1/comercios", {"nombre": "Nueva"}, "analista").status_code == 403
     assert ctx.cliente.get("/v1/lista-negra", headers=ctx.h("analista")).status_code == 403
@@ -251,25 +313,59 @@ def test_el_mismo_id_en_otro_comercio_es_otra_transaccion(ctx):
 
 
 def test_un_pago_muy_sospechoso_no_se_aprueba(ctx):
-    p = pago("S1", "C9", monto_cop=4_800_000, categoria="ELECTRONICA",
-             dispositivo={"estado": "NO_RECONOCIDO", "zona_horaria": "Europe/Moscow"},
-             red={"tipo_ip": "VPN", "pais": "Rusia", "distancia_a_ciudad_km": 10700, "es_datacenter": True, "reputacion": 30},
-             identidad={"autenticacion_2fa": "EXIGIDA_FALLIDA", "intentos_fallidos_24h": 4, "edad_cuenta_dias": 1, "cambio_credenciales_7d": True},
-             comportamiento={"tiempo_formulario_seg": 3, "pego_numero_tarjeta": True, "mouse_natural": 0.05})
+    p = pago(
+        "S1",
+        "C9",
+        monto_cop=4_800_000,
+        categoria="ELECTRONICA",
+        dispositivo={"estado": "NO_RECONOCIDO", "zona_horaria": "Europe/Moscow"},
+        red={
+            "tipo_ip": "VPN",
+            "pais": "Rusia",
+            "distancia_a_ciudad_km": 10700,
+            "es_datacenter": True,
+            "reputacion": 30,
+        },
+        identidad={
+            "autenticacion_2fa": "EXIGIDA_FALLIDA",
+            "intentos_fallidos_24h": 4,
+            "edad_cuenta_dias": 1,
+            "cambio_credenciales_7d": True,
+        },
+        comportamiento={"tiempo_formulario_seg": 3, "pego_numero_tarjeta": True, "mouse_natural": 0.05},
+    )
     r = ctx.evaluar(p).json()
     assert r["decision"] == "RECHAZADA" and r["decision_final"] == "RECHAZADA"
     assert any(x["regla"] == "dispositivo_no_reconocido_con_ip_anonima" for x in r["reglas_activadas"])
 
 
 # ------------------------------------------------------------------ validación y datos de tarjeta
-@pytest.mark.parametrize("cambios", [
-    {"monto_cop": -5}, {"monto_cop": 0}, {"monto_cop": "mucho"}, {"monto_cop": 10 ** 12}, {"moneda": "USD"},
-    {"metodo_pago": "CHEQUE"}, {"canal_pago": "FAX"}, {"id_transaccion": "con espacios"}, {"id_transaccion": ""},
-    {"id_cliente": "x" * 65}, {"id_cliente": "a'; DROP TABLE evaluaciones;--"}, {"ciudad": "B"}, {"ciudad": "z" * 61},
-    {"fecha_pago": "ayer"}, {"fecha_pago": "2026-11-13T11:55:00"}, {"fecha_pago": "2026-01-01T00:00:00"},
-    {"dispositivo": {"resolucion_pantalla": "grande"}}, {"red": {"reputacion": 101}}, {"red": {"distancia_a_ciudad_km": -1}},
-    {"comportamiento": {"mouse_natural": 1.5}}, {"identidad": {"edad_cuenta_dias": -3}},
-])
+@pytest.mark.parametrize(
+    "cambios",
+    [
+        {"monto_cop": -5},
+        {"monto_cop": 0},
+        {"monto_cop": "mucho"},
+        {"monto_cop": 10**12},
+        {"moneda": "USD"},
+        {"metodo_pago": "CHEQUE"},
+        {"canal_pago": "FAX"},
+        {"id_transaccion": "con espacios"},
+        {"id_transaccion": ""},
+        {"id_cliente": "x" * 65},
+        {"id_cliente": "a'; DROP TABLE evaluaciones;--"},
+        {"ciudad": "B"},
+        {"ciudad": "z" * 61},
+        {"fecha_pago": "ayer"},
+        {"fecha_pago": "2026-11-13T11:55:00"},
+        {"fecha_pago": "2026-01-01T00:00:00"},
+        {"dispositivo": {"resolucion_pantalla": "grande"}},
+        {"red": {"reputacion": 101}},
+        {"red": {"distancia_a_ciudad_km": -1}},
+        {"comportamiento": {"mouse_natural": 1.5}},
+        {"identidad": {"edad_cuenta_dias": -3}},
+    ],
+)
 def test_datos_invalidos_dan_422_con_formato_estandar(ctx, cambios):
     r = ctx.evaluar(pago(**cambios))
     assert r.status_code == 422 and r.headers["content-type"].startswith("application/problem+json")
@@ -281,8 +377,16 @@ def test_campos_desconocidos_se_rechazan(ctx):
     assert ctx.evaluar(p).status_code == 422
 
 
-@pytest.mark.parametrize("campo,valor", [("numero_tarjeta", "4111111111111111"), ("cvv", "987"), ("card_number", "SECRETO-ABC"), ("pan", "SECRETO-DEF"),
-                                          ("vencimiento", "12/29")])
+@pytest.mark.parametrize(
+    "campo,valor",
+    [
+        ("numero_tarjeta", "4111111111111111"),
+        ("cvv", "987"),
+        ("card_number", "SECRETO-ABC"),
+        ("pan", "SECRETO-DEF"),
+        ("vencimiento", "12/29"),
+    ],
+)
 def test_los_campos_de_tarjeta_se_rechazan_y_no_se_repiten_en_la_respuesta(ctx, campo, valor):
     p = pago()
     p[campo] = valor
@@ -305,15 +409,15 @@ def test_pego_numero_tarjeta_es_un_campo_permitido(ctx):
 
 def test_solo_se_rechazan_los_numeros_que_parecen_tarjeta_de_verdad(ctx):
     """Un código largo se acepta salvo que pase la verificación de tarjetas (Luhn)."""
-    assert ctx.evaluar(pago("T1", "4111111111111111")).status_code == 422             # número de tarjeta de prueba, válido
-    assert ctx.evaluar(pago("T2", "4111111111111112")).status_code == 201             # mismo largo, no es tarjeta
+    assert ctx.evaluar(pago("T1", "4111111111111111")).status_code == 422  # número de tarjeta de prueba, válido
+    assert ctx.evaluar(pago("T2", "4111111111111112")).status_code == 201  # mismo largo, no es tarjeta
     assert ctx.evaluar(pago("T3", "CLI-4111")).status_code == 201
 
 
 def test_peticion_demasiado_grande_da_413(tmp_path, artefacto):
     limite = len(json.dumps(pago()).encode()) + 500
     c = construir_contexto(tmp_path, artefacto, tamano_maximo_bytes=limite)
-    assert c.evaluar(pago()).status_code == 201                                         # una normal sí pasa
+    assert c.evaluar(pago()).status_code == 201  # una normal sí pasa
     grande = json.dumps(pago("T2")) + " " * (limite + 1)
     r = c.cliente.post("/v1/evaluaciones", content=grande, headers={**c.h("A"), "Content-Type": "application/json"})
     assert r.status_code == 413 and r.headers["content-type"].startswith("application/problem+json")
@@ -329,7 +433,9 @@ def test_texto_raro_no_rompe_nada_ni_inyecta_sql(ctx):
 
 
 def test_json_roto_y_metodos_no_permitidos(ctx):
-    r = ctx.cliente.post("/v1/evaluaciones", content="{no es json", headers={**ctx.h("A"), "Content-Type": "application/json"})
+    r = ctx.cliente.post(
+        "/v1/evaluaciones", content="{no es json", headers={**ctx.h("A"), "Content-Type": "application/json"}
+    )
     assert r.status_code == 422 and r.headers["content-type"].startswith("application/problem+json")
     assert ctx.cliente.delete("/v1/evaluaciones", headers=ctx.h("A")).status_code == 405
     assert ctx.cliente.get("/v1/no-existe", headers=ctx.h("A")).status_code == 404
@@ -356,15 +462,17 @@ def test_en_modo_degradado_una_regla_de_seguridad_puede_rechazar(ctx):
 def test_si_el_modelo_falla_no_se_cae_el_servicio(ctx, monkeypatch):
     def roto(*a, **k):
         raise RuntimeError("el modelo se rompió")
+
     monkeypatch.setattr(predecir, "analizar_transaccion", roto)
     r = ctx.evaluar(pago("F1"))
     assert r.status_code == 201 and r.json()["modo"] == "degradado" and r.json()["decision"] == "EN_REVISION"
-    assert "falla interna" in r.json()["motivos"][0] and "se rompió" not in r.text           # no se filtran detalles
+    assert "falla interna" in r.json()["motivos"][0] and "se rompió" not in r.text  # no se filtran detalles
 
 
 def test_un_error_inesperado_da_500_estandar_sin_detalles(ctx, monkeypatch):
     def roto(*a, **k):
         raise RuntimeError("secreto interno")
+
     monkeypatch.setattr(ctx.app.state.servicio, "obtener", roto)
     c = TestClient(ctx.app, raise_server_exceptions=False)
     r = c.get("/v1/evaluaciones/" + "0" * 8 + "-0000-0000-0000-" + "0" * 12, headers=ctx.h("A"))
@@ -376,7 +484,9 @@ def test_un_error_inesperado_da_500_estandar_sin_detalles(ctx, monkeypatch):
 def test_un_comercio_no_ve_ni_toca_lo_de_otro(ctx):
     id_a = ctx.evaluar(pago("A1"), "A").json()["id_evaluacion"]
     assert ctx.cliente.get(f"/v1/evaluaciones/{id_a}", headers=ctx.h("A")).status_code == 200
-    assert ctx.cliente.get(f"/v1/evaluaciones/{id_a}", headers=ctx.h("B")).status_code == 404       # 404, no 403: no revela que existe
+    assert (
+        ctx.cliente.get(f"/v1/evaluaciones/{id_a}", headers=ctx.h("B")).status_code == 404
+    )  # 404, no 403: no revela que existe
     assert ctx.post(f"/v1/evaluaciones/{id_a}/resultado", {"resultado": "LEGITIMA"}, "B").status_code == 404
     assert ctx.cliente.get(f"/v1/evaluaciones/{id_a}", headers=ctx.h("analista")).status_code == 200
     assert ctx.cliente.get(f"/v1/evaluaciones/{id_a}", headers=ctx.h("admin")).status_code == 200
@@ -388,12 +498,17 @@ def test_el_historial_de_un_comercio_no_afecta_a_otro(ctx):
         ctx.evaluar(pago(f"H{i}", "CLIENTE-X", monto_cop=100000), "A")
     con = sqlite3.connect(ctx.bd)
     ctx.evaluar(pago("H9", "CLIENTE-X"), "B")
-    n_b = con.execute("SELECT COUNT(*) FROM evaluaciones WHERE comercio_id=? AND id_cliente='CLIENTE-X'", (ctx.comercios["B"],)).fetchone()[0]
+    n_b = con.execute(
+        "SELECT COUNT(*) FROM evaluaciones WHERE comercio_id=? AND id_cliente='CLIENTE-X'", (ctx.comercios["B"],)
+    ).fetchone()[0]
     assert n_b == 1
 
 
 def test_la_lista_negra_es_de_cada_comercio(ctx):
-    assert ctx.cliente.put("/v1/lista-negra/MALO-1", json={"motivo": "contracargos"}, headers=ctx.h("A")).status_code == 200
+    assert (
+        ctx.cliente.put("/v1/lista-negra/MALO-1", json={"motivo": "contracargos"}, headers=ctx.h("A")).status_code
+        == 200
+    )
     assert [x["id_cliente"] for x in ctx.cliente.get("/v1/lista-negra", headers=ctx.h("A")).json()] == ["MALO-1"]
     assert ctx.cliente.get("/v1/lista-negra", headers=ctx.h("B")).json() == []
     ra = ctx.evaluar(pago("L1", "MALO-1"), "A").json()
@@ -403,7 +518,7 @@ def test_la_lista_negra_es_de_cada_comercio(ctx):
 
 
 def test_quitar_de_la_lista_negra(ctx):
-    ctx.cliente.put("/v1/lista-negra/MALO-2", headers=ctx.h("A"))                      # sin cuerpo también sirve
+    ctx.cliente.put("/v1/lista-negra/MALO-2", headers=ctx.h("A"))  # sin cuerpo también sirve
     assert ctx.cliente.delete("/v1/lista-negra/MALO-2", headers=ctx.h("A")).status_code == 204
     assert ctx.cliente.delete("/v1/lista-negra/MALO-2", headers=ctx.h("A")).status_code == 404
     r = ctx.evaluar(pago("L2", "MALO-2")).json()
@@ -422,7 +537,11 @@ def test_flujo_completo_de_revision(ctx):
     cola = ctx.cliente.get("/v1/revisiones", headers=ctx.h("analista")).json()
     assert cola["total"] == 1 and cola["revisiones"][0]["id_evaluacion"] == id_eval
     assert ctx.cliente.get(f"/v1/evaluaciones/{id_eval}", headers=ctx.h("A")).json()["decision_final"] is None
-    r = ctx.post(f"/v1/revisiones/{id_eval}/resolver", {"decision": "APROBADA", "nota": "cliente confirmó por teléfono"}, "analista")
+    r = ctx.post(
+        f"/v1/revisiones/{id_eval}/resolver",
+        {"decision": "APROBADA", "nota": "cliente confirmó por teléfono"},
+        "analista",
+    )
     assert r.status_code == 200 and r.json()["decision_final"] == "APROBADA" and r.json()["decision"] == "EN_REVISION"
     visto = ctx.cliente.get(f"/v1/evaluaciones/{id_eval}", headers=ctx.h("A")).json()
     assert visto["decision_final"] == "APROBADA" and visto["revision"]["estado"] == "resuelta"
@@ -433,20 +552,35 @@ def test_flujo_completo_de_revision(ctx):
 def test_resolver_exige_permiso_y_existencia(ctx):
     id_eval = _en_revision(ctx)
     assert ctx.post(f"/v1/revisiones/{id_eval}/resolver", {"decision": "APROBADA"}, "A").status_code == 403
-    assert ctx.post("/v1/revisiones/" + "0" * 8 + "-0000-0000-0000-" + "0" * 12 + "/resolver", {"decision": "APROBADA"}, "analista").status_code == 404
+    assert (
+        ctx.post(
+            "/v1/revisiones/" + "0" * 8 + "-0000-0000-0000-" + "0" * 12 + "/resolver",
+            {"decision": "APROBADA"},
+            "analista",
+        ).status_code
+        == 404
+    )
     assert ctx.post(f"/v1/revisiones/{id_eval}/resolver", {"decision": "TAL_VEZ"}, "analista").status_code == 422
     sin_revision = ctx.evaluar(pago("N1")).json()
     if sin_revision["decision"] != "EN_REVISION":
-        assert ctx.post(f"/v1/revisiones/{sin_revision['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "analista").status_code == 404
+        assert (
+            ctx.post(
+                f"/v1/revisiones/{sin_revision['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "analista"
+            ).status_code
+            == 404
+        )
 
 
 def test_informar_resultado(ctx):
     id_eval = ctx.evaluar(pago("Z1")).json()["id_evaluacion"]
     url = f"/v1/evaluaciones/{id_eval}/resultado"
     assert ctx.post(url, {"resultado": "FRAUDE_CONFIRMADO", "nota": "contracargo 123"}).status_code == 200
-    assert ctx.post(url, {"resultado": "FRAUDE_CONFIRMADO"}).status_code == 200                # repetir lo mismo es seguro
-    assert ctx.post(url, {"resultado": "LEGITIMA"}).status_code == 409                           # cambiarlo no
-    assert ctx.cliente.get(f"/v1/evaluaciones/{id_eval}", headers=ctx.h("A")).json()["resultado_informado"] == "FRAUDE_CONFIRMADO"
+    assert ctx.post(url, {"resultado": "FRAUDE_CONFIRMADO"}).status_code == 200  # repetir lo mismo es seguro
+    assert ctx.post(url, {"resultado": "LEGITIMA"}).status_code == 409  # cambiarlo no
+    assert (
+        ctx.cliente.get(f"/v1/evaluaciones/{id_eval}", headers=ctx.h("A")).json()["resultado_informado"]
+        == "FRAUDE_CONFIRMADO"
+    )
     assert ctx.post(url, {"resultado": "NI_IDEA"}).status_code == 422
     assert ctx.post(url, {"resultado": "LEGITIMA", "nota": "4111 1111 1111 1111"}).status_code == 422
 
@@ -457,7 +591,7 @@ def test_limite_de_peticiones_da_429_con_retry_after(tmp_path, artefacto):
     codigos = [c.cliente.get("/v1/modelo", headers=c.h("A")) for _ in range(7)]
     assert [r.status_code for r in codigos] == [200] * 5 + [429, 429]
     assert int(codigos[-1].headers["Retry-After"]) >= 1
-    assert c.cliente.get("/v1/modelo", headers=c.h("B")).status_code == 200            # el límite es por clave
+    assert c.cliente.get("/v1/modelo", headers=c.h("B")).status_code == 200  # el límite es por clave
 
 
 def test_limitador_olvida_las_peticiones_viejas():
@@ -484,25 +618,45 @@ def _a_solicitud(fila: pd.Series, id_tx: str) -> dict:
     inv = lambda tabla, v: next(k for k, x in tabla.items() if x == v)
     ip = lambda x: None if pd.isna(x) else x
     return {
-        "id_transaccion": id_tx, "id_cliente": fila["id_cliente"], "fecha_pago": fila["fecha_pago"].replace(" ", "T"),
-        "monto_cop": int(fila["monto_cop"]), "metodo_pago": inv(traduccion.METODO_PAGO, fila["metodo_pago"]),
-        "canal_pago": inv(traduccion.CANAL, fila["canal_pago"]), "categoria": inv(traduccion.CATEGORIA, fila["detalle_pago"].split(" - ")[0]),
+        "id_transaccion": id_tx,
+        "id_cliente": fila["id_cliente"],
+        "fecha_pago": fila["fecha_pago"].replace(" ", "T"),
+        "monto_cop": int(fila["monto_cop"]),
+        "metodo_pago": inv(traduccion.METODO_PAGO, fila["metodo_pago"]),
+        "canal_pago": inv(traduccion.CANAL, fila["canal_pago"]),
+        "categoria": inv(traduccion.CATEGORIA, fila["detalle_pago"].split(" - ")[0]),
         "ciudad": fila["localizacion"].split(",")[0],
-        "dispositivo": {"tipo": inv(traduccion.TIPO_DISPOSITIVO, fila["dispositivo"]),
-                        "estado": inv(traduccion.ESTADO_DISPOSITIVO, fila["estado_dispositivo"]), "huella": fila["huella_dispositivo"].replace(" ", "_"),
-                        "sistema_operativo": fila["sistema_operativo"], "navegador": fila["navegador"],
-                        "resolucion_pantalla": fila["resolucion_pantalla"], "zona_horaria": fila["zona_horaria_dispositivo"],
-                        "es_emulador": bool(fila["es_emulador"])},
-        "red": {"tipo_ip": inv(traduccion.TIPO_IP, fila["tipo_ip"]), "pais": fila["ip_pais"],
-                "ciudad_estimada": fila["ip_ciudad_estimada"], "distancia_a_ciudad_km": ip(fila["distancia_ip_ciudad_km"]),
-                "es_datacenter": bool(fila["ip_es_datacenter"]), "reputacion": int(fila["ip_reputacion"])},
-        "identidad": {"kyc_nivel": inv(traduccion.NIVEL_KYC, fila["kyc_nivel"]), "edad_cuenta_dias": int(fila["edad_cuenta_dias"]),
-                      "autenticacion_2fa": inv(traduccion.AUTENTICACION_2FA, fila["autenticacion_2fa"]),
-                      "intentos_fallidos_24h": int(fila["intentos_fallidos_24h"]),
-                      "cambio_credenciales_7d": bool(fila["cambio_credenciales_7d"])},
-        "comportamiento": {"tiempo_formulario_seg": ip(fila["tiempo_formulario_seg"]), "velocidad_tecleo_ms": ip(fila["velocidad_tecleo_ms"]),
-                           "pego_numero_tarjeta": None if pd.isna(fila["pego_numero_tarjeta"]) else bool(fila["pego_numero_tarjeta"]),
-                           "mouse_natural": ip(fila["mouse_natural"])},
+        "dispositivo": {
+            "tipo": inv(traduccion.TIPO_DISPOSITIVO, fila["dispositivo"]),
+            "estado": inv(traduccion.ESTADO_DISPOSITIVO, fila["estado_dispositivo"]),
+            "huella": fila["huella_dispositivo"].replace(" ", "_"),
+            "sistema_operativo": fila["sistema_operativo"],
+            "navegador": fila["navegador"],
+            "resolucion_pantalla": fila["resolucion_pantalla"],
+            "zona_horaria": fila["zona_horaria_dispositivo"],
+            "es_emulador": bool(fila["es_emulador"]),
+        },
+        "red": {
+            "tipo_ip": inv(traduccion.TIPO_IP, fila["tipo_ip"]),
+            "pais": fila["ip_pais"],
+            "ciudad_estimada": fila["ip_ciudad_estimada"],
+            "distancia_a_ciudad_km": ip(fila["distancia_ip_ciudad_km"]),
+            "es_datacenter": bool(fila["ip_es_datacenter"]),
+            "reputacion": int(fila["ip_reputacion"]),
+        },
+        "identidad": {
+            "kyc_nivel": inv(traduccion.NIVEL_KYC, fila["kyc_nivel"]),
+            "edad_cuenta_dias": int(fila["edad_cuenta_dias"]),
+            "autenticacion_2fa": inv(traduccion.AUTENTICACION_2FA, fila["autenticacion_2fa"]),
+            "intentos_fallidos_24h": int(fila["intentos_fallidos_24h"]),
+            "cambio_credenciales_7d": bool(fila["cambio_credenciales_7d"]),
+        },
+        "comportamiento": {
+            "tiempo_formulario_seg": ip(fila["tiempo_formulario_seg"]),
+            "velocidad_tecleo_ms": ip(fila["velocidad_tecleo_ms"]),
+            "pego_numero_tarjeta": None if pd.isna(fila["pego_numero_tarjeta"]) else bool(fila["pego_numero_tarjeta"]),
+            "mouse_natural": ip(fila["mouse_natural"]),
+        },
     }
 
 
@@ -536,7 +690,7 @@ def test_las_variables_calculadas_en_linea_son_iguales_a_las_del_entrenamiento(t
         en_linea, por_lote = capturadas[clave], lote.iloc[i]
         for col in meta["numericas"] + meta["categoricas"]:
             if col == "transacciones_ultimas_24h":
-                continue                                                  # en el dataset de prueba es un número al azar
+                continue  # en el dataset de prueba es un número al azar
             a, b = en_linea[col], por_lote[col]
             if isinstance(b, str):
                 assert a == b, (i, col, a, b)
@@ -552,9 +706,11 @@ def test_n24_en_linea_cuenta_las_compras_de_las_ultimas_24_horas_incluyendo_la_a
         f = (base - pd.Timedelta(hours=horas)).strftime("%Y-%m-%dT%H:%M:%S")
         ctx.evaluar(pago(f"W{k}", "CW", fecha_pago=f))
     con = sqlite3.connect(ctx.bd)
-    n24 = [json.loads(r[0])["transacciones_ultimas_24h"] for r in con.execute(
-        "SELECT fila_json FROM evaluaciones WHERE id_cliente='CW' ORDER BY fecha")]
-    assert n24 == [1, 2, 2, 3]            # la de hace 30 h cuenta para la de hace 20 h (10 h antes), pero no para las siguientes
+    n24 = [
+        json.loads(r[0])["transacciones_ultimas_24h"]
+        for r in con.execute("SELECT fila_json FROM evaluaciones WHERE id_cliente='CW' ORDER BY fecha")
+    ]
+    assert n24 == [1, 2, 2, 3]  # la de hace 30 h cuenta para la de hace 20 h (10 h antes), pero no para las siguientes
 
 
 # ------------------------------------------------------------------ concurrencia (muchas rondas)
@@ -582,34 +738,54 @@ def test_concurrencia_el_mismo_pago_enviado_a_la_vez_se_evalua_una_sola_vez(ctx)
 def test_concurrencia_resolver_la_misma_revision_a_la_vez_solo_una_vez(ctx):
     for ronda in range(RONDAS):
         id_eval = _en_revision(ctx, f"CR-{ronda}")
-        r = _en_paralelo(ctx.app, lambda c, i: c.post(f"/v1/revisiones/{id_eval}/resolver",
-                                                      json={"decision": "APROBADA" if i % 2 else "RECHAZADA"}, headers=ctx.h("analista")))
+        r = _en_paralelo(
+            ctx.app,
+            lambda c, i: c.post(
+                f"/v1/revisiones/{id_eval}/resolver",
+                json={"decision": "APROBADA" if i % 2 else "RECHAZADA"},
+                headers=ctx.h("analista"),
+            ),
+        )
         codigos = sorted(x.status_code for x in r)
         assert codigos == [200] + [409] * (HILOS - 1), (ronda, codigos)
         con = sqlite3.connect(ctx.bd)
         ganadora = [x.json()["decision_final"] for x in r if x.status_code == 200][0]
-        guardada = con.execute("SELECT decision_analista FROM revisiones WHERE id_evaluacion=?", (id_eval,)).fetchone()[0]
-        assert guardada == ganadora                          # lo que se guardó es lo que se respondió
+        guardada = con.execute("SELECT decision_analista FROM revisiones WHERE id_evaluacion=?", (id_eval,)).fetchone()[
+            0
+        ]
+        assert guardada == ganadora  # lo que se guardó es lo que se respondió
 
 
 def test_concurrencia_pagos_distintos_del_mismo_cliente_quedan_todos_en_el_historial(ctx):
     for ronda in range(RONDAS):
         cliente = f"CLI-MULTI-{ronda}"
-        r = _en_paralelo(ctx.app, lambda c, i: c.post("/v1/evaluaciones", json=pago(f"MU-{ronda}-{i}", cliente), headers=ctx.h("A")))
+        r = _en_paralelo(
+            ctx.app, lambda c, i: c.post("/v1/evaluaciones", json=pago(f"MU-{ronda}-{i}", cliente), headers=ctx.h("A"))
+        )
         assert all(x.status_code == 201 for x in r), (ronda, [x.status_code for x in r])
         con = sqlite3.connect(ctx.bd)
         assert con.execute("SELECT COUNT(*) FROM evaluaciones WHERE id_cliente=?", (cliente,)).fetchone()[0] == HILOS
         siguiente = ctx.evaluar(pago(f"MU-{ronda}-ultimo", cliente, fecha_pago="2026-11-12T11:59:00")).json()
         assert siguiente["modo"] == "normal"
-        n24 = json.loads(con.execute("SELECT fila_json FROM evaluaciones WHERE id_transaccion=?", (f"MU-{ronda}-ultimo",)).fetchone()[0])
-        assert n24["transacciones_ultimas_24h"] == HILOS + 1        # vio las 8 anteriores + la actual
+        n24 = json.loads(
+            con.execute(
+                "SELECT fila_json FROM evaluaciones WHERE id_transaccion=?", (f"MU-{ronda}-ultimo",)
+            ).fetchone()[0]
+        )
+        assert n24["transacciones_ultimas_24h"] == HILOS + 1  # vio las 8 anteriores + la actual
 
 
 def test_concurrencia_resultados_contradictorios_a_la_vez_gana_uno_solo(ctx):
     for ronda in range(RONDAS):
         id_eval = ctx.evaluar(pago(f"RS-{ronda}", f"CLI-RS-{ronda}")).json()["id_evaluacion"]
-        r = _en_paralelo(ctx.app, lambda c, i: c.post(f"/v1/evaluaciones/{id_eval}/resultado",
-                                                      json={"resultado": "LEGITIMA" if i % 2 else "FRAUDE_CONFIRMADO"}, headers=ctx.h("A")))
+        r = _en_paralelo(
+            ctx.app,
+            lambda c, i: c.post(
+                f"/v1/evaluaciones/{id_eval}/resultado",
+                json={"resultado": "LEGITIMA" if i % 2 else "FRAUDE_CONFIRMADO"},
+                headers=ctx.h("A"),
+            ),
+        )
         con = sqlite3.connect(ctx.bd)
         guardado = con.execute("SELECT resultado FROM resultados WHERE id_evaluacion=?", (id_eval,)).fetchall()
         assert len(guardado) == 1
@@ -619,7 +795,7 @@ def test_concurrencia_resultados_contradictorios_a_la_vez_gana_uno_solo(ctx):
 
 
 # ------------------------------------------------------------------ ejemplos de Swagger y modo demo
-from modelo_ia.api import demo as demo_mod                       # noqa: E402
+from modelo_ia.api import demo as demo_mod  # noqa: E402
 from modelo_ia.api.ejemplos import EJEMPLOS_SOLICITUD, ESPERADOS  # noqa: E402
 
 
@@ -633,22 +809,28 @@ def test_los_ejemplos_de_swagger_son_validos_y_el_de_tarjeta_no():
             esquemas.SolicitudEvaluacion.model_validate(ej["value"])
     ids = [e["value"]["id_transaccion"] for e in EJEMPLOS_SOLICITUD.values()]
     assert len(set(ids)) == len(ids)
-    assert all("fecha_pago" not in e["value"] for e in EJEMPLOS_SOLICITUD.values())          # así no se vencen
+    assert all("fecha_pago" not in e["value"] for e in EJEMPLOS_SOLICITUD.values())  # así no se vencen
 
 
 def test_los_ejemplos_aparecen_en_el_contrato_publicado(ctx):
     spec = ctx.cliente.get("/openapi.json").json()
     publicados = spec["paths"]["/v1/evaluaciones"]["post"]["requestBody"]["content"]["application/json"]["examples"]
     assert set(publicados) == set(EJEMPLOS_SOLICITUD)
-    assert all("→" in e["summary"] for e in publicados.values())               # cada ejemplo dice qué se espera
+    assert all("→" in e["summary"] for e in publicados.values())  # cada ejemplo dice qué se espera
 
 
 def test_los_ejemplos_dan_lo_esperado_con_el_modelo_actual(tmp_path):
     """Con el modelo que de verdad se sirve. Si cambias el modelo y esto falla, revisa los ejemplos (y ESPERADOS)."""
-    if not (config.CARPETA_MODELOS / "modelo_actual.joblib").exists() or not (config.CARPETA_MODELOS / "modelo_actual_sin_estado.joblib").exists():
+    if (
+        not (config.CARPETA_MODELOS / "modelo_actual.joblib").exists()
+        or not (config.CARPETA_MODELOS / "modelo_actual_sin_estado.joblib").exists()
+    ):
         pytest.skip("faltan modelo_actual.joblib o modelo_actual_sin_estado.joblib")
-    app = crear_app(Ajustes(ruta_bd=tmp_path / "e.sqlite3", pepper="p", limite_peticiones_por_minuto=10 ** 6), predecir.cargar_artefacto(),
-                    artefacto_sin_estado=predecir.cargar_artefacto_sin_estado())
+    app = crear_app(
+        Ajustes(ruta_bd=tmp_path / "e.sqlite3", pepper="p", limite_peticiones_por_minuto=10**6),
+        predecir.cargar_artefacto(),
+        artefacto_sin_estado=predecir.cargar_artefacto_sin_estado(),
+    )
     clave = app.state.almacen.crear_clave(app.state.almacen.crear_comercio("t"), "comercio")
     c, h = TestClient(app), {"X-API-Key": clave}
     for nombre, ej in EJEMPLOS_SOLICITUD.items():
@@ -680,9 +862,14 @@ def test_demo_cada_pagina_viene_autorizada_con_su_propia_clave(demo):
     claves = {k.lower(): v for k, v in _claves_de(demo.CLAVES).items()}
     for ruta, rol in (("/docs", "comercio"), ("/docs-analista", "analista"), ("/docs-admin", "admin")):
         html = c.get(ruta).text
-        assert f"/init/{rol}.js" in html and not any(clave in html for clave in claves.values())     # la página no lleva claves
+        assert f"/init/{rol}.js" in html and not any(
+            clave in html for clave in claves.values()
+        )  # la página no lleva claves
         js = c.get(f"/init/{rol}.js")
-        assert f'preauthorizeApiKey("APIKeyHeader", "{claves[rol]}")' in js.text and js.headers["Cache-Control"] == "no-store"
+        assert (
+            f'preauthorizeApiKey("APIKeyHeader", "{claves[rol]}")' in js.text
+            and js.headers["Cache-Control"] == "no-store"
+        )
         for otro, clave in claves.items():
             if otro != rol:
                 assert clave not in js.text
@@ -702,7 +889,14 @@ def test_demo_las_claves_funcionan_cada_una_en_su_rol(demo):
     app = demo.crear_app_demo()
     c = TestClient(app)
     k = {n.lower(): v for n, v in _claves_de(demo.CLAVES).items()}
-    assert c.post("/v1/evaluaciones", json=EJEMPLOS_SOLICITUD["01_aprobada_pago_normal"]["value"], headers={"X-API-Key": k["comercio"]}).status_code == 201
+    assert (
+        c.post(
+            "/v1/evaluaciones",
+            json=EJEMPLOS_SOLICITUD["01_aprobada_pago_normal"]["value"],
+            headers={"X-API-Key": k["comercio"]},
+        ).status_code
+        == 201
+    )
     assert c.get("/v1/revisiones", headers={"X-API-Key": k["analista"]}).status_code == 200
     assert c.post("/v1/comercios", json={"nombre": "Otra"}, headers={"X-API-Key": k["admin"]}).status_code == 201
     assert c.get("/v1/revisiones", headers={"X-API-Key": k["comercio"]}).status_code == 403
@@ -712,7 +906,7 @@ def test_demo_reutiliza_las_claves_y_reiniciar_las_cambia_y_borra_la_base(demo):
     demo.crear_app_demo()
     primeras = _claves_de(demo.CLAVES)
     demo.crear_app_demo()
-    assert _claves_de(demo.CLAVES) == primeras                       # sin reiniciar, todo sigue igual
+    assert _claves_de(demo.CLAVES) == primeras  # sin reiniciar, todo sigue igual
     app = demo.crear_app_demo(reiniciar=True)
     nuevas = _claves_de(demo.CLAVES)
     assert set(nuevas.values()).isdisjoint(primeras.values())
@@ -725,26 +919,34 @@ def test_demo_solo_escucha_en_tu_computador(demo, monkeypatch):
     demo.main(["--port", "8123"])
     assert llamadas == [{"host": "127.0.0.1", "port": 8123}]
     with pytest.raises(SystemExit):
-        demo.main(["--host", "0.0.0.0"])                             # no existe esa opción: no se puede exponer a la red
+        demo.main(["--host", "0.0.0.0"])  # no existe esa opción: no se puede exponer a la red
 
 
 # ------------------------------------------------------------------ documentación local (sin CDN)
-import hashlib                                                     # noqa: E402
-from modelo_ia.api import documentacion                            # noqa: E402
+import hashlib  # noqa: E402
+from modelo_ia.api import documentacion  # noqa: E402
 
 
 def test_la_documentacion_no_depende_de_ninguna_direccion_externa(ctx):
     for ruta in ("/docs", "/redoc", "/init/base.js"):
         r = ctx.cliente.get(ruta)
         assert r.status_code == 200
-        assert "http://" not in r.text.replace("http://www.w3.org", "") and "https://" not in r.text and "jsdelivr" not in r.text, ruta
+        assert (
+            "http://" not in r.text.replace("http://www.w3.org", "")
+            and "https://" not in r.text
+            and "jsdelivr" not in r.text
+        ), ruta
     assert ctx.cliente.get("/estaticos/swagger-ui-bundle.js").status_code == 200
     assert ctx.cliente.get("/estaticos/redoc.standalone.js").status_code == 200
 
 
 def test_los_archivos_de_terceros_no_estan_alterados():
     """Cada archivo debe coincidir con la huella del manifiesto."""
-    lineas = [l.split("  ", 2) for l in (documentacion.ESTATICOS / "MANIFIESTO.txt").read_text().splitlines() if l and not l.startswith("#")]
+    lineas = [
+        l.split("  ", 2)
+        for l in (documentacion.ESTATICOS / "MANIFIESTO.txt").read_text().splitlines()
+        if l and not l.startswith("#")
+    ]
     assert len(lineas) == 5
     for huella, archivo, _ in lineas:
         assert hashlib.sha256((documentacion.ESTATICOS / archivo).read_bytes()).hexdigest() == huella, archivo
@@ -761,11 +963,16 @@ def test_politica_de_contenido_de_la_documentacion_primero_observa_y_luego_bloqu
     observa = construir_contexto(tmp_path / "a", artefacto)
     r = observa.cliente.get("/docs")
     assert "Content-Security-Policy-Report-Only" in r.headers and "Content-Security-Policy" not in r.headers
-    assert "script-src 'self'" in r.headers["Content-Security-Policy-Report-Only"] and "unsafe-inline" not in r.headers["Content-Security-Policy-Report-Only"].split("style-src")[0]
+    assert (
+        "script-src 'self'" in r.headers["Content-Security-Policy-Report-Only"]
+        and "unsafe-inline" not in r.headers["Content-Security-Policy-Report-Only"].split("style-src")[0]
+    )
     bloquea = construir_contexto(tmp_path / "b", artefacto, csp_modo="enforce")
     csp = bloquea.cliente.get("/redoc").headers["Content-Security-Policy"]
-    assert "frame-ancestors 'none'" in csp                                          # al bloquear sí se incluye
-    assert "frame-ancestors" not in r.headers["Content-Security-Policy-Report-Only"]  # al observar, el navegador lo rechaza
+    assert "frame-ancestors 'none'" in csp  # al bloquear sí se incluye
+    assert (
+        "frame-ancestors" not in r.headers["Content-Security-Policy-Report-Only"]
+    )  # al observar, el navegador lo rechaza
 
 
 def test_la_pagina_base_no_trae_clave_ni_preautorizacion(ctx):
@@ -774,7 +981,7 @@ def test_la_pagina_base_no_trae_clave_ni_preautorizacion(ctx):
 
 
 # ------------------------------------------------------------------ pantalla de analistas
-import re                                                          # noqa: E402
+import re  # noqa: E402
 
 
 def test_la_cola_trae_un_resumen_del_pago_sin_huella_ni_tarjeta(ctx):
@@ -789,7 +996,7 @@ def test_el_panel_se_sirve_con_politica_de_contenido_y_sin_cache(ctx):
     r = ctx.cliente.get("/panel")
     assert r.status_code == 200 and "Revisión manual" in r.text
     assert "Content-Security-Policy-Report-Only" in r.headers and r.headers["Cache-Control"] == "no-store"
-    assert "style-src 'self'" in r.headers["Content-Security-Policy-Report-Only"]            # sin estilos en línea
+    assert "style-src 'self'" in r.headers["Content-Security-Policy-Report-Only"]  # sin estilos en línea
     assert ctx.cliente.get("/estaticos/panel/panel.js").status_code == 200
     assert ctx.cliente.get("/estaticos/panel/panel.css").status_code == 200
 
@@ -803,7 +1010,15 @@ def test_el_panel_no_tiene_scripts_ni_estilos_en_linea():
 def test_el_script_del_panel_nunca_inserta_datos_como_html():
     """Los textos (ciudad, motivos...) vienen de comercios: solo se pueden mostrar como texto."""
     js = (documentacion.ESTATICOS / "panel" / "panel.js").read_text(encoding="utf-8")
-    for peligroso in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "localStorage"):
+    for peligroso in (
+        "innerHTML",
+        "outerHTML",
+        "insertAdjacentHTML",
+        "document.write",
+        "eval(",
+        "new Function",
+        "localStorage",
+    ):
         assert peligroso not in js, peligroso
     assert "textContent" in js
 
@@ -815,20 +1030,46 @@ def test_el_panel_normal_no_trae_clave_y_el_de_la_demo_trae_solo_la_del_analista
     js = TestClient(app).get("/init/panel-config.js")
     assert claves["analista"] in js.text and claves["comercio"] not in js.text and claves["admin"] not in js.text
     assert js.headers["Cache-Control"] == "no-store"
-    assert claves["analista"] not in TestClient(app).get("/panel").text                    # la página no lleva la clave
+    assert claves["analista"] not in TestClient(app).get("/panel").text  # la página no lleva la clave
 
 
 # ------------------------------------------------------------------ SDK y tienda de prueba
-from modelo_ia.api import tienda as tienda_mod                     # noqa: E402
+from modelo_ia.api import tienda as tienda_mod  # noqa: E402
 
 
 def _cuerpo_tienda(**cambios):
-    c = {"monto_cop": 80000, "categoria": "ROPA", "ciudad": "Bogotá", "metodo_pago": "VISA", "id_cliente": "cliente-demo-1",
-         "simulacion": {"estado_dispositivo": "CONOCIDO", "ip_prueba": "192.0.2.10", "kyc_nivel": "COMPLETO",
-                        "edad_cuenta_dias": 700, "autenticacion_2fa": "NO_EXIGIDA", "cambio_credenciales_7d": False},
-         "sdk": {"dispositivo": {"tipo": "MACBOOK", "huella": "FP-0123456789abcdef", "sistema_operativo": "macOS", "navegador": "Safari",
-                                 "resolucion_pantalla": "1440x900", "zona_horaria": "America/Bogota", "es_emulador": False},
-                 "comportamiento": {"tiempo_formulario_seg": 41.5, "velocidad_tecleo_ms": 160, "pego_numero_tarjeta": False, "mouse_natural": 0.7}}}
+    c = {
+        "monto_cop": 80000,
+        "categoria": "ROPA",
+        "ciudad": "Bogotá",
+        "metodo_pago": "VISA",
+        "id_cliente": "cliente-demo-1",
+        "simulacion": {
+            "estado_dispositivo": "CONOCIDO",
+            "ip_prueba": "192.0.2.10",
+            "kyc_nivel": "COMPLETO",
+            "edad_cuenta_dias": 700,
+            "autenticacion_2fa": "NO_EXIGIDA",
+            "cambio_credenciales_7d": False,
+        },
+        "sdk": {
+            "dispositivo": {
+                "tipo": "MACBOOK",
+                "huella": "FP-0123456789abcdef",
+                "sistema_operativo": "macOS",
+                "navegador": "Safari",
+                "resolucion_pantalla": "1440x900",
+                "zona_horaria": "America/Bogota",
+                "es_emulador": False,
+            },
+            "comportamiento": {
+                "tiempo_formulario_seg": 41.5,
+                "velocidad_tecleo_ms": 160,
+                "pego_numero_tarjeta": False,
+                "mouse_natural": 0.7,
+            },
+        },
+    }
     c.update(cambios)
     return c
 
@@ -842,21 +1083,30 @@ def test_la_tienda_evalua_a_traves_del_servicio_sin_que_el_navegador_tenga_clave
     app = demo.crear_app_demo()
     c = TestClient(app)
     claves = _claves_de(demo.CLAVES).values()
-    for ruta in ("/tienda", "/estaticos/tienda/tienda.js", "/estaticos/sdk/antifraude.js", "/estaticos/tienda/index.html"):
+    for ruta in (
+        "/tienda",
+        "/estaticos/tienda/tienda.js",
+        "/estaticos/sdk/antifraude.js",
+        "/estaticos/tienda/index.html",
+    ):
         r = c.get(ruta)
         assert r.status_code == 200 and not any(k in r.text for k in claves), ruta
     r = c.post("/demo/tienda/pagar", json=_cuerpo_tienda())
     assert r.status_code == 200 and r.json()["decision"] in DECISIONES and r.json()["modo"] == "normal"
     assert r.json()["id_transaccion"].startswith("TIENDA-")
     con = sqlite3.connect(demo.BD)
-    assert con.execute("SELECT COUNT(*) FROM evaluaciones").fetchone()[0] == 1                         # quedó guardada y auditada
+    assert con.execute("SELECT COUNT(*) FROM evaluaciones").fetchone()[0] == 1  # quedó guardada y auditada
     assert con.execute("SELECT COUNT(*) FROM auditoria WHERE accion='evaluacion'").fetchone()[0] == 1
 
 
 def test_la_tienda_sin_senales_del_sdk_queda_en_revision_y_no_se_cae(demo):
     c = TestClient(demo.crear_app_demo())
     r = c.post("/demo/tienda/pagar", json=_cuerpo_tienda(sdk={}))
-    assert r.status_code == 200 and r.json()["modo"] == "degradado" and r.json()["decision"] in ("EN_REVISION", "RECHAZADA")
+    assert (
+        r.status_code == 200
+        and r.json()["modo"] == "degradado"
+        and r.json()["decision"] in ("EN_REVISION", "RECHAZADA")
+    )
 
 
 def test_la_tienda_rechaza_datos_de_tarjeta_sin_repetirlos(demo):
@@ -880,15 +1130,28 @@ def test_los_proveedores_simulados_estan_marcados_y_son_deterministas():
 def test_el_sdk_no_lee_lo_que_escribe_el_comprador_ni_envia_nada_por_su_cuenta():
     sdk = (documentacion.ESTATICOS / "sdk" / "antifraude.js").read_text(encoding="utf-8")
     comentarios_fuera = re.sub(r"/\*.*?\*/", "", sdk, flags=re.S)
-    for prohibido in (".value", "localStorage", "sessionStorage", "document.cookie", "fetch(", "XMLHttpRequest", "sendBeacon", "innerHTML", "eval(", "canvas"):
+    for prohibido in (
+        ".value",
+        "localStorage",
+        "sessionStorage",
+        "document.cookie",
+        "fetch(",
+        "XMLHttpRequest",
+        "sendBeacon",
+        "innerHTML",
+        "eval(",
+        "canvas",
+    ):
         assert prohibido not in comentarios_fuera, prohibido
-    assert "paste" in sdk                                              # solo detecta el hecho de pegar
+    assert "paste" in sdk  # solo detecta el hecho de pegar
 
 
 def test_la_tienda_nunca_lee_el_campo_de_la_tarjeta_y_no_inserta_html():
     js = (documentacion.ESTATICOS / "tienda" / "tienda.js").read_text(encoding="utf-8")
-    assert not re.search(r'\$\("tarjeta"\)\.(value|textContent|innerText)', js) and 'getElementById("tarjeta")' not in js
-    assert js.count('"tarjeta"') == 1                                  # solo se le entrega al SDK para detectar si se pegó
+    assert (
+        not re.search(r'\$\("tarjeta"\)\.(value|textContent|innerText)', js) and 'getElementById("tarjeta")' not in js
+    )
+    assert js.count('"tarjeta"') == 1  # solo se le entrega al SDK para detectar si se pegó
     for peligroso in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "localStorage"):
         assert peligroso not in js, peligroso
     html = (documentacion.ESTATICOS / "tienda" / "index.html").read_text(encoding="utf-8")
@@ -908,22 +1171,28 @@ def test_hsts_solo_sale_por_https_y_solo_si_esta_activado(tmp_path, artefacto):
 
 def test_el_certificado_de_prueba_se_crea_privado_y_se_reutiliza(tmp_path):
     from modelo_ia.api import certificados
+
     cert, llave = certificados.asegurar(tmp_path / "c")
     assert cert.read_text().startswith("-----BEGIN CERTIFICATE-----")
     assert oct(llave.stat().st_mode & 0o777) == "0o600" and oct((tmp_path / "c").stat().st_mode & 0o777) == "0o700"
     antes = cert.stat().st_mtime
-    assert certificados.asegurar(tmp_path / "c")[0].stat().st_mtime == antes             # no se vuelve a crear
+    assert certificados.asegurar(tmp_path / "c")[0].stat().st_mtime == antes  # no se vuelve a crear
 
 
 def test_el_servidor_solo_escucha_en_tu_computador_por_defecto_y_acepta_https_y_procesos(monkeypatch):
     from modelo_ia.api import servidor
+
     llamadas = []
     monkeypatch.setattr(servidor.uvicorn, "run", lambda *a, **kw: llamadas.append((a, kw)))
     monkeypatch.setattr(servidor, "crear_app", lambda: "app")
     servidor.main([])
     assert llamadas[-1][1] == {"host": "127.0.0.1", "port": 8000}
     servidor.main(["--workers", "3", "--port", "9000"])
-    assert llamadas[-1][0] == ("modelo_ia.api.servidor:fabrica",) and llamadas[-1][1]["workers"] == 3 and llamadas[-1][1]["factory"] is True
+    assert (
+        llamadas[-1][0] == ("modelo_ia.api.servidor:fabrica",)
+        and llamadas[-1][1]["workers"] == 3
+        and llamadas[-1][1]["factory"] is True
+    )
 
 
 def test_si_llega_otro_pago_del_cliente_mientras_se_calcula_se_recalcula_con_su_historial(ctx, monkeypatch):
@@ -937,15 +1206,19 @@ def test_si_llega_otro_pago_del_cliente_mientras_se_calcula_se_recalcula_con_su_
         estado["llamadas"].append(solicitud.id_transaccion)
         if solicitud.id_transaccion == "A" and not estado["intruso"]:
             estado["intruso"] = True
-            assert ctx.evaluar(pago("INTRUSO", "CLI-X", fecha_pago="2026-11-12T11:50:00")).status_code == 201     # llega mientras A calculaba
+            assert (
+                ctx.evaluar(pago("INTRUSO", "CLI-X", fecha_pago="2026-11-12T11:50:00")).status_code == 201
+            )  # llega mientras A calculaba
         return resultado
 
     monkeypatch.setattr(servicio, "_calcular", calcular_con_intruso)
     assert ctx.evaluar(pago("A", "CLI-X")).status_code == 201
-    assert estado["llamadas"] == ["A", "INTRUSO", "A"]                          # A se calculó dos veces
+    assert estado["llamadas"] == ["A", "INTRUSO", "A"]  # A se calculó dos veces
     con = sqlite3.connect(ctx.bd)
-    n24 = json.loads(con.execute("SELECT fila_json FROM evaluaciones WHERE id_transaccion='A'").fetchone()[0])["transacciones_ultimas_24h"]
-    assert n24 == 2                                                             # y la segunda vez ya vio al intruso
+    n24 = json.loads(con.execute("SELECT fila_json FROM evaluaciones WHERE id_transaccion='A'").fetchone()[0])[
+        "transacciones_ultimas_24h"
+    ]
+    assert n24 == 2  # y la segunda vez ya vio al intruso
 
 
 def test_tras_varios_conflictos_el_pago_igual_se_guarda(ctx, monkeypatch):
@@ -970,20 +1243,25 @@ def test_tras_varios_conflictos_el_pago_igual_se_guarda(ctx, monkeypatch):
 
 def test_la_durabilidad_se_configura_y_solo_acepta_valores_validos(tmp_path):
     from modelo_ia.api.almacen import Almacen
+
     a = Almacen(tmp_path / "d.sqlite3", "p", "FULL")
     a.inicializar()
     with a.lectura() as con:
-        assert con.execute("PRAGMA synchronous").fetchone()[0] == 2                     # FULL
+        assert con.execute("PRAGMA synchronous").fetchone()[0] == 2  # FULL
     with Almacen(tmp_path / "d.sqlite3", "p").lectura() as con:
-        assert con.execute("PRAGMA synchronous").fetchone()[0] == 1                     # NORMAL por defecto
+        assert con.execute("PRAGMA synchronous").fetchone()[0] == 1  # NORMAL por defecto
     with pytest.raises(ValueError):
         Almacen(tmp_path / "e.sqlite3", "p", "NADA")
 
 
 # ------------------------------------------------------------------ alcance del historial: entrenamiento = servicio
 def test_la_salud_avisa_si_el_modelo_se_entreno_con_otro_alcance_que_el_de_la_api(tmp_path, artefacto):
-    solo_alcance = lambda ctx: [a for a in ctx.cliente.get("/v1/salud").json()["advertencias"] if "TODOS los comercios" in a]
-    assert len(solo_alcance(construir_contexto(tmp_path / "a", artefacto))) == 1        # el modelo de las pruebas no dice con qué alcance se entrenó
+    solo_alcance = lambda ctx: [
+        a for a in ctx.cliente.get("/v1/salud").json()["advertencias"] if "TODOS los comercios" in a
+    ]
+    assert (
+        len(solo_alcance(construir_contexto(tmp_path / "a", artefacto))) == 1
+    )  # el modelo de las pruebas no dice con qué alcance se entrenó
     alineado = dict(artefacto, meta=dict(artefacto["meta"], alcance_historial="comercio"))
     assert solo_alcance(construir_contexto(tmp_path / "b", alineado)) == []
     plataforma = dict(artefacto, meta=dict(artefacto["meta"], alcance_historial="plataforma"))
@@ -1002,9 +1280,13 @@ def test_las_variables_en_linea_con_dos_comercios_son_iguales_a_las_del_entrenam
     ctx.app.state.servicio.reloj = lambda: datetime(2026, 11, 13)
     crudo = hacer_datos_completos(3000, semilla=5)
     top = crudo["id_cliente"].value_counts().head(6).index
-    sub = datos.agregar_columnas_basicas(crudo[crudo["id_cliente"].isin(top)].copy()).sort_values("fecha", kind="stable").reset_index(drop=True)
+    sub = (
+        datos.agregar_columnas_basicas(crudo[crudo["id_cliente"].isin(top)].copy())
+        .sort_values("fecha", kind="stable")
+        .reset_index(drop=True)
+    )
     sub["fecha_pago"] = sub["fecha"].dt.strftime("%Y-%m-%dT%H:%M:%S")
-    sub["id_comercio"] = ["A" if i % 2 == 0 else "B" for i in range(len(sub))]               # el mismo cliente compra en los dos
+    sub["id_comercio"] = ["A" if i % 2 == 0 else "B" for i in range(len(sub))]  # el mismo cliente compra en los dos
     lote = variables.construir(sub, "completo", "comercio")
     capturadas, original = {}, ctx.app.state.servicio._variables
 
@@ -1032,9 +1314,9 @@ def test_las_variables_en_linea_con_dos_comercios_son_iguales_a_las_del_entrenam
 
 
 # ------------------------------------------------------------------ IP: la API la ubica y NO la guarda
-import logging                                                     # noqa: E402
-from modelo_ia.api import proveedores_ip                           # noqa: E402
-from modelo_ia.api.almacen import Almacen                          # noqa: E402
+import logging  # noqa: E402
+from modelo_ia.api import proveedores_ip  # noqa: E402
+from modelo_ia.api.almacen import Almacen  # noqa: E402
 
 IP_BOGOTA, IP_MEDELLIN, IP_VPN_RUSIA, IP_PRIVADA = "192.0.2.10", "198.51.100.20", "203.0.113.200", "10.0.0.5"
 
@@ -1058,15 +1340,17 @@ def test_con_solo_la_ip_la_api_completa_los_datos_de_red_y_lo_dice(ctx):
     assert r.status_code == 201 and r.json()["modo"] == "normal" and r.json()["red_origen"] == "proveedor:simulado"
     f = _fila_guardada(ctx, "IP1")
     assert (f["tipo_ip"], f["ip_pais"], f["ip_reputacion"], f["ip_es_datacenter"]) == ("Residencial", "Colombia", 88, 0)
-    assert f["distancia_ip_ciudad_km"] == 0                                   # IP de Bogotá y compra en Bogotá
+    assert f["distancia_ip_ciudad_km"] == 0  # IP de Bogotá y compra en Bogotá
 
 
 def test_la_ip_se_ubica_y_se_calcula_la_distancia_a_la_ciudad_declarada(ctx):
     ctx.evaluar(con_ip("IP2", "C2", IP_VPN_RUSIA))
     f = _fila_guardada(ctx, "IP2")
-    assert (f["tipo_ip"], f["ip_pais"], f["ip_es_datacenter"], f["ip_reputacion"]) == ("VPN", "Rusia", 1, 35) and f["distancia_ip_ciudad_km"] > 9000
+    assert (f["tipo_ip"], f["ip_pais"], f["ip_es_datacenter"], f["ip_reputacion"]) == ("VPN", "Rusia", 1, 35) and f[
+        "distancia_ip_ciudad_km"
+    ] > 9000
     ctx.evaluar({**con_ip("IP3", "C3", IP_MEDELLIN), "ciudad": "Bogotá"})
-    assert 200 < _fila_guardada(ctx, "IP3")["distancia_ip_ciudad_km"] < 300      # Medellín - Bogotá
+    assert 200 < _fila_guardada(ctx, "IP3")["distancia_ip_ciudad_km"] < 300  # Medellín - Bogotá
     ctx.evaluar(con_ip("IP4", "C4", IP_PRIVADA))
     f4 = _fila_guardada(ctx, "IP4")
     assert (f4["tipo_ip"], f4["ip_pais"]) == ("IP desconocida", "Desconocido") and f4["distancia_ip_ciudad_km"] is None
@@ -1075,8 +1359,8 @@ def test_la_ip_se_ubica_y_se_calcula_la_distancia_a_la_ciudad_declarada(ctx):
 def test_lo_que_manda_el_comercio_manda_sobre_el_proveedor(ctx):
     ctx.evaluar(con_ip("IP5", "C5", IP_VPN_RUSIA, tipo_ip="RESIDENCIAL", pais="Colombia"))
     f = _fila_guardada(ctx, "IP5")
-    assert f["tipo_ip"] == "Residencial" and f["ip_pais"] == "Colombia"          # lo del comercio
-    assert f["ip_es_datacenter"] == 1 and f["ip_reputacion"] == 35               # lo que faltaba lo puso el proveedor
+    assert f["tipo_ip"] == "Residencial" and f["ip_pais"] == "Colombia"  # lo del comercio
+    assert f["ip_es_datacenter"] == 1 and f["ip_reputacion"] == 35  # lo que faltaba lo puso el proveedor
 
 
 def test_la_ip_cruda_no_se_guarda_ni_se_devuelve_ni_se_registra(ctx, caplog):
@@ -1084,7 +1368,7 @@ def test_la_ip_cruda_no_se_guarda_ni_se_devuelve_ni_se_registra(ctx, caplog):
     with caplog.at_level(logging.DEBUG):
         r = ctx.evaluar(con_ip("IP6", "C6", ip))
         ctx.cliente.get(f"/v1/evaluaciones/{r.json()['id_evaluacion']}", headers=ctx.h("A"))
-        ctx.evaluar({**con_ip("IP6b", "C6b", ip), "monto_cop": -1})                # un error de validación tampoco la repite
+        ctx.evaluar({**con_ip("IP6b", "C6b", ip), "monto_cop": -1})  # un error de validación tampoco la repite
     assert ip not in r.text and ip.encode() not in _bytes_de_la_base(ctx)
     assert ip not in caplog.text
     assert ctx.evaluar({**con_ip("IP6c", "C6c", ip), "monto_cop": -1}).text.count(ip) == 0
@@ -1099,8 +1383,8 @@ def test_la_ip_cruda_no_se_guarda_ni_se_devuelve_ni_se_registra(ctx, caplog):
 def test_la_huella_de_la_ip_es_estable_y_distinta_por_ip_y_por_servicio(tmp_path):
     a, b = Almacen(tmp_path / "a.sqlite3", "secreto-1"), Almacen(tmp_path / "b.sqlite3", "secreto-2")
     assert a.huella_ip("190.24.10.55") == a.huella_ip("190.24.10.55") != a.huella_ip("190.24.10.56")
-    assert a.huella_ip("190.24.10.55") != b.huella_ip("190.24.10.55")                  # sin el secreto no se puede adivinar
-    assert a.huella_ip("::1") == a.huella_ip("0:0:0:0:0:0:0:1")                        # IPv6 siempre en su forma canónica
+    assert a.huella_ip("190.24.10.55") != b.huella_ip("190.24.10.55")  # sin el secreto no se puede adivinar
+    assert a.huella_ip("::1") == a.huella_ip("0:0:0:0:0:0:0:1")  # IPv6 siempre en su forma canónica
 
 
 def test_un_reintento_con_ip_es_el_mismo_y_con_otra_ip_es_conflicto(ctx):
@@ -1109,7 +1393,9 @@ def test_un_reintento_con_ip_es_el_mismo_y_con_otra_ip_es_conflicto(ctx):
     assert ctx.evaluar(con_ip("IP7", "C7", IP_MEDELLIN)).status_code == 409
 
 
-@pytest.mark.parametrize("ip", ["999.1.1.1", "no es una ip", "190.24.10", "1.2.3.4.5", "", "190.24.10.55; DROP TABLE x", "2001:db8::zz"])
+@pytest.mark.parametrize(
+    "ip", ["999.1.1.1", "no es una ip", "190.24.10", "1.2.3.4.5", "", "190.24.10.55; DROP TABLE x", "2001:db8::zz"]
+)
 def test_una_ip_invalida_da_422(ctx, ip):
     r = ctx.evaluar(con_ip("IPX", "CX", ip))
     assert r.status_code == 422 and r.headers["content-type"].startswith("application/problem+json")
@@ -1121,7 +1407,7 @@ def test_la_red_necesita_la_ip_o_al_menos_el_tipo_de_ip(ctx):
     r = ctx.evaluar(p)
     assert r.status_code == 422 and "ip" in r.text.lower()
     p["red"] = {"tipo_ip": "RESIDENCIAL", "pais": "Colombia", "es_datacenter": False, "reputacion": 90}
-    assert ctx.evaluar(p).json()["red_origen"] == "comercio"                           # sin ip: como antes
+    assert ctx.evaluar(p).json()["red_origen"] == "comercio"  # sin ip: como antes
 
 
 def test_ipv6_se_acepta(ctx):
@@ -1147,9 +1433,17 @@ def test_si_el_proveedor_falla_no_se_cae_y_no_deja_la_ip_en_ningun_lado(tmp_path
     assert r.status_code == 201 and r.json()["red_origen"] == "proveedor_fallo" and r.json()["modo"] == "degradado"
     assert r.json()["decision"] in ("EN_REVISION", "RECHAZADA") and "tipo de IP" in r.json()["motivos"][0]
     assert ip not in r.text and ip not in caplog.text and "fallo consultando" not in caplog.text
-    r2 = c.post("/v1/evaluaciones", json={**con_ip("R2", "CR2", ip), "red": {"ip": ip, "tipo_ip": "RESIDENCIAL", "pais": "Colombia", "es_datacenter": False, "reputacion": 90}},
-                headers={"X-API-Key": clave})
-    assert r2.status_code == 201 and r2.json()["modo"] == "normal" and r2.json()["red_origen"] == "proveedor_fallo"   # el comercio mandó todo: sigue sirviendo
+    r2 = c.post(
+        "/v1/evaluaciones",
+        json={
+            **con_ip("R2", "CR2", ip),
+            "red": {"ip": ip, "tipo_ip": "RESIDENCIAL", "pais": "Colombia", "es_datacenter": False, "reputacion": 90},
+        },
+        headers={"X-API-Key": clave},
+    )
+    assert (
+        r2.status_code == 201 and r2.json()["modo"] == "normal" and r2.json()["red_origen"] == "proveedor_fallo"
+    )  # el comercio mandó todo: sigue sirviendo
 
 
 def test_se_puede_enchufar_otro_proveedor_y_la_salud_deja_de_decir_que_es_simulado(tmp_path, artefacto):
@@ -1159,7 +1453,9 @@ def test_se_puede_enchufar_otro_proveedor_y_la_salud_deja_de_decir_que_es_simula
         def consultar(self, ip):
             return proveedores_ip.InfoIP("PROXY", "Alemania", "Fráncfort", True, 20, 50.11, 8.68)
 
-    app = crear_app(Ajustes(ruta_bd=tmp_path / "o.sqlite3", pepper="p"), artefacto, reloj=lambda: RELOJ, proveedor_ip=Otro())
+    app = crear_app(
+        Ajustes(ruta_bd=tmp_path / "o.sqlite3", pepper="p"), artefacto, reloj=lambda: RELOJ, proveedor_ip=Otro()
+    )
     clave = app.state.almacen.crear_clave(app.state.almacen.crear_comercio("t"), "comercio")
     c = TestClient(app)
     r = c.post("/v1/evaluaciones", json=con_ip("O1", "CO", "8.8.8.8"), headers={"X-API-Key": clave})
@@ -1171,9 +1467,18 @@ def test_se_puede_enchufar_otro_proveedor_y_la_salud_deja_de_decir_que_es_simula
 
 def test_el_proveedor_simulado_conoce_sus_rangos_y_solo_esos():
     p = proveedores_ip.crear_proveedor("simulado")
-    esperado = {"192.0.2.1": ("RESIDENCIAL", "Colombia"), "198.51.100.9": ("MOVIL", "Colombia"), "203.0.113.5": ("EMPRESARIAL", "Colombia"),
-                "203.0.113.100": ("VPN", "Estados Unidos"), "203.0.113.150": ("PROXY", "Países Bajos"), "203.0.113.250": ("VPN", "Rusia"),
-                "127.0.0.1": ("DESCONOCIDA", "Desconocido"), "192.168.1.5": ("DESCONOCIDA", "Desconocido"), "8.8.8.8": ("DESCONOCIDA", "Desconocido"), "::1": ("DESCONOCIDA", "Desconocido")}
+    esperado = {
+        "192.0.2.1": ("RESIDENCIAL", "Colombia"),
+        "198.51.100.9": ("MOVIL", "Colombia"),
+        "203.0.113.5": ("EMPRESARIAL", "Colombia"),
+        "203.0.113.100": ("VPN", "Estados Unidos"),
+        "203.0.113.150": ("PROXY", "Países Bajos"),
+        "203.0.113.250": ("VPN", "Rusia"),
+        "127.0.0.1": ("DESCONOCIDA", "Desconocido"),
+        "192.168.1.5": ("DESCONOCIDA", "Desconocido"),
+        "8.8.8.8": ("DESCONOCIDA", "Desconocido"),
+        "::1": ("DESCONOCIDA", "Desconocido"),
+    }
     for ip, (tipo, pais) in esperado.items():
         i = p.consultar(ip)
         assert (i.tipo_ip, i.pais) == (tipo, pais), ip
@@ -1185,9 +1490,14 @@ def test_el_proveedor_simulado_conoce_sus_rangos_y_solo_esos():
 def test_la_distancia_entre_la_ciudad_declarada_y_la_de_la_ip():
     medellin = proveedores_ip.InfoIP("MOVIL", "Colombia", "Medellín", False, 88, 6.244, -75.581)
     assert 200 < proveedores_ip.distancia_km("Bogotá", medellin) < 300
-    assert proveedores_ip.distancia_km("BOGOTA", medellin) == proveedores_ip.distancia_km("Bogotá", medellin)        # sin tildes ni mayúsculas
+    assert proveedores_ip.distancia_km("BOGOTA", medellin) == proveedores_ip.distancia_km(
+        "Bogotá", medellin
+    )  # sin tildes ni mayúsculas
     assert proveedores_ip.distancia_km("Ciudad Inventada", medellin) is None
-    assert proveedores_ip.distancia_km("Bogotá", proveedores_ip.InfoIP("DESCONOCIDA", "Desconocido", None, False, 30)) is None
+    assert (
+        proveedores_ip.distancia_km("Bogotá", proveedores_ip.InfoIP("DESCONOCIDA", "Desconocido", None, False, 30))
+        is None
+    )
 
 
 def test_una_base_creada_antes_de_esta_columna_se_actualiza_sola(tmp_path):
@@ -1195,10 +1505,13 @@ def test_una_base_creada_antes_de_esta_columna_se_actualiza_sola(tmp_path):
     ddl_viejo = Almacen(tmp_path / "x.sqlite3", "p")
     ddl_viejo.inicializar()
     con = sqlite3.connect(tmp_path / "x.sqlite3")
-    con.executescript("ALTER TABLE evaluaciones RENAME TO tmp; CREATE TABLE evaluaciones AS SELECT id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, "
-                      "solicitud_hash, decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, modelo_conjunto, modo, latencia_ms, creada FROM tmp; DROP TABLE tmp;")
+    con.executescript(
+        "ALTER TABLE evaluaciones RENAME TO tmp; CREATE TABLE evaluaciones AS SELECT id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, "
+        "solicitud_hash, decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, modelo_conjunto, modo, latencia_ms, creada FROM tmp; DROP TABLE tmp;"
+    )
     con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
-    con.commit(); con.close()
+    con.commit()
+    con.close()
     (tmp_path / "x.sqlite3").rename(ruta)
     assert "red_origen" not in {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(evaluaciones)")}
     Almacen(ruta, "p").inicializar()
@@ -1209,7 +1522,7 @@ def test_la_tienda_manda_solo_la_ip_y_la_api_la_ubica(demo):
     c = TestClient(demo.crear_app_demo())
     r = c.post("/demo/tienda/pagar", json=_cuerpo_tienda())
     assert r.status_code == 200 and r.json()["red_origen"] == "proveedor:simulado" and r.json()["modo"] == "normal"
-    assert "192.0.2.10" not in r.text                                                            # la IP no vuelve al navegador
+    assert "192.0.2.10" not in r.text  # la IP no vuelve al navegador
     fila = json.loads(sqlite3.connect(demo.BD).execute("SELECT fila_json FROM evaluaciones").fetchone()[0])
     assert (fila["tipo_ip"], fila["ip_pais"]) == ("Residencial", "Colombia") and "192.0.2.10" not in json.dumps(fila)
     assert b"192.0.2.10" not in b"".join(f.read_bytes() for f in demo.BD.parent.glob(demo.BD.name + "*"))
@@ -1223,7 +1536,9 @@ def test_la_tienda_rechaza_una_conexion_que_no_esta_en_la_lista_y_usa_la_ip_real
     real = _cuerpo_tienda()
     real["simulacion"]["ip_prueba"] = "REAL"
     r = c.post("/demo/tienda/pagar", json=real)
-    assert r.status_code == 200 and r.json()["red_origen"] == "proveedor:simulado"             # el cliente de pruebas no es una IP: cae en 127.0.0.1
+    assert (
+        r.status_code == 200 and r.json()["red_origen"] == "proveedor:simulado"
+    )  # el cliente de pruebas no es una IP: cae en 127.0.0.1
 
 
 # ------------------------------------------------------------------ estado del dispositivo opcional (modelo sin estado)
@@ -1236,22 +1551,33 @@ def sin_estado(tx, cliente="CSE", **cambios):
     return p
 
 
-def test_sin_estado_se_usa_el_modelo_sin_estado_y_con_estado_el_normal(tmp_path, artefacto, artefacto_sin_estado, monkeypatch):
+def test_sin_estado_se_usa_el_modelo_sin_estado_y_con_estado_el_normal(
+    tmp_path, artefacto, artefacto_sin_estado, monkeypatch
+):
     c = construir_contexto(tmp_path, artefacto, artefacto_sin_estado)
     usados = []
     original = predecir.analizar_transaccion
-    monkeypatch.setattr(predecir, "analizar_transaccion", lambda pago_, art, **kw: (usados.append(art), original(pago_, art, **kw))[1])
+    monkeypatch.setattr(
+        predecir, "analizar_transaccion", lambda pago_, art, **kw: (usados.append(art), original(pago_, art, **kw))[1]
+    )
     r1, r2 = c.evaluar(pago("E1", "CE1")), c.evaluar(sin_estado("E2", "CE2"))
     assert (r1.status_code, r2.status_code) == (201, 201) and r1.json()["modo"] == r2.json()["modo"] == "normal"
     assert (r1.json()["estado_origen"], r2.json()["estado_origen"]) == ("comercio", "no_enviado")
-    assert usados[0] is artefacto and usados[1] is artefacto_sin_estado                    # cada uno con su modelo
+    assert usados[0] is artefacto and usados[1] is artefacto_sin_estado  # cada uno con su modelo
     con = sqlite3.connect(c.bd)
-    assert [r[0] for r in con.execute("SELECT estado_origen FROM evaluaciones ORDER BY rowid")] == ["comercio", "no_enviado"]
+    assert [r[0] for r in con.execute("SELECT estado_origen FROM evaluaciones ORDER BY rowid")] == [
+        "comercio",
+        "no_enviado",
+    ]
 
 
 def test_sin_modelo_sin_estado_el_pago_queda_degradado_y_lo_dice(ctx):
     r = ctx.evaluar(sin_estado("E3", "CE3")).json()
-    assert r["modo"] == "degradado" and r["decision"] in ("EN_REVISION", "RECHAZADA") and "estado del dispositivo" in r["motivos"][0]
+    assert (
+        r["modo"] == "degradado"
+        and r["decision"] in ("EN_REVISION", "RECHAZADA")
+        and "estado del dispositivo" in r["motivos"][0]
+    )
     assert r["estado_origen"] == "no_enviado" and r["puntaje_riesgo"] is None
 
 
@@ -1276,13 +1602,19 @@ def test_el_modelo_real_sin_estado_da_exactamente_lo_mismo_para_cualquier_estado
     if not (config.CARPETA_MODELOS / "modelo_actual_sin_estado.joblib").exists():
         pytest.skip("no hay modelo_actual_sin_estado.joblib")
     from modelo_ia import modelos
+
     art, normal = predecir.cargar_artefacto_sin_estado(), predecir.cargar_artefacto()
 
     def prob(a, estado):
         cols = a["meta"]["numericas"] + a["meta"]["categoricas"]
-        return float(modelos.puntajes(a["pipeline"], pd.DataFrame([dict(predecir.EJEMPLO_NORMAL, estado_dispositivo=estado)])[cols])[0])
-    assert len({prob(art, e) for e in ("Conocido", "Nuevo", "No reconocido")}) == 1          # el estado no mueve ni un decimal
-    assert len({prob(normal, e) for e in ("Conocido", "Nuevo", "No reconocido")}) > 1        # el normal sí lo mira
+        return float(
+            modelos.puntajes(
+                a["pipeline"], pd.DataFrame([dict(predecir.EJEMPLO_NORMAL, estado_dispositivo=estado)])[cols]
+            )[0]
+        )
+
+    assert len({prob(art, e) for e in ("Conocido", "Nuevo", "No reconocido")}) == 1  # el estado no mueve ni un decimal
+    assert len({prob(normal, e) for e in ("Conocido", "Nuevo", "No reconocido")}) > 1  # el normal sí lo mira
 
 
 def test_un_estado_invalido_sigue_dando_422(ctx):
@@ -1294,7 +1626,7 @@ def test_un_estado_invalido_sigue_dando_422(ctx):
 def test_el_analista_no_ve_un_estado_que_el_comercio_no_mando(tmp_path, artefacto, artefacto_sin_estado):
     c = construir_contexto(tmp_path, artefacto, artefacto_sin_estado)
     p = sin_estado("E5", "CE5")
-    p["dispositivo"] = {"tipo": "IPHONE"}                       # faltan datos del equipo: queda en revisión
+    p["dispositivo"] = {"tipo": "IPHONE"}  # faltan datos del equipo: queda en revisión
     assert c.evaluar(p).json()["decision"] == "EN_REVISION"
     resumen = c.cliente.get("/v1/revisiones", headers=c.h("analista")).json()["revisiones"][0]["resumen_pago"]
     assert "estado_dispositivo" not in resumen and resumen["monto_cop"] == 200000
@@ -1304,10 +1636,13 @@ def test_una_base_vieja_recibe_las_dos_columnas_nuevas(tmp_path):
     ruta = tmp_path / "v.sqlite3"
     Almacen(ruta, "p").inicializar()
     con = sqlite3.connect(ruta)
-    con.executescript("ALTER TABLE evaluaciones RENAME TO tmp; CREATE TABLE evaluaciones AS SELECT id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, "
-                      "solicitud_hash, decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, modelo_conjunto, modo, latencia_ms, creada FROM tmp; DROP TABLE tmp;")
+    con.executescript(
+        "ALTER TABLE evaluaciones RENAME TO tmp; CREATE TABLE evaluaciones AS SELECT id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, "
+        "solicitud_hash, decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, modelo_conjunto, modo, latencia_ms, creada FROM tmp; DROP TABLE tmp;"
+    )
     con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
-    con.commit(); con.close()
+    con.commit()
+    con.close()
     Almacen(ruta, "p").inicializar()
     columnas = {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(evaluaciones)")}
     assert {"red_origen", "estado_origen"} <= columnas
@@ -1317,13 +1652,18 @@ def test_se_entrena_y_se_registra_el_modelo_sin_estado(ruta_csv_completo, carpet
     df, m = entrenar.preparar_datos(ruta_csv_completo, "completo")
     r = entrenar.ajustar_y_evaluar(df, m, "logistica", "completo", sin_estado=True)
     assert r["sin_estado"] is True
-    assert predecir.cargar_artefacto_sin_estado() is None                                  # todavía no hay modelo registrado
+    assert predecir.cargar_artefacto_sin_estado() is None  # todavía no hay modelo registrado
     ruta = entrenar.guardar(r, ruta_csv_completo, como_actual_sin_estado=True)
-    assert "_sinestado_" in ruta.name and json.loads(ruta.with_suffix(".json").read_text(encoding="utf-8"))["sin_estado"] is True
+    assert (
+        "_sinestado_" in ruta.name
+        and json.loads(ruta.with_suffix(".json").read_text(encoding="utf-8"))["sin_estado"] is True
+    )
     assert predecir.cargar_artefacto_sin_estado()["meta"]["sin_estado"] is True
     normal = entrenar.ajustar_y_evaluar(df, m, "logistica", "completo")
     with pytest.raises(ValueError, match="--sin-estado"):
-        entrenar.guardar(normal, ruta_csv_completo, como_actual_sin_estado=True)             # un modelo normal no puede ocupar ese lugar
+        entrenar.guardar(
+            normal, ruta_csv_completo, como_actual_sin_estado=True
+        )  # un modelo normal no puede ocupar ese lugar
 
 
 # ------------------------------------------------------------------ identificador de seguimiento y panel de control (solo lectura)
@@ -1346,7 +1686,9 @@ def test_cada_pago_recibe_su_identificador_de_seguimiento_unico_y_estable(ctx):
     assert all(PATRON_SEG.match(i) for i in ids) and len(set(ids)) == 12
     assert all(x.headers["X-Id-Seguimiento"] == x.json()["id_seguimiento"] for x in r)
     repetida = ctx.evaluar(pago("S0", "CS0"))
-    assert repetida.status_code == 200 and repetida.json()["id_seguimiento"] == ids[0]              # la repetición conserva su identificador
+    assert (
+        repetida.status_code == 200 and repetida.json()["id_seguimiento"] == ids[0]
+    )  # la repetición conserva su identificador
 
 
 def test_se_consulta_por_seguimiento_en_minusculas_y_otro_comercio_recibe_404(ctx):
@@ -1361,17 +1703,28 @@ def test_una_base_vieja_sin_columnas_del_panel_se_rellena_sin_repetir_ids(tmp_pa
     c = construir_contexto(tmp_path, artefacto)
     for i in range(5):
         c.evaluar(pago_ip(f"V{i}", f"CV{i}", "192.0.2.10"), "A")
-    antes = sqlite3.connect(c.bd).execute("SELECT id, ip_codigo, disp_codigo, monto_cop FROM evaluaciones ORDER BY id").fetchall()
+    antes = (
+        sqlite3.connect(c.bd)
+        .execute("SELECT id, ip_codigo, disp_codigo, monto_cop FROM evaluaciones ORDER BY id")
+        .fetchall()
+    )
     con = sqlite3.connect(c.bd)
-    for ix in ("ux_eval_seguimiento", "ix_eval_ip", "ix_eval_disp"):                          # una base vieja no tenía estos índices
+    for ix in ("ux_eval_seguimiento", "ix_eval_ip", "ix_eval_disp"):  # una base vieja no tenía estos índices
         con.execute(f"DROP INDEX {ix}")
     for col in ("id_seguimiento", "ip_codigo", "disp_codigo", "monto_cop", "no_enviados_json"):
         con.execute(f"ALTER TABLE evaluaciones DROP COLUMN {col}")
     con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
-    con.commit(); con.close()
+    con.commit()
+    con.close()
     Almacen(c.bd, "pepper-de-prueba").inicializar()
-    despues = sqlite3.connect(c.bd).execute("SELECT id, ip_codigo, disp_codigo, monto_cop, id_seguimiento FROM evaluaciones ORDER BY id").fetchall()
-    assert [d[:4] for d in despues] == [tuple(a) for a in antes]                           # mismos códigos y montos calculados desde lo ya guardado
+    despues = (
+        sqlite3.connect(c.bd)
+        .execute("SELECT id, ip_codigo, disp_codigo, monto_cop, id_seguimiento FROM evaluaciones ORDER BY id")
+        .fetchall()
+    )
+    assert [d[:4] for d in despues] == [
+        tuple(a) for a in antes
+    ]  # mismos códigos y montos calculados desde lo ya guardado
     segs = [d[4] for d in despues]
     assert all(PATRON_SEG.match(s) for s in segs) and len(set(segs)) == 5
 
@@ -1383,9 +1736,16 @@ def test_el_panel_lista_con_aislamiento_filtros_y_paginacion(ctx):
     ctx.evaluar(pago_ip("M1", "CM1", "192.0.2.10", monto_cop=500000, fecha_pago="2026-11-09T11:00:00"), "B")
     ids = lambda r: [t["id_transaccion"] for t in r.json()["transacciones"]]
     todo = panel(ctx, "transacciones")
-    assert todo.json()["total"] == 4 and set(ids(todo)) == {"L1", "L2", "L3", "M1"}                    # el analista ve todos los comercios
-    assert set(ids(panel(ctx, "transacciones", "A"))) == {"L1", "L2", "L3"}                            # un comercio, solo los suyos
-    assert panel(ctx, "transacciones", "A", comercio_id=ctx.comercios["B"]).status_code == 404         # y no puede pedir el de otro
+    assert todo.json()["total"] == 4 and set(ids(todo)) == {
+        "L1",
+        "L2",
+        "L3",
+        "M1",
+    }  # el analista ve todos los comercios
+    assert set(ids(panel(ctx, "transacciones", "A"))) == {"L1", "L2", "L3"}  # un comercio, solo los suyos
+    assert (
+        panel(ctx, "transacciones", "A", comercio_id=ctx.comercios["B"]).status_code == 404
+    )  # y no puede pedir el de otro
     assert set(ids(panel(ctx, "transacciones", comercio_id=ctx.comercios["B"]))) == {"M1"}
     assert set(ids(panel(ctx, "transacciones", desde="2026-11-05", hasta="2026-11-09"))) == {"L2", "L3", "M1"}
     assert set(ids(panel(ctx, "transacciones", monto_min=300000, monto_max=600000))) == {"L3", "M1"}
@@ -1395,9 +1755,22 @@ def test_el_panel_lista_con_aislamiento_filtros_y_paginacion(ctx):
     pagina = panel(ctx, "transacciones", orden="fecha_asc", limite=2, desplazamiento=2).json()
     assert pagina["total"] == 4 and len(pagina["transacciones"]) == 2
     codigo = todo.json()["transacciones"][0]["ip"]
-    por_ip = panel(ctx, "transacciones", ip=[t for t in todo.json()["transacciones"] if t["id_transaccion"] == "L1"][0]["ip"])
-    assert set(ids(por_ip)) == {"L1", "L3", "M1"} and codigo                                           # misma IP, incluso entre comercios (solo para el analista)
-    assert set(ids(panel(ctx, "transacciones", "A", ip=[t for t in todo.json()["transacciones"] if t["id_transaccion"] == "L1"][0]["ip"]))) == {"L1", "L3"}
+    por_ip = panel(
+        ctx, "transacciones", ip=[t for t in todo.json()["transacciones"] if t["id_transaccion"] == "L1"][0]["ip"]
+    )
+    assert (
+        set(ids(por_ip)) == {"L1", "L3", "M1"} and codigo
+    )  # misma IP, incluso entre comercios (solo para el analista)
+    assert set(
+        ids(
+            panel(
+                ctx,
+                "transacciones",
+                "A",
+                ip=[t for t in todo.json()["transacciones"] if t["id_transaccion"] == "L1"][0]["ip"],
+            )
+        )
+    ) == {"L1", "L3"}
 
 
 def test_el_panel_filtra_por_decision_modo_y_regla(ctx):
@@ -1413,20 +1786,45 @@ def test_el_panel_filtra_por_decision_modo_y_regla(ctx):
 
 def test_el_panel_rechaza_entradas_raras_y_no_se_deja_inyectar(ctx):
     ctx.evaluar(pago("R1", "CR1"))
-    for malo in ({"desde": "2026-13-45"}, {"desde": "2026-11-10", "hasta": "2026-11-01"}, {"ip": "nada"}, {"dispositivo": "ZZZZZZZZ"},
-                 {"decision": "TAL_VEZ"}, {"modo": "raro"}, {"limite": 0}, {"limite": 500}, {"orden": "id; DROP TABLE evaluaciones"}, {"desde": "ayer"}):
+    for malo in (
+        {"desde": "2026-13-45"},
+        {"desde": "2026-11-10", "hasta": "2026-11-01"},
+        {"ip": "nada"},
+        {"dispositivo": "ZZZZZZZZ"},
+        {"decision": "TAL_VEZ"},
+        {"modo": "raro"},
+        {"limite": 0},
+        {"limite": 500},
+        {"orden": "id; DROP TABLE evaluaciones"},
+        {"desde": "ayer"},
+    ):
         assert panel(ctx, "transacciones", **malo).status_code == 422, malo
-    inyeccion = panel(ctx, "transacciones", id_cliente="x' OR '1'='1", regla="a') OR 1=1 --", id_transaccion="'; DROP TABLE evaluaciones; --")
+    inyeccion = panel(
+        ctx,
+        "transacciones",
+        id_cliente="x' OR '1'='1",
+        regla="a') OR 1=1 --",
+        id_transaccion="'; DROP TABLE evaluaciones; --",
+    )
     assert inyeccion.status_code == 200 and inyeccion.json()["total"] == 0
-    assert panel(ctx, "transacciones").json()["total"] == 1                                            # la tabla sigue ahí
+    assert panel(ctx, "transacciones").json()["total"] == 1  # la tabla sigue ahí
 
 
 def test_el_panel_nunca_muestra_la_ip_ni_la_huella_del_dispositivo(ctx):
     r = ctx.evaluar(pago_ip("P1", "CP1", "192.0.2.77"))
     seg = r.json()["id_seguimiento"]
     ctx.evaluar(pago_ip("P2", "CP2", "192.0.2.77"))
-    huella = sqlite3.connect(ctx.bd).execute("SELECT json_extract(fila_json,'$.ip_huella') FROM evaluaciones WHERE id_transaccion='P1'").fetchone()[0]
-    textos = [panel(ctx, "transacciones").text, panel(ctx, f"transacciones/{seg}").text, panel(ctx, "resumen").text, panel(ctx, "vinculos", minimo=2).text]
+    huella = (
+        sqlite3.connect(ctx.bd)
+        .execute("SELECT json_extract(fila_json,'$.ip_huella') FROM evaluaciones WHERE id_transaccion='P1'")
+        .fetchone()[0]
+    )
+    textos = [
+        panel(ctx, "transacciones").text,
+        panel(ctx, f"transacciones/{seg}").text,
+        panel(ctx, "resumen").text,
+        panel(ctx, "vinculos", minimo=2).text,
+    ]
     for t in textos:
         assert "192.0.2.77" not in t and huella not in t and "FP-CP1" not in t
 
@@ -1436,12 +1834,21 @@ def test_el_detalle_explica_como_se_decidio_y_que_no_se_mando(ctx):
     seg = ctx.evaluar(pago_minimo("D1", "CD1")).json()["id_seguimiento"]
     d = panel(ctx, f"transacciones/{seg}").json()
     assert d["identificadores"]["id_transaccion"] == "D1" and d["identificadores"]["id_seguimiento"] == seg
-    assert d["decision"]["inicial"] == "RECHAZADA" and d["decision"]["decidio"] in ("regla de seguridad", "reglas de seguridad en modo degradado")
+    assert d["decision"]["inicial"] == "RECHAZADA" and d["decision"]["decidio"] in (
+        "regla de seguridad",
+        "reglas de seguridad en modo degradado",
+    )
     assert "kyc_nivel" in d["campos_no_enviados"] and d["datos_recibidos"]["identidad"]["kyc_nivel"]["enviado"] is False
     assert d["datos_recibidos"]["pago"]["monto_cop"] == {"valor": 200000, "enviado": True}
     nombres = [p["paso"] for p in d["como_se_decidio"]]
-    assert "Datos recibidos" in nombres and "Decisión inicial" in nombres and any(n.startswith("Regla: lista_negra_cliente") for n in nombres)
-    assert d["reglas_activadas"][0]["regla"] == "lista_negra_cliente" and any(a["accion"] == "evaluacion" for a in d["auditoria"])
+    assert (
+        "Datos recibidos" in nombres
+        and "Decisión inicial" in nombres
+        and any(n.startswith("Regla: lista_negra_cliente") for n in nombres)
+    )
+    assert d["reglas_activadas"][0]["regla"] == "lista_negra_cliente" and any(
+        a["accion"] == "evaluacion" for a in d["auditoria"]
+    )
     assert d["modelo"]["modo"] == "degradado"
 
 
@@ -1449,11 +1856,23 @@ def test_el_detalle_muestra_la_revision_y_el_resultado_despues(ctx):
     r = ctx.evaluar(pago_minimo("D2", "CD2")).json()
     assert r["decision"] == "EN_REVISION"
     antes = panel(ctx, f"transacciones/{r['id_seguimiento']}").json()
-    assert antes["decision"]["final"] is None and antes["decision"]["decidio"] == "pendiente de analista" and antes["revision"]["estado"] == "pendiente"
-    ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA", "nota": "cliente confirmado"}, "analista")
+    assert (
+        antes["decision"]["final"] is None
+        and antes["decision"]["decidio"] == "pendiente de analista"
+        and antes["revision"]["estado"] == "pendiente"
+    )
+    ctx.post(
+        f"/v1/revisiones/{r['id_evaluacion']}/resolver",
+        {"decision": "APROBADA", "nota": "cliente confirmado"},
+        "analista",
+    )
     ctx.post(f"/v1/evaluaciones/{r['id_evaluacion']}/resultado", {"resultado": "LEGITIMA"}, "A")
-    d = panel(ctx, f"transacciones/{r['id_evaluacion']}").json()                                      # también se encuentra por el identificador interno
-    assert d["decision"]["final"] == "APROBADA" and d["decision"]["decidio"] == "analista" and d["revision"]["nota"] == "cliente confirmado"
+    d = panel(ctx, f"transacciones/{r['id_evaluacion']}").json()  # también se encuentra por el identificador interno
+    assert (
+        d["decision"]["final"] == "APROBADA"
+        and d["decision"]["decidio"] == "analista"
+        and d["revision"]["nota"] == "cliente confirmado"
+    )
     assert d["resultado_informado"]["resultado"] == "LEGITIMA"
     assert {p["paso"] for p in d["como_se_decidio"]} >= {"Revisión manual", "Resultado posterior"}
     filas = {t["id_transaccion"]: t for t in panel(ctx, "transacciones").json()["transacciones"]}
@@ -1465,55 +1884,76 @@ def test_el_detalle_de_otro_comercio_da_404_y_muestra_relacionados(ctx):
     ctx.evaluar(pago_ip("X2", "CX2", "192.0.2.90"))
     ctx.evaluar(pago_ip("Y1", "CY1", "192.0.2.90"), "B")
     assert panel(ctx, f"transacciones/{a1}", "B").status_code == 404
-    assert panel(ctx, f"transacciones/{a1}").json()["relacionados"]["misma_ip"]["otros_pagos"] == 2          # el analista ve también el otro comercio
+    assert (
+        panel(ctx, f"transacciones/{a1}").json()["relacionados"]["misma_ip"]["otros_pagos"] == 2
+    )  # el analista ve también el otro comercio
     mio = panel(ctx, f"transacciones/{a1}", "A").json()["relacionados"]
-    assert mio["misma_ip"]["otros_pagos"] == 1 and mio["mismo_cliente"]["otros_pagos"] == 0                 # el comercio, solo lo suyo
+    assert mio["misma_ip"]["otros_pagos"] == 1 and mio["mismo_cliente"]["otros_pagos"] == 0  # el comercio, solo lo suyo
 
 
 def test_el_resumen_cuadra_con_el_listado_y_respeta_comercios(ctx):
     ctx.cliente.put("/v1/lista-negra/CMAL", json={"motivo": "prueba"}, headers=ctx.h("A"))
-    ctx.evaluar(pago("Z1", "CZ1", monto_cop=100000)); ctx.evaluar(pago("Z2", "CMAL", monto_cop=700000)); ctx.evaluar(pago_minimo("Z3", "CZ3"))
+    ctx.evaluar(pago("Z1", "CZ1", monto_cop=100000))
+    ctx.evaluar(pago("Z2", "CMAL", monto_cop=700000))
+    ctx.evaluar(pago_minimo("Z3", "CZ3"))
     ctx.evaluar(pago("W1", "CW1", monto_cop=50000), "B")
     r = panel(ctx, "resumen").json()
     lista = panel(ctx, "transacciones", limite=200).json()
     t = r["totales"]
     assert t["pagos"] == lista["total"] == 4 and t["aprobadas"] + t["en_revision"] + t["rechazadas"] == 4
-    assert t["monto_cop"] == 100000 + 700000 + 200000 + 50000 and t["monto_rechazado_cop"] == 700000 and t["modo_degradado"] == 1
+    assert (
+        t["monto_cop"] == 100000 + 700000 + 200000 + 50000
+        and t["monto_rechazado_cop"] == 700000
+        and t["modo_degradado"] == 1
+    )
     assert sum(d["aprobadas"] + d["en_revision"] + d["rechazadas"] for d in r["por_dia"]) == 4
-    assert {c["nombre"] for c in r["por_comercio"]} == {"Tienda A", "Tienda B"} and sum(c["pagos"] for c in r["por_comercio"]) == 4
-    assert sum(b["pagos"] for b in r["distribucion_del_puntaje"]) == 3 and any(x["regla"] == "lista_negra_cliente" for x in r["reglas_mas_activadas"])
+    assert {c["nombre"] for c in r["por_comercio"]} == {"Tienda A", "Tienda B"} and sum(
+        c["pagos"] for c in r["por_comercio"]
+    ) == 4
+    assert sum(b["pagos"] for b in r["distribucion_del_puntaje"]) == 3 and any(
+        x["regla"] == "lista_negra_cliente" for x in r["reglas_mas_activadas"]
+    )
     solo_a = panel(ctx, "resumen", "A").json()
     assert solo_a["totales"]["pagos"] == 3 and [c["nombre"] for c in solo_a["por_comercio"]] == ["Tienda A"]
-    assert panel(ctx, "resumen", desde="2030-01-01").json()["totales"]["pagos"] == 0                       # un periodo vacío no rompe nada
+    assert panel(ctx, "resumen", desde="2030-01-01").json()["totales"]["pagos"] == 0  # un periodo vacío no rompe nada
 
 
 def test_los_vinculos_encuentran_misma_ip_dispositivo_cliente_y_rafagas(ctx):
-    for i in range(4):                                                                                      # 4 clientes, una IP, minutos de diferencia
+    for i in range(4):  # 4 clientes, una IP, minutos de diferencia
         ctx.evaluar(pago_ip(f"I{i}", f"CI{i}", "198.51.100.5", fecha_pago=f"2026-11-11T09:0{i}:00"))
-    for i in range(3):                                                                                      # 3 clientes, un dispositivo
+    for i in range(3):  # 3 clientes, un dispositivo
         ctx.evaluar(pago(f"G{i}", f"CG{i}", dispositivo={"huella": "FP-GRANJA"}, red={"ip": f"192.0.2.{20 + i}"}))
-    for i in range(3):                                                                                      # 1 cliente, 3 IPs
+    for i in range(3):  # 1 cliente, 3 IPs
         ctx.evaluar(pago_ip(f"K{i}", "CKK", f"192.0.2.{40 + i}"))
-    ctx.evaluar(pago_ip("O1", "COTRO", "198.51.100.5"), "B")                                                 # otro comercio, misma IP
+    ctx.evaluar(pago_ip("O1", "COTRO", "198.51.100.5"), "B")  # otro comercio, misma IP
     v = panel(ctx, "vinculos", minimo=3).json()
     ip = [x for x in v["misma_ip_varios_clientes"] if x["pagos"] >= 4]
-    assert len(ip) == 1 and ip[0]["clientes"] == 5 and ip[0]["comercios"] == 2                              # el analista ve lo que cruza comercios
+    assert len(ip) == 1 and ip[0]["clientes"] == 5 and ip[0]["comercios"] == 2  # el analista ve lo que cruza comercios
     assert [x["clientes"] for x in v["mismo_dispositivo_varios_clientes"]] == [3]
     assert [(x["id_cliente"], x["ips"]) for x in v["cliente_con_varias_ips"]] == [("CKK", 3)]
-    assert v["rafagas_por_ip"][0]["pagos_en_ventana"] == 4 and v["rafagas_por_ip"][0]["pagos_totales"] == 5          # 4 en 3 minutos; el 5.º es de otro día
-    assert panel(ctx, "vinculos", minimo=6).json()["misma_ip_varios_clientes"] == []                          # el umbral manda
+    assert (
+        v["rafagas_por_ip"][0]["pagos_en_ventana"] == 4 and v["rafagas_por_ip"][0]["pagos_totales"] == 5
+    )  # 4 en 3 minutos; el 5.º es de otro día
+    assert panel(ctx, "vinculos", minimo=6).json()["misma_ip_varios_clientes"] == []  # el umbral manda
     a = [x for x in panel(ctx, "vinculos", "A", minimo=3).json()["misma_ip_varios_clientes"] if x["pagos"] >= 4]
-    assert a[0]["clientes"] == 4 and a[0]["comercios"] == 1                                                  # un comercio no ve el cruce con otros
+    assert a[0]["clientes"] == 4 and a[0]["comercios"] == 1  # un comercio no ve el cruce con otros
 
 
 def test_el_panel_es_de_solo_lectura_y_no_cambia_la_base(ctx):
-    ctx.evaluar(pago_ip("Q1", "CQ1", "192.0.2.5")); ctx.evaluar(pago_minimo("Q2", "CQ2"))
+    ctx.evaluar(pago_ip("Q1", "CQ1", "192.0.2.5"))
+    ctx.evaluar(pago_minimo("Q2", "CQ2"))
     seg = panel(ctx, "transacciones").json()["transacciones"][0]["id_seguimiento"]
-    cuenta = lambda: [sqlite3.connect(ctx.bd).execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("evaluaciones", "revisiones", "auditoria", "resultados", "lista_negra")]
+    cuenta = lambda: [
+        sqlite3.connect(ctx.bd).execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+        for t in ("evaluaciones", "revisiones", "auditoria", "resultados", "lista_negra")
+    ]
     antes = cuenta()
     for ruta in ("transacciones", f"transacciones/{seg}", "resumen", "vinculos", "comercios"):
         assert panel(ctx, ruta).status_code == 200
-        assert ctx.cliente.post("/v1/panel/" + ruta, json={}, headers=ctx.h("analista")).status_code in (404, 405)       # no hay forma de escribir
+        assert ctx.cliente.post("/v1/panel/" + ruta, json={}, headers=ctx.h("analista")).status_code in (
+            404,
+            405,
+        )  # no hay forma de escribir
     assert cuenta() == antes
 
 
@@ -1531,8 +1971,13 @@ DASH = documentacion.ESTATICOS / "dashboard"
 
 def test_el_dashboard_se_sirve_con_politica_de_contenido_y_sin_cache(ctx):
     r = ctx.cliente.get("/dashboard")
-    assert r.status_code == 200 and "text/html" in r.headers["content-type"] and r.headers["cache-control"] == "no-store"
-    assert "default-src 'none'" in r.headers["content-security-policy-report-only"] and "script-src 'self'" in r.headers["content-security-policy-report-only"]
+    assert (
+        r.status_code == 200 and "text/html" in r.headers["content-type"] and r.headers["cache-control"] == "no-store"
+    )
+    assert (
+        "default-src 'none'" in r.headers["content-security-policy-report-only"]
+        and "script-src 'self'" in r.headers["content-security-policy-report-only"]
+    )
     for ruta in ("index.html", "dashboard.js", "dashboard.css"):
         assert ctx.cliente.get(f"/estaticos/dashboard/{ruta}").status_code == 200
     assert "Panel de control" in r.text
@@ -1540,22 +1985,36 @@ def test_el_dashboard_se_sirve_con_politica_de_contenido_y_sin_cache(ctx):
 
 def test_el_dashboard_no_tiene_scripts_ni_estilos_en_linea_ni_nada_externo():
     html = (DASH / "index.html").read_text(encoding="utf-8")
-    assert not re.findall(r"<script(?![^>]*\bsrc=)", html) and "style=" not in html and "onclick" not in html.lower() and "<style" not in html.lower()
+    assert (
+        not re.findall(r"<script(?![^>]*\bsrc=)", html)
+        and "style=" not in html
+        and "onclick" not in html.lower()
+        and "<style" not in html.lower()
+    )
     css = (DASH / "dashboard.css").read_text(encoding="utf-8")
     js = (DASH / "dashboard.js").read_text(encoding="utf-8")
     for nombre, texto in (("html", sin_credito(html)), ("css", css), ("js", js)):
         externos = [u for u in re.findall(r"https?://[^\s\"')]+", texto) if "www.w3.org" not in u]
-        assert not externos, (nombre, externos)                                           # ni CDN, ni fuentes, ni imágenes de terceros
+        assert not externos, (nombre, externos)  # ni CDN, ni fuentes, ni imágenes de terceros
     assert "@import" not in css and "url(" not in css
 
 
 def test_el_script_del_dashboard_nunca_inserta_datos_como_html_y_solo_lee():
     js = (DASH / "dashboard.js").read_text(encoding="utf-8")
-    for peligroso in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "localStorage", "setAttribute(\"style\""):
+    for peligroso in (
+        "innerHTML",
+        "outerHTML",
+        "insertAdjacentHTML",
+        "document.write",
+        "eval(",
+        "new Function",
+        "localStorage",
+        'setAttribute("style"',
+    ):
         assert peligroso not in js, peligroso
     assert "textContent" in js
     metodos = set(re.findall(r"method:\s*\"([A-Z]+)\"", js))
-    assert metodos == {"GET"}, metodos                                                    # el panel de control no puede escribir nada
+    assert metodos == {"GET"}, metodos  # el panel de control no puede escribir nada
     assert not re.findall(r"""fetch\([^)]*\{[^}]*method:\s*["'](?!GET)""", js)
     assert "XMLHttpRequest" not in js and "sendBeacon" not in js and "FormData" not in js
 
@@ -1563,7 +2022,9 @@ def test_el_script_del_dashboard_nunca_inserta_datos_como_html_y_solo_lee():
 def test_el_dashboard_lee_la_api_del_panel_y_no_las_de_escritura():
     js = (DASH / "dashboard.js").read_text(encoding="utf-8")
     rutas = set(re.findall(r"\"(/v1/[a-z\-/]+)", js))
-    assert rutas and all(r.startswith("/v1/panel/") or r == "/v1/yo" for r in rutas), rutas       # /v1/yo solo dice quién eres (lectura)
+    assert rutas and all(r.startswith("/v1/panel/") or r == "/v1/yo" for r in rutas), (
+        rutas
+    )  # /v1/yo solo dice quién eres (lectura)
 
 
 # ------------------------------------------------------------------ filtros y orden de la cola de revisión manual
@@ -1579,7 +2040,8 @@ def _preparar_cola(ctx):
     con = sqlite3.connect(ctx.bd)
     for tx, prob in (("Q1", 0.20), ("Q2", 0.50), ("Q3", 0.90)):
         con.execute("UPDATE evaluaciones SET probabilidad=? WHERE id_transaccion=?", (prob, tx))
-    con.commit(); con.close()
+    con.commit()
+    con.close()
 
 
 def test_la_cola_filtra_por_comercio_riesgo_monto_y_busqueda(ctx):
@@ -1587,7 +2049,10 @@ def test_la_cola_filtra_por_comercio_riesgo_monto_y_busqueda(ctx):
     ids = lambda r: [x["id_transaccion"] for x in r.json()["revisiones"]]
     todo = cola(ctx)
     assert todo.json()["total"] == 3 and todo.json()["monto_total_cop"] == 1600000
-    assert {x["comercio"] for x in todo.json()["revisiones"]} == {"Tienda A", "Tienda B"}          # el nombre, no solo el número
+    assert {x["comercio"] for x in todo.json()["revisiones"]} == {
+        "Tienda A",
+        "Tienda B",
+    }  # el nombre, no solo el número
     assert set(ids(cola(ctx, comercio_id=ctx.comercios["B"]))) == {"Q3"}
     assert set(ids(cola(ctx, riesgo_min=0.4))) == {"Q2", "Q3"} and set(ids(cola(ctx, riesgo_max=0.4))) == {"Q1"}
     assert set(ids(cola(ctx, riesgo_min=0.3, riesgo_max=0.6))) == {"Q2"}
@@ -1595,7 +2060,11 @@ def test_la_cola_filtra_por_comercio_riesgo_monto_y_busqueda(ctx):
     seg = todo.json()["revisiones"][0]["id_seguimiento"]
     por_seg = cola(ctx, q=seg.lower())
     assert por_seg.json()["total"] == 1 and por_seg.json()["revisiones"][0]["id_seguimiento"] == seg
-    assert ids(cola(ctx, q="Q2")) == ["Q2"] and ids(cola(ctx, q="CQ3")) == ["Q3"] and cola(ctx, q="no-existe").json()["total"] == 0
+    assert (
+        ids(cola(ctx, q="Q2")) == ["Q2"]
+        and ids(cola(ctx, q="CQ3")) == ["Q3"]
+        and cola(ctx, q="no-existe").json()["total"] == 0
+    )
 
 
 def test_la_cola_filtrada_cuenta_y_suma_solo_lo_filtrado(ctx):
@@ -1615,7 +2084,13 @@ def test_la_cola_se_ordena_por_lo_pedido(ctx):
 
 def test_la_cola_rechaza_filtros_raros_no_se_deja_inyectar_y_sigue_siendo_de_analistas(ctx):
     _preparar_cola(ctx)
-    for malo in ({"riesgo_min": 0.9, "riesgo_max": 0.1}, {"riesgo_min": 2}, {"orden": "id; DROP TABLE evaluaciones"}, {"desde": "2026-13-45"}, {"ip": "nada"}):
+    for malo in (
+        {"riesgo_min": 0.9, "riesgo_max": 0.1},
+        {"riesgo_min": 2},
+        {"orden": "id; DROP TABLE evaluaciones"},
+        {"desde": "2026-13-45"},
+        {"ip": "nada"},
+    ):
         assert cola(ctx, **malo).status_code == 422, malo
     assert cola(ctx, q="x' OR '1'='1").json()["total"] == 0 and cola(ctx).json()["total"] == 3
     assert cola(ctx, "A").status_code == 403 and ctx.cliente.get("/v1/revisiones").status_code == 401
@@ -1626,22 +2101,31 @@ def test_la_cola_resuelta_tambien_se_filtra(ctx):
     r = cola(ctx).json()["revisiones"][0]
     ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "analista")
     assert cola(ctx, estado="resuelta").json()["total"] == 1 and cola(ctx, estado="pendiente").json()["total"] == 2
-    assert cola(ctx, estado="resuelta", q=r["id_transaccion"]).json()["total"] == 1 and cola(ctx, estado="pendiente", q=r["id_transaccion"]).json()["total"] == 0
+    assert (
+        cola(ctx, estado="resuelta", q=r["id_transaccion"]).json()["total"] == 1
+        and cola(ctx, estado="pendiente", q=r["id_transaccion"]).json()["total"] == 0
+    )
 
 
 # ------------------------------------------------------------------ diseño compartido (comun/diseno.css) y las tres pantallas que lo usan
 COMUN = documentacion.ESTATICOS / "comun"
-PANTALLAS = {"panel": ("panel/index.html", "/panel"), "tienda": ("tienda/index.html", "/tienda"), "dashboard": ("dashboard/index.html", "/dashboard")}
+PANTALLAS = {
+    "panel": ("panel/index.html", "/panel"),
+    "tienda": ("tienda/index.html", "/tienda"),
+    "dashboard": ("dashboard/index.html", "/dashboard"),
+}
 
 
 def test_todas_las_pantallas_usan_el_diseno_compartido_y_se_sirve(ctx):
     assert ctx.cliente.get("/estaticos/comun/diseno.css").status_code == 200
     for nombre, (archivo, ruta) in PANTALLAS.items():
         html = (documentacion.ESTATICOS / archivo).read_text(encoding="utf-8")
-        assert '/estaticos/comun/diseno.css' in html, nombre
-        assert html.index("/estaticos/comun/diseno.css") < html.index(f"/estaticos/{nombre}/{nombre}.css"), nombre    # el compartido va primero
-        assert ctx.cliente.get(f"/estaticos/{archivo}").status_code == 200                      # la página y sus hojas se sirven
-        if nombre != "tienda":                                                                    # la tienda solo existe en el servidor de demostración
+        assert "/estaticos/comun/diseno.css" in html, nombre
+        assert html.index("/estaticos/comun/diseno.css") < html.index(f"/estaticos/{nombre}/{nombre}.css"), (
+            nombre
+        )  # el compartido va primero
+        assert ctx.cliente.get(f"/estaticos/{archivo}").status_code == 200  # la página y sus hojas se sirven
+        if nombre != "tienda":  # la tienda solo existe en el servidor de demostración
             assert ctx.cliente.get(ruta).status_code == 200
 
 
@@ -1651,25 +2135,46 @@ def test_el_diseno_compartido_tiene_modo_oscuro_y_nada_externo_ni_colores_suelto
     assert "@import" not in comun and "url(" not in comun and not re.findall(r"https?://", comun)
     for nombre in ("panel", "tienda", "dashboard"):
         css = (documentacion.ESTATICOS / nombre / f"{nombre}.css").read_text(encoding="utf-8")
-        assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", css), (nombre, re.findall(r"#[0-9a-fA-F]{3,8}\b", css)[:3])         # los colores viven solo en los tokens
+        assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", css), (
+            nombre,
+            re.findall(r"#[0-9a-fA-F]{3,8}\b", css)[:3],
+        )  # los colores viven solo en los tokens
         assert "@import" not in css and "url(" not in css
 
 
 CREDITO_DB_IP = '<footer class="pie-creditos"><a href="https://db-ip.com" rel="noopener noreferrer" target="_blank">IP Geolocation by DB-IP</a></footer>'
 
 
+def compacto(html: str) -> str:
+    """El HTML sin saltos de línea ni sangría (el formato automático reparte las etiquetas en varias líneas; el contenido es el mismo)."""
+    return re.sub(r">\s+<", "><", re.sub(r"\s+", " ", html))
+
+
 def sin_credito(html: str) -> str:
     """Quita el ÚNICO enlace externo permitido en las pantallas (crédito de DB-IP, licencia CC BY 4.0). Cualquier otra dirección externa sigue siendo un error."""
-    return html.replace(CREDITO_DB_IP, "")
+    return compacto(html).replace(CREDITO_DB_IP, "")
 
 
 def test_la_tienda_y_el_panel_no_tienen_nada_en_linea_ni_externo_ni_html_inyectado():
     for nombre in ("tienda", "panel"):
         html = (documentacion.ESTATICOS / nombre / "index.html").read_text(encoding="utf-8")
         js = (documentacion.ESTATICOS / nombre / f"{nombre}.js").read_text(encoding="utf-8")
-        assert not re.findall(r"<script(?![^>]*\bsrc=)", html) and "style=" not in html and "<style" not in html.lower() and "onclick" not in html.lower(), nombre
+        assert (
+            not re.findall(r"<script(?![^>]*\bsrc=)", html)
+            and "style=" not in html
+            and "<style" not in html.lower()
+            and "onclick" not in html.lower()
+        ), nombre
         assert not re.findall(r"https?://", sin_credito(html) + js), nombre
-        for peligroso in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "localStorage"):
+        for peligroso in (
+            "innerHTML",
+            "outerHTML",
+            "insertAdjacentHTML",
+            "document.write",
+            "eval(",
+            "new Function",
+            "localStorage",
+        ):
             assert peligroso not in js, (nombre, peligroso)
 
 
@@ -1677,13 +2182,16 @@ def test_la_tienda_nunca_lee_los_campos_de_tarjeta_nombre_vencimiento_ni_cvv():
     js = (documentacion.ESTATICOS / "tienda" / "tienda.js").read_text(encoding="utf-8")
     for campo in ("tarjeta", "nombre", "vence", "cvv"):
         assert f'$("{campo}").value' not in js and f'getElementById("{campo}").value' not in js, campo
-    assert 'AntifraudeSDK.observar($("pago"), $("tarjeta"))' in js                      # el SDK solo se entera de si se PEGÓ el número
+    assert 'AntifraudeSDK.observar($("pago"), $("tarjeta"))' in js  # el SDK solo se entera de si se PEGÓ el número
 
 
 # ------------------------------------------------------------------ tienda: la simulación de proveedores se llena sola (modo auto)
 def _fila_tienda(demo, id_cliente):
     con = sqlite3.connect(demo.BD)
-    r = con.execute("SELECT fila_json, ip_codigo, red_origen FROM evaluaciones WHERE id_cliente=? ORDER BY rowid DESC LIMIT 1", (id_cliente,)).fetchone()
+    r = con.execute(
+        "SELECT fila_json, ip_codigo, red_origen FROM evaluaciones WHERE id_cliente=? ORDER BY rowid DESC LIMIT 1",
+        (id_cliente,),
+    ).fetchone()
     return json.loads(r[0]), r[1], r[2]
 
 
@@ -1692,10 +2200,22 @@ def test_la_tienda_dice_lo_que_ya_sabe_del_cliente_sin_revelar_ninguna_ip(demo):
     conocido = c.get("/demo/tienda/contexto", params={"cliente": "cliente-demo-1"})
     nuevo = c.get("/demo/tienda/contexto", params={"cliente": "alguien-que-no-existe"})
     assert conocido.headers["cache-control"] == "no-store"
-    assert conocido.json()["cliente"] == {"kyc_nivel": "COMPLETO", "edad_cuenta_dias": 700, "autenticacion_2fa": "NO_EXIGIDA", "estado_dispositivo": "CONOCIDO", "es_nuevo": False}
-    assert nuevo.json()["cliente"]["es_nuevo"] is True and nuevo.json()["cliente"]["estado_dispositivo"] == "NUEVO" and nuevo.json()["cliente"]["edad_cuenta_dias"] == 3
-    assert not re.findall(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", conocido.text + nuevo.text)                  # ninguna IP en la respuesta
-    assert conocido.json()["conexion"]["de_prueba"] is True                                                       # TestClient no es una IP pública
+    assert conocido.json()["cliente"] == {
+        "kyc_nivel": "COMPLETO",
+        "edad_cuenta_dias": 700,
+        "autenticacion_2fa": "NO_EXIGIDA",
+        "estado_dispositivo": "CONOCIDO",
+        "es_nuevo": False,
+    }
+    assert (
+        nuevo.json()["cliente"]["es_nuevo"] is True
+        and nuevo.json()["cliente"]["estado_dispositivo"] == "NUEVO"
+        and nuevo.json()["cliente"]["edad_cuenta_dias"] == 3
+    )
+    assert not re.findall(
+        r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", conocido.text + nuevo.text
+    )  # ninguna IP en la respuesta
+    assert conocido.json()["conexion"]["de_prueba"] is True  # TestClient no es una IP pública
 
 
 def test_en_modo_auto_la_tienda_usa_sus_registros_y_no_lo_que_mande_el_navegador(demo):
@@ -1705,24 +2225,44 @@ def test_en_modo_auto_la_tienda_usa_sus_registros_y_no_lo_que_mande_el_navegador
     fila, ip_codigo, _ = _fila_tienda(demo, "cliente-demo-1")
     assert fila["estado_dispositivo"] == "Conocido" and fila["edad_cuenta_dias"] == 700 and ip_codigo
     # un navegador tramposo manda «cuenta de 9999 días, KYC completo, IP de oficina»: en modo auto se ignora y manda el registro de la tienda
-    c.post("/demo/tienda/pagar", json=_cuerpo_tienda(id_cliente="recien-llegado", simulacion={"modo": "auto", "kyc_nivel": "COMPLETO", "edad_cuenta_dias": 9999,
-                                                                                            "ip_prueba": "203.0.113.200", "estado_dispositivo": "CONOCIDO"}))
+    c.post(
+        "/demo/tienda/pagar",
+        json=_cuerpo_tienda(
+            id_cliente="recien-llegado",
+            simulacion={
+                "modo": "auto",
+                "kyc_nivel": "COMPLETO",
+                "edad_cuenta_dias": 9999,
+                "ip_prueba": "203.0.113.200",
+                "estado_dispositivo": "CONOCIDO",
+            },
+        ),
+    )
     fila2, ip2, _ = _fila_tienda(demo, "recien-llegado")
-    assert fila2["estado_dispositivo"] == "Nuevo" and fila2["edad_cuenta_dias"] == 3 and fila2["kyc_nivel"] != "Completo"
-    assert ip2 == ip_codigo                                                                                       # misma conexión de prueba, no la VPN que pidió el navegador
+    assert (
+        fila2["estado_dispositivo"] == "Nuevo" and fila2["edad_cuenta_dias"] == 3 and fila2["kyc_nivel"] != "Completo"
+    )
+    assert ip2 == ip_codigo  # misma conexión de prueba, no la VPN que pidió el navegador
 
 
 def test_la_tienda_no_se_cree_la_cabecera_x_forwarded_for(demo):
     c = TestClient(demo.crear_app_demo())
     c.post("/demo/tienda/pagar", json=_cuerpo_tienda(id_cliente="sin-cabecera", simulacion={"modo": "auto"}))
-    c.post("/demo/tienda/pagar", json=_cuerpo_tienda(id_cliente="con-cabecera", simulacion={"modo": "auto"}), headers={"X-Forwarded-For": "8.8.8.8", "X-Real-IP": "8.8.8.8"})
-    assert _fila_tienda(demo, "sin-cabecera")[1] == _fila_tienda(demo, "con-cabecera")[1]                     # cualquiera puede escribir esas cabeceras
+    c.post(
+        "/demo/tienda/pagar",
+        json=_cuerpo_tienda(id_cliente="con-cabecera", simulacion={"modo": "auto"}),
+        headers={"X-Forwarded-For": "8.8.8.8", "X-Real-IP": "8.8.8.8"},
+    )
+    assert (
+        _fila_tienda(demo, "sin-cabecera")[1] == _fila_tienda(demo, "con-cabecera")[1]
+    )  # cualquiera puede escribir esas cabeceras
 
 
 def test_la_conexion_del_comprador_real_o_de_prueba():
     class Falso:
         def __init__(self, host):
             self.client = None if host is None else type("C", (), {"host": host})()
+
     assert tienda_mod.conexion_del_comprador(Falso("8.8.8.8")) == ("8.8.8.8", False)
     for host in ("127.0.0.1", "::1", "10.1.2.3", "192.168.0.7", "169.254.1.1", "0.0.0.0", "testclient", "", None):
         assert tienda_mod.conexion_del_comprador(Falso(host)) == (tienda_mod.IP_DE_PRUEBA_LOCAL, True), host
@@ -1730,11 +2270,26 @@ def test_la_conexion_del_comprador_real_o_de_prueba():
 
 def test_el_modo_manual_de_la_tienda_sigue_permitiendo_probar_escenarios(demo):
     c = TestClient(demo.crear_app_demo())
-    r = c.post("/demo/tienda/pagar", json=_cuerpo_tienda(id_cliente="probador", simulacion={"modo": "manual", "estado_dispositivo": "NO_RECONOCIDO", "ip_prueba": "203.0.113.200",
-                                                                                           "kyc_nivel": "BASICO", "edad_cuenta_dias": 2, "autenticacion_2fa": "EXIGIDA_FALLIDA", "cambio_credenciales_7d": True}))
+    r = c.post(
+        "/demo/tienda/pagar",
+        json=_cuerpo_tienda(
+            id_cliente="probador",
+            simulacion={
+                "modo": "manual",
+                "estado_dispositivo": "NO_RECONOCIDO",
+                "ip_prueba": "203.0.113.200",
+                "kyc_nivel": "BASICO",
+                "edad_cuenta_dias": 2,
+                "autenticacion_2fa": "EXIGIDA_FALLIDA",
+                "cambio_credenciales_7d": True,
+            },
+        ),
+    )
     assert r.status_code == 200
     fila, _, _ = _fila_tienda(demo, "probador")
-    assert fila["estado_dispositivo"] == "No reconocido" and fila["edad_cuenta_dias"] == 2 and fila["ip_pais"] == "Rusia"
+    assert (
+        fila["estado_dispositivo"] == "No reconocido" and fila["edad_cuenta_dias"] == 2 and fila["ip_pais"] == "Rusia"
+    )
 
 
 # ------------------------------------------------------------------ analistas con nombre: quién decidió cada revisión
@@ -1755,10 +2310,17 @@ def _pendiente(ctx, tx, cliente):
 
 def test_yo_dice_quien_es_el_dueno_de_la_clave_y_no_inventa_nombres_a_los_comercios(ctx):
     _dos_analistas(ctx)
-    assert ctx.cliente.get("/v1/yo", headers=ctx.h("ana")).json() == {"rol": "analista", "usuario": "Ana Pérez", "comercio": "PLATAFORMA"}
+    assert ctx.cliente.get("/v1/yo", headers=ctx.h("ana")).json() == {
+        "rol": "analista",
+        "usuario": "Ana Pérez",
+        "comercio": "PLATAFORMA",
+    }
     c = ctx.cliente.get("/v1/yo", headers=ctx.h("A")).json()
     assert c["rol"] == "comercio" and c["usuario"] is None and c["comercio"] == "Tienda A"
-    assert ctx.cliente.get("/v1/yo").status_code == 401 and ctx.cliente.get("/v1/yo", headers={"X-API-Key": "mia_falsa"}).status_code == 401
+    assert (
+        ctx.cliente.get("/v1/yo").status_code == 401
+        and ctx.cliente.get("/v1/yo", headers={"X-API-Key": "mia_falsa"}).status_code == 401
+    )
 
 
 def test_cada_revision_queda_a_nombre_de_quien_la_resolvio(ctx):
@@ -1767,36 +2329,58 @@ def test_cada_revision_queda_a_nombre_de_quien_la_resolvio(ctx):
     ctx.post(f"/v1/revisiones/{r1['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "ana")
     ctx.post(f"/v1/revisiones/{r2['id_evaluacion']}/resolver", {"decision": "RECHAZADA", "nota": "no contesta"}, "beto")
     filas = {f["id_transaccion"]: f for f in cola(ctx, "admin", estado="resuelta").json()["revisiones"]}
-    assert filas["AN1"]["resuelta_por"] == "Ana Pérez" and filas["AN2"]["resuelta_por"] == "Beto Ruiz" and filas["AN1"]["resuelta_en"]
+    assert (
+        filas["AN1"]["resuelta_por"] == "Ana Pérez"
+        and filas["AN2"]["resuelta_por"] == "Beto Ruiz"
+        and filas["AN1"]["resuelta_en"]
+    )
     d = panel(ctx, f"transacciones/{r2['id_seguimiento']}", "ana").json()
     assert d["revision"]["resuelta_por"] == "Beto Ruiz" and d["decision"]["decidio"] == "analista"
     assert any(a["accion"] == "revision_resuelta" and a["actor"] == "Beto Ruiz" for a in d["auditoria"])
-    assert cola(ctx, "ana", estado="pendiente").json()["revisiones"] == [] or all(f["resuelta_por"] is None for f in cola(ctx, "ana", estado="pendiente").json()["revisiones"])
+    assert cola(ctx, "ana", estado="pendiente").json()["revisiones"] == [] or all(
+        f["resuelta_por"] is None for f in cola(ctx, "ana", estado="pendiente").json()["revisiones"]
+    )
 
 
 def test_un_comercio_nunca_ve_el_nombre_de_los_analistas(ctx):
     _dos_analistas(ctx)
     r = _pendiente(ctx, "AN3", "CAN3")
     ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA", "nota": "ok"}, "ana")
-    vistas = [ctx.cliente.get(f"/v1/evaluaciones/{r['id_evaluacion']}", headers=ctx.h("A")).text, panel(ctx, f"transacciones/{r['id_seguimiento']}", "A").text,
-              panel(ctx, "transacciones", "A").text, panel(ctx, "resumen", "A").text, ctx.cliente.get("/v1/yo", headers=ctx.h("A")).text]
+    vistas = [
+        ctx.cliente.get(f"/v1/evaluaciones/{r['id_evaluacion']}", headers=ctx.h("A")).text,
+        panel(ctx, f"transacciones/{r['id_seguimiento']}", "A").text,
+        panel(ctx, "transacciones", "A").text,
+        panel(ctx, "resumen", "A").text,
+        ctx.cliente.get("/v1/yo", headers=ctx.h("A")).text,
+    ]
     for t in vistas:
         assert "Ana" not in t and "Pérez" not in t and "Beto" not in t and "resuelta_por" not in t, t[:200]
     d = panel(ctx, f"transacciones/{r['id_seguimiento']}", "A").json()
-    assert {a["actor"] for a in d["auditoria"] if a["accion"] == "revision_resuelta"} == {"un analista"} and "resuelta_por" not in d["revision"]
-    assert "Ana Pérez" in panel(ctx, f"transacciones/{r['id_seguimiento']}", "admin").text                     # el personal sí
+    assert {a["actor"] for a in d["auditoria"] if a["accion"] == "revision_resuelta"} == {
+        "un analista"
+    } and "resuelta_por" not in d["revision"]
+    assert "Ana Pérez" in panel(ctx, f"transacciones/{r['id_seguimiento']}", "admin").text  # el personal sí
 
 
 def test_el_resumen_cuenta_por_persona_y_solo_lo_ve_el_personal(ctx):
     _dos_analistas(ctx)
     for i, quien in enumerate(("ana", "ana", "beto")):
         r = _pendiente(ctx, f"EQ{i}", f"CEQ{i}")
-        ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA" if i != 1 else "RECHAZADA"}, quien)
+        ctx.post(
+            f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA" if i != 1 else "RECHAZADA"}, quien
+        )
     eq = {e["analista"]: e for e in panel(ctx, "resumen", "admin").json()["por_analista"]}
-    assert eq["Ana Pérez"]["resueltas"] == 2 and eq["Ana Pérez"]["aprobadas"] == 1 and eq["Ana Pérez"]["rechazadas"] == 1 and eq["Beto Ruiz"]["resueltas"] == 1
+    assert (
+        eq["Ana Pérez"]["resueltas"] == 2
+        and eq["Ana Pérez"]["aprobadas"] == 1
+        and eq["Ana Pérez"]["rechazadas"] == 1
+        and eq["Beto Ruiz"]["resueltas"] == 1
+    )
     assert all(e["minutos_promedio"] is not None and e["minutos_promedio"] >= 0 for e in eq.values())
     assert panel(ctx, "resumen", "A").json()["por_analista"] == []
-    assert [e["analista"] for e in panel(ctx, "resumen", "admin", desde="2030-01-01").json()["por_analista"]] == []     # respeta los filtros
+    assert [
+        e["analista"] for e in panel(ctx, "resumen", "admin", desde="2030-01-01").json()["por_analista"]
+    ] == []  # respeta los filtros
 
 
 def test_al_dar_de_baja_a_una_persona_su_clave_deja_de_servir_pero_sus_decisiones_siguen_a_su_nombre(ctx):
@@ -1806,7 +2390,7 @@ def test_al_dar_de_baja_a_una_persona_su_clave_deja_de_servir_pero_sus_decisione
     ctx.app.state.almacen.desactivar_clave(ana)
     assert ctx.cliente.get("/v1/yo", headers=ctx.h("ana")).status_code == 401
     assert ctx.cliente.get("/v1/revisiones", headers=ctx.h("ana")).status_code == 401
-    assert ctx.cliente.get("/v1/yo", headers=ctx.h("beto")).status_code == 200                              # las demás personas no se afectan
+    assert ctx.cliente.get("/v1/yo", headers=ctx.h("beto")).status_code == 200  # las demás personas no se afectan
     assert cola(ctx, "admin", estado="resuelta").json()["revisiones"][0]["resuelta_por"] == "Ana Pérez"
 
 
@@ -1815,15 +2399,21 @@ def test_al_rotar_la_clave_la_persona_sigue_siendo_la_misma(ctx):
     r = _pendiente(ctx, "AN5", "CAN5")
     ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "ana")
     nuevo_id, k_nueva = ctx.app.state.almacen.rotar_clave(ana)
-    assert ctx.cliente.get("/v1/yo", headers=ctx.h("ana")).status_code == 401                                  # la vieja ya no sirve
-    assert ctx.cliente.get("/v1/yo", headers={"X-API-Key": k_nueva}).json()["usuario"] == "Ana Pérez" and nuevo_id != ana
+    assert ctx.cliente.get("/v1/yo", headers=ctx.h("ana")).status_code == 401  # la vieja ya no sirve
+    assert (
+        ctx.cliente.get("/v1/yo", headers={"X-API-Key": k_nueva}).json()["usuario"] == "Ana Pérez" and nuevo_id != ana
+    )
     r2 = _pendiente(ctx, "AN6", "CAN6")
-    ctx.cliente.post(f"/v1/revisiones/{r2['id_evaluacion']}/resolver", json={"decision": "APROBADA"}, headers={"X-API-Key": k_nueva})
+    ctx.cliente.post(
+        f"/v1/revisiones/{r2['id_evaluacion']}/resolver", json={"decision": "APROBADA"}, headers={"X-API-Key": k_nueva}
+    )
     por = {f["id_transaccion"]: f["resuelta_por"] for f in cola(ctx, "admin", estado="resuelta").json()["revisiones"]}
     assert por == {"AN5": "Ana Pérez", "AN6": "Ana Pérez"}
 
 
 def test_una_clave_sin_nombre_se_muestra_como_clave_numero(ctx):
     r = _pendiente(ctx, "AN7", "CAN7")
-    ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "analista")           # la clave del contexto no tiene nombre
+    ctx.post(
+        f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "analista"
+    )  # la clave del contexto no tiene nombre
     assert cola(ctx, "admin", estado="resuelta").json()["revisiones"][0]["resuelta_por"].startswith("clave #")

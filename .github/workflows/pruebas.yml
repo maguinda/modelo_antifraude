@@ -55,6 +55,9 @@ jobs:
         run: python -m pip install -r modelo_ia/requirements-dev.txt
       - name: Errores reales de código (ruff)
         run: ruff check modelo_ia
+      - name: Formato del código (ruff format, ancho 120)
+        if: ${{ !cancelled() }}
+        run: ruff format --check modelo_ia
       - name: Tipos en api/ (solo informa, no bloquea)
         if: ${{ !cancelled() }}              # cada revisión corre aunque otra haya fallado: se ven todos los problemas de una vez
         continue-on-error: true

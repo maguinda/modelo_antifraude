@@ -17,6 +17,7 @@ Generador del conjunto de datos SINTÉTICO de 100.000 transacciones
 
 Uso:  python3 generador_dataset_100k.py [carpeta_de_salida]
 """
+
 import csv
 import math
 import os
@@ -27,27 +28,43 @@ from datetime import datetime, timedelta
 
 SEMILLA = 42
 TOTAL = 100_000
-FRAUDES = 4_000          # 4 % (el estudio citado habla de 4,1 %)
+FRAUDES = 4_000  # 4 % (el estudio citado habla de 4,1 %)
 INICIO = datetime(2026, 1, 1)
 FIN = datetime(2026, 10, 31, 23, 59, 59)
 
 rng = random.Random(SEMILLA)
 
-CIUDADES = {"Bogotá": 30, "Medellín": 15, "Cali": 12, "Barranquilla": 8,
-            "Cartagena": 6, "Bucaramanga": 6, "Pereira": 5, "Manizales": 4,
-            "Santa Marta": 5, "Ibagué": 5}
+CIUDADES = {
+    "Bogotá": 30,
+    "Medellín": 15,
+    "Cali": 12,
+    "Barranquilla": 8,
+    "Cartagena": 6,
+    "Bucaramanga": 6,
+    "Pereira": 5,
+    "Manizales": 4,
+    "Santa Marta": 5,
+    "Ibagué": 5,
+}
 DISPOSITIVOS = ["MacBook", "Tablet Android", "Android", "iPhone", "Windows PC"]
 METODOS = ["PayPal", "Visa", "Daviplata", "PSE", "Mastercard", "Nequi"]
 CANALES = ["App móvil", "API", "POS", "Web"]
 # categoría -> multiplicador del monto típico
-CATEGORIAS = {"Electrónica": 2.2, "Farmacia": 0.5, "Hotel": 2.5,
-              "Restaurante": 0.4, "Ropa": 0.9, "Servicios públicos": 0.8,
-              "Supermercado": 0.9, "Suscripción digital": 0.15,
-              "Tienda online": 1.0, "Transporte": 0.35}
+CATEGORIAS = {
+    "Electrónica": 2.2,
+    "Farmacia": 0.5,
+    "Hotel": 2.5,
+    "Restaurante": 0.4,
+    "Ropa": 0.9,
+    "Servicios públicos": 0.8,
+    "Supermercado": 0.9,
+    "Suscripción digital": 0.15,
+    "Tienda online": 1.0,
+    "Transporte": 0.35,
+}
 IP_ANONIMAS = ["VPN", "Proxy", "IP desconocida"]
 # peso de cada hora del día para las compras normales
-HORA_W = [0.3, 0.2, 0.15, 0.15, 0.2, 0.4, 1, 2, 3, 4, 4.5, 5, 5.5, 5, 4.5,
-          4.5, 5, 5.5, 6, 6, 5, 4, 2.5, 1]
+HORA_W = [0.3, 0.2, 0.15, 0.15, 0.2, 0.4, 1, 2, 3, 4, 4.5, 5, 5.5, 5, 4.5, 4.5, 5, 5.5, 6, 6, 5, 4, 2.5, 1]
 DIAS = (FIN - INICIO).days + 1
 
 
@@ -61,9 +78,12 @@ def hora_normal():
 
 
 def ts_en(dia, hora, minuto=None, segundo=None):
-    return INICIO + timedelta(days=dia, hours=hora,
-                              minutes=rng.randint(0, 59) if minuto is None else minuto,
-                              seconds=rng.randint(0, 59) if segundo is None else segundo)
+    return INICIO + timedelta(
+        days=dia,
+        hours=hora,
+        minutes=rng.randint(0, 59) if minuto is None else minuto,
+        seconds=rng.randint(0, 59) if segundo is None else segundo,
+    )
 
 
 def ts_aleatorio(margen_h=36, hora=None):
@@ -89,21 +109,34 @@ def crear_clientes(n):
     for i in range(1, n + 1):
         disp = rng.sample(DISPOSITIVOS, rng.choice([1, 2, 2]))
         canales = {"App móvil": 35, "Web": 30, "POS": 25, "API": 10}
-        out.append(Cliente(f"CLI-{i:05d}", elegir(CIUDADES), disp,
-                           rng.choice(METODOS),
-                           300_000 * math.exp(rng.gauss(0, 0.55)),
-                           canales, rng.gammavariate(1.5, 1.0)))
+        out.append(
+            Cliente(
+                f"CLI-{i:05d}",
+                elegir(CIUDADES),
+                disp,
+                rng.choice(METODOS),
+                300_000 * math.exp(rng.gauss(0, 0.55)),
+                canales,
+                rng.gammavariate(1.5, 1.0),
+            )
+        )
     return out
 
 
 def crear_comercios(n):
     out = []
     for i in range(1, n + 1):
-        out.append(Cliente(f"COM-{i:04d}", elegir(CIUDADES),
-                           rng.sample(["Windows PC", "MacBook"], 1),
-                           rng.choice(["Visa", "Mastercard", "PSE"]),
-                           150_000 * math.exp(rng.gauss(0, 0.4)),
-                           {"API": 60, "POS": 40}, 1.0))
+        out.append(
+            Cliente(
+                f"COM-{i:04d}",
+                elegir(CIUDADES),
+                rng.sample(["Windows PC", "MacBook"], 1),
+                rng.choice(["Visa", "Mastercard", "PSE"]),
+                150_000 * math.exp(rng.gauss(0, 0.4)),
+                {"API": 60, "POS": 40},
+                1.0,
+            )
+        )
     return out
 
 
@@ -147,14 +180,19 @@ def fila(cli, ts, fraude=0, patron="normal", **kw):
     canal = kw.get("canal") or elegir(cli.canales)
     metodo = kw.get("metodo") or (cli.metodo if rng.random() < 0.8 else rng.choice(METODOS))
     return {
-        "ts": ts, "id_cliente": cli.id, "home": cli.ciudad,
+        "ts": ts,
+        "id_cliente": cli.id,
+        "home": cli.ciudad,
         "dispositivo": kw.get("disp") or rng.choice(cli.disp),
         "ciudad": kw.get("ciudad") or cli.ciudad,
         "monto": kw["monto"] if kw.get("monto") is not None else monto_normal(cli, cat),
-        "cat": cat, "metodo": metodo, "canal": canal,
+        "cat": cat,
+        "metodo": metodo,
+        "canal": canal,
         "ip": kw.get("ip") or ip_normal(canal),
         "estado": kw.get("estado") or "Conocido",
-        "fraude": fraude, "patron": patron,
+        "fraude": fraude,
+        "patron": patron,
     }
 
 
@@ -181,9 +219,17 @@ def legit_viajero(restante):
     for _ in range(rng.randint(2, 4)):
         t = base + timedelta(hours=rng.uniform(0, 90))
         cat = rng.choice(["Hotel", "Transporte", "Restaurante", "Tienda online", "Ropa"])
-        out.append(fila(c, t, patron="viajero_legitimo", ciudad=ciudad, cat=cat,
-                        monto=monto_normal(c, cat, rng.uniform(1.0, 1.8)),
-                        estado=rng.choices(["Conocido", "Nuevo"], [85, 15])[0]))
+        out.append(
+            fila(
+                c,
+                t,
+                patron="viajero_legitimo",
+                ciudad=ciudad,
+                cat=cat,
+                monto=monto_normal(c, cat, rng.uniform(1.0, 1.8)),
+                estado=rng.choices(["Conocido", "Nuevo"], [85, 15])[0],
+            )
+        )
     return out
 
 
@@ -191,14 +237,17 @@ def legit_celular_nuevo(restante):
     c = cliente_al_azar()
     d = disp_nuevo(c)
     base = ts_aleatorio(margen_h=96)
-    return [fila(c, base + timedelta(hours=rng.uniform(0, 70)), patron="celular_nuevo",
-                 disp=d, estado="Nuevo") for _ in range(rng.randint(1, 3))]
+    return [
+        fila(c, base + timedelta(hours=rng.uniform(0, 70)), patron="celular_nuevo", disp=d, estado="Nuevo")
+        for _ in range(rng.randint(1, 3))
+    ]
 
 
 def legit_no_reconocido(restante):
     c = cliente_al_azar()
-    return [fila(c, ts_aleatorio(), patron="dispositivo_no_reconocido_legitimo",
-                 disp=disp_nuevo(c), estado="No reconocido")]
+    return [
+        fila(c, ts_aleatorio(), patron="dispositivo_no_reconocido_legitimo", disp=disp_nuevo(c), estado="No reconocido")
+    ]
 
 
 def _dias_quincena():
@@ -220,8 +269,7 @@ def legit_pico_quincena(restante):
     for _ in range(rng.randint(3, 7)):
         t = ts_en(dia, rng.randint(9, 20))
         cat = rng.choice(list(CATEGORIAS))
-        out.append(fila(c, t, patron="pico_quincena", cat=cat,
-                        monto=monto_normal(c, cat, 1.3)))
+        out.append(fila(c, t, patron="pico_quincena", cat=cat, monto=monto_normal(c, cat, 1.3)))
     return out
 
 
@@ -231,9 +279,16 @@ def legit_comercio_masivo(restante):
     out = []
     for _ in range(rng.randint(5, 25)):
         cat = rng.choice(["Tienda online", "Supermercado", "Farmacia", "Ropa", "Restaurante"])
-        out.append(fila(c, ts_en(dia, rng.randint(8, 20)), patron="comercio_api_masivo",
-                        cat=cat, ip="Empresarial",
-                        monto=monto_normal(c, cat)))
+        out.append(
+            fila(
+                c,
+                ts_en(dia, rng.randint(8, 20)),
+                patron="comercio_api_masivo",
+                cat=cat,
+                ip="Empresarial",
+                monto=monto_normal(c, cat),
+            )
+        )
     return out
 
 
@@ -241,8 +296,7 @@ def legit_compra_grande(restante):
     c = cliente_al_azar()
     cat = rng.choice(["Hotel", "Electrónica", "Servicios públicos", "Tienda online", "Ropa"])
     monto = int(math.exp(rng.uniform(math.log(1_500_000), math.log(8_000_000))))
-    return [fila(c, ts_aleatorio(hora=rng.randint(9, 20)), patron="compra_grande_legitima",
-                 cat=cat, monto=monto)]
+    return [fila(c, ts_aleatorio(hora=rng.randint(9, 20)), patron="compra_grande_legitima", cat=cat, monto=monto)]
 
 
 def legit_noctambulo(restante):
@@ -265,8 +319,18 @@ def legit_suscripcion(restante):
         if mes > 10:
             break
         t = datetime(2026, mes, dia_mes, hora, rng.randint(0, 59), rng.randint(0, 59))
-        out.append(fila(c, t, patron="suscripcion_recurrente", cat="Suscripción digital",
-                        canal=canal, ip=ip, monto=monto, metodo=c.metodo))
+        out.append(
+            fila(
+                c,
+                t,
+                patron="suscripcion_recurrente",
+                cat="Suscripción digital",
+                canal=canal,
+                ip=ip,
+                monto=monto,
+                metodo=c.metodo,
+            )
+        )
     return out
 
 
@@ -285,9 +349,15 @@ def legit_limite(restante):
     if tipo == 0:
         return [fila(c, ts_aleatorio(), patron="caso_limite", monto=1_000)]
     if tipo == 1:
-        return [fila(c, ts_aleatorio(hora=rng.randint(9, 20)), patron="caso_limite",
-                     cat=rng.choice(["Hotel", "Electrónica"]),
-                     monto=rng.randint(12_000_000, 20_000_000))]
+        return [
+            fila(
+                c,
+                ts_aleatorio(hora=rng.randint(9, 20)),
+                patron="caso_limite",
+                cat=rng.choice(["Hotel", "Electrónica"]),
+                monto=rng.randint(12_000_000, 20_000_000),
+            )
+        ]
     if tipo == 2:
         return [fila(c, ts_en(rng.randrange(DIAS - 2), 0, 0, 0), patron="caso_limite")]
     if tipo == 3:
@@ -307,10 +377,20 @@ def f_rafaga(restante):
     out = []
     for _ in range(min(rng.randint(5, 10), max(restante, 5))):
         t += timedelta(minutes=rng.uniform(1, 6))
-        out.append(fila(c, t, 1, "rafaga_velocidad", disp=d, estado=estado, ciudad=ciudad,
-                        canal=rng.choice(["Web", "API", "App móvil"]),
-                        ip=rng.choice(IP_ANONIMAS) if anon else rng.choice(["Residencial", "Móvil"]),
-                        monto=int(rng.uniform(80_000, 1_200_000))))
+        out.append(
+            fila(
+                c,
+                t,
+                1,
+                "rafaga_velocidad",
+                disp=d,
+                estado=estado,
+                ciudad=ciudad,
+                canal=rng.choice(["Web", "API", "App móvil"]),
+                ip=rng.choice(IP_ANONIMAS) if anon else rng.choice(["Residencial", "Móvil"]),
+                monto=int(rng.uniform(80_000, 1_200_000)),
+            )
+        )
     return out
 
 
@@ -323,15 +403,37 @@ def f_prueba_tarjeta(restante):
     out = []
     for _ in range(rng.randint(5, 10)):
         t += timedelta(seconds=rng.randint(20, 120))
-        out.append(fila(c, t, 1, "prueba_tarjeta", disp=d, estado="Nuevo", metodo=metodo,
-                        canal=rng.choice(["Web", "API"]), ip=ip,
-                        cat=rng.choice(["Tienda online", "Suscripción digital", "Electrónica"]),
-                        monto=rng.randint(1_000, 25_000)))
+        out.append(
+            fila(
+                c,
+                t,
+                1,
+                "prueba_tarjeta",
+                disp=d,
+                estado="Nuevo",
+                metodo=metodo,
+                canal=rng.choice(["Web", "API"]),
+                ip=ip,
+                cat=rng.choice(["Tienda online", "Suscripción digital", "Electrónica"]),
+                monto=rng.randint(1_000, 25_000),
+            )
+        )
     t += timedelta(seconds=rng.randint(30, 150))
-    out.append(fila(c, t, 1, "prueba_tarjeta", disp=d, estado="Nuevo", metodo=metodo,
-                    canal=rng.choice(["Web", "API"]), ip=ip,
-                    cat=rng.choice(["Tienda online", "Electrónica"]),
-                    monto=rng.randint(600_000, 3_000_000)))
+    out.append(
+        fila(
+            c,
+            t,
+            1,
+            "prueba_tarjeta",
+            disp=d,
+            estado="Nuevo",
+            metodo=metodo,
+            canal=rng.choice(["Web", "API"]),
+            ip=ip,
+            cat=rng.choice(["Tienda online", "Electrónica"]),
+            monto=rng.randint(600_000, 3_000_000),
+        )
+    )
     return out
 
 
@@ -346,10 +448,20 @@ def f_toma_cuenta(restante):
     for _ in range(rng.choice([1, 1, 2, 3])):
         t += timedelta(minutes=rng.uniform(2, 30))
         monto = int(min(max(c.escala * rng.uniform(3, 9), 300_000), 6_000_000))
-        out.append(fila(c, t, 1, "toma_cuenta", disp=d, estado=estado, ciudad=ciudad,
-                        cat=rng.choice(["Electrónica", "Tienda online", "Ropa", "Hotel"]),
-                        ip=rng.choice(IP_ANONIMAS) if anon else rng.choice(["Residencial", "Móvil"]),
-                        monto=monto))
+        out.append(
+            fila(
+                c,
+                t,
+                1,
+                "toma_cuenta",
+                disp=d,
+                estado=estado,
+                ciudad=ciudad,
+                cat=rng.choice(["Electrónica", "Tienda online", "Ropa", "Hotel"]),
+                ip=rng.choice(IP_ANONIMAS) if anon else rng.choice(["Residencial", "Móvil"]),
+                monto=monto,
+            )
+        )
     return out
 
 
@@ -359,12 +471,22 @@ ANCLAS = []
 def f_viaje_imposible(restante):
     c = cliente_al_azar()
     t = ts_aleatorio()
-    ancla = fila(c, t, 0, "normal", estado="Conocido")      # compra legítima en su ciudad
+    ancla = fila(c, t, 0, "normal", estado="Conocido")  # compra legítima en su ciudad
     ANCLAS.append(ancla)
     t2 = t + timedelta(minutes=rng.uniform(5, 45))
-    return [fila(c, t2, 1, "viaje_imposible", ciudad=otra_ciudad(c.ciudad), disp=disp_nuevo(c),
-                 estado="Nuevo", ip=rng.choice(["Residencial", "Móvil", "IP desconocida"]),
-                 monto=int(min(max(c.escala * rng.uniform(1, 4), 100_000), 4_000_000)))]
+    return [
+        fila(
+            c,
+            t2,
+            1,
+            "viaje_imposible",
+            ciudad=otra_ciudad(c.ciudad),
+            disp=disp_nuevo(c),
+            estado="Nuevo",
+            ip=rng.choice(["Residencial", "Móvil", "IP desconocida"]),
+            monto=int(min(max(c.escala * rng.uniform(1, 4), 100_000), 4_000_000)),
+        )
+    ]
 
 
 def f_madrugada(restante):
@@ -373,12 +495,21 @@ def f_madrugada(restante):
     estado = rng.choices(["Nuevo", "No reconocido", "Conocido"], [60, 20, 20])[0]
     anon = rng.random() < 0.4
     monto = int(math.exp(rng.uniform(math.log(1_500_000), math.log(6_000_000))))
-    return [fila(c, ts_aleatorio(hora=h), 1, "madrugada_monto_alto", monto=monto,
-                 disp=disp_nuevo(c) if estado != "Conocido" else None, estado=estado,
-                 canal=rng.choice(["Web", "API"]),
-                 cat=rng.choice(["Electrónica", "Tienda online", "Hotel", "Ropa"]),
-                 ciudad=c.ciudad if rng.random() < 0.6 else otra_ciudad(c.ciudad),
-                 ip=rng.choice(IP_ANONIMAS) if anon else rng.choice(["Residencial", "Móvil", "Empresarial"]))]
+    return [
+        fila(
+            c,
+            ts_aleatorio(hora=h),
+            1,
+            "madrugada_monto_alto",
+            monto=monto,
+            disp=disp_nuevo(c) if estado != "Conocido" else None,
+            estado=estado,
+            canal=rng.choice(["Web", "API"]),
+            cat=rng.choice(["Electrónica", "Tienda online", "Hotel", "Ropa"]),
+            ciudad=c.ciudad if rng.random() < 0.6 else otra_ciudad(c.ciudad),
+            ip=rng.choice(IP_ANONIMAS) if anon else rng.choice(["Residencial", "Móvil", "Empresarial"]),
+        )
+    ]
 
 
 def f_ip_anonima(restante):
@@ -386,24 +517,43 @@ def f_ip_anonima(restante):
     estado = rng.choices(["Conocido", "Nuevo", "No reconocido"], [40, 50, 10])[0]
     cat = rng.choice(list(CATEGORIAS))
     d = None if estado == "Conocido" else disp_nuevo(c)
-    return [fila(c, ts_aleatorio(), 1, "ip_anonima", ip=rng.choice(IP_ANONIMAS), disp=d,
-                 estado=estado, cat=cat,
-                 ciudad=c.ciudad if rng.random() < 0.7 else otra_ciudad(c.ciudad),
-                 monto=max(monto_normal(c, cat, 1.5), 100_000))]
+    return [
+        fila(
+            c,
+            ts_aleatorio(),
+            1,
+            "ip_anonima",
+            ip=rng.choice(IP_ANONIMAS),
+            disp=d,
+            estado=estado,
+            cat=cat,
+            ciudad=c.ciudad if rng.random() < 0.7 else otra_ciudad(c.ciudad),
+            monto=max(monto_normal(c, cat, 1.5), 100_000),
+        )
+    ]
 
 
 def f_disimulado(restante):
     c = cliente_al_azar()
-    cat = rng.choices(list(CATEGORIAS),
-                      [4 if k in ("Tienda online", "Suscripción digital", "Electrónica") else 1
-                       for k in CATEGORIAS])[0]
+    cat = rng.choices(
+        list(CATEGORIAS), [4 if k in ("Tienda online", "Suscripción digital", "Electrónica") else 1 for k in CATEGORIAS]
+    )[0]
     estado = rng.choices(["Conocido", "Nuevo"], [60, 40])[0]
-    return [fila(c, ts_aleatorio(), 1, "fraude_disimulado", cat=cat, estado=estado,
-                 disp=None if estado == "Conocido" else disp_nuevo(c),
-                 canal=rng.choices(["Web", "API", "App móvil"], [45, 25, 30])[0],
-                 metodo=rng.choice(["Visa", "Mastercard", "PayPal"]) if rng.random() < 0.7 else None,
-                 ip=rng.choice(["Residencial", "Móvil"]),
-                 monto=monto_normal(c, cat, rng.uniform(0.8, 1.5)))]
+    return [
+        fila(
+            c,
+            ts_aleatorio(),
+            1,
+            "fraude_disimulado",
+            cat=cat,
+            estado=estado,
+            disp=None if estado == "Conocido" else disp_nuevo(c),
+            canal=rng.choices(["Web", "API", "App móvil"], [45, 25, 30])[0],
+            metodo=rng.choice(["Visa", "Mastercard", "PayPal"]) if rng.random() < 0.7 else None,
+            ip=rng.choice(["Residencial", "Móvil"]),
+            monto=monto_normal(c, cat, rng.uniform(0.8, 1.5)),
+        )
+    ]
 
 
 def f_normal(restante):
@@ -411,8 +561,7 @@ def f_normal(restante):
     c = cliente_al_azar()
     t = ts_aleatorio()
     estado = rng.choices(["Conocido", "Nuevo"], [95, 5])[0]
-    out = [fila(c, t, patron="normal", estado=estado,
-                disp=disp_nuevo(c) if estado == "Nuevo" else None)]
+    out = [fila(c, t, patron="normal", estado=estado, disp=disp_nuevo(c) if estado == "Nuevo" else None)]
     if rng.random() < 0.22:
         for _ in range(rng.choice([1, 1, 2])):
             out.append(fila(c, t + timedelta(hours=rng.uniform(0.3, 20)), patron="normal"))
@@ -421,14 +570,26 @@ def f_normal(restante):
 
 # ------------------------------------------------------------------ armado
 CUOTAS_LEGIT = [
-    (legit_ip_anonima, 2000), (legit_viajero, 1500), (legit_celular_nuevo, 2500),
-    (legit_no_reconocido, 200), (legit_pico_quincena, 4000), (legit_comercio_masivo, 3000),
-    (legit_compra_grande, 3000), (legit_noctambulo, 2500), (legit_suscripcion, 4000),
-    (legit_duplicado, 800), (legit_limite, 300),
+    (legit_ip_anonima, 2000),
+    (legit_viajero, 1500),
+    (legit_celular_nuevo, 2500),
+    (legit_no_reconocido, 200),
+    (legit_pico_quincena, 4000),
+    (legit_comercio_masivo, 3000),
+    (legit_compra_grande, 3000),
+    (legit_noctambulo, 2500),
+    (legit_suscripcion, 4000),
+    (legit_duplicado, 800),
+    (legit_limite, 300),
 ]
 CUOTAS_FRAUDE = [
-    (f_rafaga, 700), (f_prueba_tarjeta, 500), (f_toma_cuenta, 800), (f_viaje_imposible, 400),
-    (f_madrugada, 500), (f_ip_anonima, 400), (f_disimulado, 700),
+    (f_rafaga, 700),
+    (f_prueba_tarjeta, 500),
+    (f_toma_cuenta, 800),
+    (f_viaje_imposible, 400),
+    (f_madrugada, 500),
+    (f_ip_anonima, 400),
+    (f_disimulado, 700),
 ]
 assert sum(q for _, q in CUOTAS_FRAUDE) == FRAUDES
 
@@ -454,7 +615,7 @@ def construir():
         filas += llenar(q, gen)
     for gen, q in CUOTAS_LEGIT:
         filas += llenar(q, gen)
-    filas += ANCLAS                      # compras legítimas previas al viaje imposible
+    filas += ANCLAS  # compras legítimas previas al viaje imposible
     faltan = TOTAL - len(filas)
     assert faltan > 0, "las cuotas superan el total"
     filas += llenar(faltan, f_normal)
@@ -481,9 +642,23 @@ def construir():
     return filas
 
 
-COLUMNAS = ["numero_transaccion", "fecha_pago", "dispositivo", "localizacion", "monto_cop",
-            "detalle_pago", "metodo_pago", "canal_pago", "tipo_ip", "estado_dispositivo",
-            "transacciones_ultimas_24h", "nivel_riesgo", "es_fraude", "id_cliente", "patron"]
+COLUMNAS = [
+    "numero_transaccion",
+    "fecha_pago",
+    "dispositivo",
+    "localizacion",
+    "monto_cop",
+    "detalle_pago",
+    "metodo_pago",
+    "canal_pago",
+    "tipo_ip",
+    "estado_dispositivo",
+    "transacciones_ultimas_24h",
+    "nivel_riesgo",
+    "es_fraude",
+    "id_cliente",
+    "patron",
+]
 
 
 def main():
@@ -494,11 +669,25 @@ def main():
         w = csv.writer(fh)
         w.writerow(COLUMNAS)
         for f in filas:
-            w.writerow([f["id"], f["ts"].strftime("%Y-%m-%d %H:%M:%S"), f["dispositivo"],
-                        f"{f['ciudad']}, Colombia", f["monto"],
-                        f"{f['cat']} - compra realizada por {f['canal']}", f["metodo"],
-                        f["canal"], f["ip"], f["estado"], f["n24"], f["nivel"],
-                        f["fraude"], f["id_cliente"], f["patron"]])
+            w.writerow(
+                [
+                    f["id"],
+                    f["ts"].strftime("%Y-%m-%d %H:%M:%S"),
+                    f["dispositivo"],
+                    f"{f['ciudad']}, Colombia",
+                    f["monto"],
+                    f"{f['cat']} - compra realizada por {f['canal']}",
+                    f["metodo"],
+                    f["canal"],
+                    f["ip"],
+                    f["estado"],
+                    f["n24"],
+                    f["nivel"],
+                    f["fraude"],
+                    f["id_cliente"],
+                    f["patron"],
+                ]
+            )
     print("Escrito:", ruta, "| filas:", len(filas), "| fraudes:", sum(f["fraude"] for f in filas))
 
 

@@ -1,10 +1,11 @@
 # Configuración de las herramientas de calidad. No define el paquete: solo dice cómo se revisa el código.
 # Cómo correrlas (desde la carpeta que contiene modelo_ia/):
 #   ruff check modelo_ia            errores reales (imports sobrantes, nombres sin definir, argumentos mutables)
+#   ruff format modelo_ia           da formato al código (ancho 120); en la CI se verifica con `ruff format --check modelo_ia`
 #   mypy                            tipos en modelo_ia/api (por ahora solo informa, no bloquea)
 
 [tool.ruff]
-line-length = 200                      # el código usa líneas largas a propósito; no se revisa el estilo, solo errores reales
+line-length = 120                      # ancho del formato automático (ruff format); las reglas de revisión de abajo son solo errores reales
 target-version = "py39"                # lo más viejo que corre en tu equipo; producción usa 3.12
 extend-exclude = ["datos_ip", "modelos_guardados", "resultados"]
 

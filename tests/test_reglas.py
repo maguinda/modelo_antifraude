@@ -10,12 +10,26 @@ from modelo_ia.reglas.seguridad import construir_reglas_seguridad
 
 def pago(**cambios):
     """Un pago normal; cada prueba cambia solo lo que necesita."""
-    base = {"monto_cop": 200_000, "transacciones_ultimas_24h": 1, "hora": 15, "es_madrugada": 0,
-            "es_fin_semana": 0, "minutos_desde_anterior": 9000, "ciudad_distinta_anterior": 0,
-            "n_compras_previas": 10, "monto_vs_promedio": 1.0, "dispositivo_nuevo_cliente": 0,
-            "dispositivo": "iPhone", "localizacion": "Bogotá, Colombia", "metodo_pago": "Nequi",
-            "canal_pago": "App móvil", "tipo_ip": "Móvil", "estado_dispositivo": "Conocido",
-            "categoria": "Ropa", "id_cliente": "CLI-1"}
+    base = {
+        "monto_cop": 200_000,
+        "transacciones_ultimas_24h": 1,
+        "hora": 15,
+        "es_madrugada": 0,
+        "es_fin_semana": 0,
+        "minutos_desde_anterior": 9000,
+        "ciudad_distinta_anterior": 0,
+        "n_compras_previas": 10,
+        "monto_vs_promedio": 1.0,
+        "dispositivo_nuevo_cliente": 0,
+        "dispositivo": "iPhone",
+        "localizacion": "Bogotá, Colombia",
+        "metodo_pago": "Nequi",
+        "canal_pago": "App móvil",
+        "tipo_ip": "Móvil",
+        "estado_dispositivo": "Conocido",
+        "categoria": "Ropa",
+        "id_cliente": "CLI-1",
+    }
     base.update(cambios)
     return base
 
@@ -29,22 +43,25 @@ def test_pago_normal_se_aprueba_con_las_reglas_ingenuas():
     assert decision_ingenua() == "APROBAR"
 
 
-@pytest.mark.parametrize("cambios,esperada", [
-    ({"monto_cop": 1_500_000}, "REVISAR"),
-    ({"monto_cop": 1_499_999}, "APROBAR"),
-    ({"transacciones_ultimas_24h": 5}, "REVISAR"),
-    ({"transacciones_ultimas_24h": 4}, "APROBAR"),
-    ({"tipo_ip": "VPN"}, "REVISAR"),
-    ({"tipo_ip": "Proxy"}, "REVISAR"),
-    ({"tipo_ip": "Residencial"}, "APROBAR"),
-    ({"estado_dispositivo": "No reconocido"}, "BLOQUEAR"),
-    ({"estado_dispositivo": "Nuevo"}, "APROBAR"),
-    ({"ciudad_distinta_anterior": 1, "minutos_desde_anterior": 60}, "BLOQUEAR"),
-    ({"ciudad_distinta_anterior": 1, "minutos_desde_anterior": 61}, "APROBAR"),
-    ({"n_compras_previas": 0, "monto_cop": 1_000_000}, "REVISAR"),
-    ({"hora": 3, "monto_cop": 1_000_000}, "REVISAR"),
-    ({"hora": 3, "monto_cop": 999_999}, "APROBAR"),
-])
+@pytest.mark.parametrize(
+    "cambios,esperada",
+    [
+        ({"monto_cop": 1_500_000}, "REVISAR"),
+        ({"monto_cop": 1_499_999}, "APROBAR"),
+        ({"transacciones_ultimas_24h": 5}, "REVISAR"),
+        ({"transacciones_ultimas_24h": 4}, "APROBAR"),
+        ({"tipo_ip": "VPN"}, "REVISAR"),
+        ({"tipo_ip": "Proxy"}, "REVISAR"),
+        ({"tipo_ip": "Residencial"}, "APROBAR"),
+        ({"estado_dispositivo": "No reconocido"}, "BLOQUEAR"),
+        ({"estado_dispositivo": "Nuevo"}, "APROBAR"),
+        ({"ciudad_distinta_anterior": 1, "minutos_desde_anterior": 60}, "BLOQUEAR"),
+        ({"ciudad_distinta_anterior": 1, "minutos_desde_anterior": 61}, "APROBAR"),
+        ({"n_compras_previas": 0, "monto_cop": 1_000_000}, "REVISAR"),
+        ({"hora": 3, "monto_cop": 1_000_000}, "REVISAR"),
+        ({"hora": 3, "monto_cop": 999_999}, "APROBAR"),
+    ],
+)
 def test_cada_regla_ingenua_se_activa_en_su_umbral(cambios, esperada):
     assert decision_ingenua(**cambios) == esperada
 
@@ -121,7 +138,7 @@ def test_ajustar_no_depende_de_la_prueba(partes):
 
 def test_ajustar_baja_el_costo_de_verdad_con_umbrales_malos(partes):
     df, m = partes
-    malos = dict(reglas_base.PARAMS_INGENUOS, monto_alto=500_000, compras_24h=3)      # alertan casi todo
+    malos = dict(reglas_base.PARAMS_INGENUOS, monto_alto=500_000, compras_24h=3)  # alertan casi todo
     _, inicial, final = reglas_base.ajustar(df.loc[m["validacion"]], inicio=malos)
     assert final < inicial
 
@@ -170,7 +187,9 @@ def test_la_red_de_seguridad_sube_la_decision_del_modelo(artefacto):
     sin = predecir.analizar_transaccion(p, artefacto, usar_reglas_seguridad=False)
     con = predecir.analizar_transaccion(p, artefacto)
     assert con["decision_modelo"] == sin["decision"]
-    assert {"APROBAR": 0, "REVISAR": 1, "BLOQUEAR": 2}[con["decision"]] >= {"APROBAR": 0, "REVISAR": 1, "BLOQUEAR": 2}[sin["decision"]]
+    assert {"APROBAR": 0, "REVISAR": 1, "BLOQUEAR": 2}[con["decision"]] >= {"APROBAR": 0, "REVISAR": 1, "BLOQUEAR": 2}[
+        sin["decision"]
+    ]
     assert [x["regla"] for x in con["reglas_activadas"]] == ["monto_muy_alto"]
     assert con["decision"] in ("REVISAR", "BLOQUEAR")
 
@@ -183,8 +202,9 @@ def test_la_lista_negra_bloquea_aunque_el_modelo_apruebe(artefacto):
 
 
 def test_la_red_nunca_baja_la_decision(artefacto):
-    sospechoso = pago(tipo_ip="Proxy", estado_dispositivo="No reconocido", monto_cop=5_000_000,
-                      transacciones_ultimas_24h=9, hora=3)
+    sospechoso = pago(
+        tipo_ip="Proxy", estado_dispositivo="No reconocido", monto_cop=5_000_000, transacciones_ultimas_24h=9, hora=3
+    )
     r = predecir.analizar_transaccion(sospechoso, artefacto)
     assert r["decision"] == "BLOQUEAR"
 
@@ -201,8 +221,8 @@ def test_bootstrap_con_metodos_iguales_incluye_el_cero():
 def test_bootstrap_detecta_un_metodo_claramente_mejor():
     rng = np.random.default_rng(1)
     y = rng.random(6000) < 0.1
-    bueno = y.copy()                                        # detecta todo, sin falsas alarmas
-    malo = rng.random(6000) < 0.1                           # al azar
+    bueno = y.copy()  # detecta todo, sin falsas alarmas
+    malo = rng.random(6000) < 0.1  # al azar
     b = comparar_h1.bootstrap_diferencias(bueno, malo, y, repeticiones=300)
     assert b["ic95_recall"][0] > 0.5
     assert b["ic95_fpr"][1] <= 0
@@ -226,9 +246,11 @@ def test_h1_de_punta_a_punta_con_datos_pequenos(ruta_csv, carpeta_temporal, monk
     monkeypatch.setattr(config, "ARCHIVO_H1", carpeta_temporal / "resultados" / "h1.json")
     r = comparar_h1.ejecutar(ruta_csv, repeticiones=50)
     assert len(r["tabla"]) == 5 and config.ARCHIVO_H1.exists()
-    assert set(r["salida"]["comparaciones"]) == {"modelo_igual_fpr_vs_reglas_ajustadas",
-                                                 "modelo_igual_fpr_vs_reglas_ingenuas",
-                                                 "modelo_costo_vs_reglas_ajustadas"}
+    assert set(r["salida"]["comparaciones"]) == {
+        "modelo_igual_fpr_vs_reglas_ajustadas",
+        "modelo_igual_fpr_vs_reglas_ingenuas",
+        "modelo_costo_vs_reglas_ajustadas",
+    }
 
 
 def test_h1_ajusta_las_reglas_con_validacion_no_con_la_prueba(ruta_csv, carpeta_temporal, monkeypatch, tmp_path):

@@ -14,6 +14,7 @@ Páginas (solo en tu computador, http://127.0.0.1:8000):
 Las claves de la demo se guardan en api/demo/claves_demo.txt (solo lectura para ti). Sirven únicamente para esta
 base de demostración. NUNCA uses este modo con datos reales ni lo expongas a la red: por eso solo escucha en 127.0.0.1.
 """
+
 import argparse
 import os
 import secrets
@@ -44,7 +45,7 @@ def usar_carpeta(carpeta: Path) -> None:
 
 def _escribir_privado(ruta: Path, texto: str) -> None:
     ruta.write_text(texto, encoding="utf-8")
-    os.chmod(ruta, 0o600)                # solo tu usuario puede leerlo
+    os.chmod(ruta, 0o600)  # solo tu usuario puede leerlo
 
 
 def preparar(reiniciar: bool = False) -> Tuple[Ajustes, Dict[str, str]]:
@@ -58,14 +59,23 @@ def preparar(reiniciar: bool = False) -> Tuple[Ajustes, Dict[str, str]]:
         alm = Almacen(BD, pepper)
         alm.inicializar()
         comercio = alm.crear_comercio("Tienda Demo")
-        claves = {"comercio": alm.crear_clave(comercio, "comercio", "demo"), "analista": alm.crear_usuario("analista", "Analista de demostración")[1],
-                  "admin": alm.crear_usuario("admin", "Administrador de demostración")[1]}
-        _escribir_privado(CLAVES, "CLAVES DE LA DEMO (solo sirven en esta base de demostración)\n"
-                          + "".join(f"{rol.upper()}={clave}\n" for rol, clave in claves.items()))
+        claves = {
+            "comercio": alm.crear_clave(comercio, "comercio", "demo"),
+            "analista": alm.crear_usuario("analista", "Analista de demostración")[1],
+            "admin": alm.crear_usuario("admin", "Administrador de demostración")[1],
+        }
+        _escribir_privado(
+            CLAVES,
+            "CLAVES DE LA DEMO (solo sirven en esta base de demostración)\n"
+            + "".join(f"{rol.upper()}={clave}\n" for rol, clave in claves.items()),
+        )
     else:
         pepper = PEPPER.read_text(encoding="utf-8").strip()
-        claves = {linea.split("=", 1)[0].lower(): linea.split("=", 1)[1].strip()
-                  for linea in CLAVES.read_text(encoding="utf-8").splitlines() if "=" in linea}
+        claves = {
+            linea.split("=", 1)[0].lower(): linea.split("=", 1)[1].strip()
+            for linea in CLAVES.read_text(encoding="utf-8").splitlines()
+            if "=" in linea
+        }
     return Ajustes(ruta_bd=BD, pepper=pepper, limite_peticiones_por_minuto=5000), claves
 
 
@@ -83,7 +93,9 @@ def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description="Demo local de la API antifraude (solo 127.0.0.1).")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--reiniciar", action="store_true", help="borra la base de demostración y empieza de cero")
-    ap.add_argument("--carpeta", type=Path, default=None, help="carpeta de la base y las claves de la demo (por defecto api/demo/)")
+    ap.add_argument(
+        "--carpeta", type=Path, default=None, help="carpeta de la base y las claves de la demo (por defecto api/demo/)"
+    )
     a = ap.parse_args(argv)
     if a.carpeta:
         usar_carpeta(a.carpeta)

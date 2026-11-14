@@ -10,6 +10,7 @@ original (correlación cercana a -0,4) y aquí `ordenado_cronologicamente` lo co
 Uso:  python -m modelo_ia.validacion_publica                (descarga de OpenML, id 1597, a la carpeta temporal del sistema)
       python -m modelo_ia.validacion_publica --csv ruta.csv (un CSV con columnas V1..V28, Amount, Class)
 """
+
 import argparse
 import json
 import tempfile
@@ -23,7 +24,7 @@ from sklearn.metrics import average_precision_score
 from . import config, modelos
 
 COLUMNAS_V = [f"V{i}" for i in range(1, 29)]
-COSTOS_FALSA_ALARMA_EUR = (1.0, 5.0, 25.0)       # no hay dato real del costo de revisar un pago: se prueban tres
+COSTOS_FALSA_ALARMA_EUR = (1.0, 5.0, 25.0)  # no hay dato real del costo de revisar un pago: se prueban tres
 UMBRALES = list(np.round(np.arange(0.02, 0.99, 0.02), 2))
 
 
@@ -32,6 +33,7 @@ def cargar(ruta_csv: Optional[Path] = None) -> pd.DataFrame:
         df = pd.read_csv(ruta_csv)
     else:
         from sklearn.datasets import fetch_openml
+
         df = fetch_openml(data_id=1597, as_frame=True, data_home=tempfile.gettempdir(), parser="auto").frame
     df = df.rename(columns={"Class": "es_fraude", "Amount": "monto"})
     df["es_fraude"] = df["es_fraude"].astype(int)
@@ -46,7 +48,11 @@ def ordenado_cronologicamente(df: pd.DataFrame, semilla: int = 0) -> Dict[str, f
     mezclado = np.random.default_rng(semilla).permutation(i)
     r = float(np.corrcoef(i, df["V3"])[0, 1])
     r0 = float(np.corrcoef(mezclado, df["V3"])[0, 1])
-    return {"corr_V3_orden_real": round(r, 3), "corr_V3_orden_mezclado": round(r0, 3), "plausible": bool(abs(r) > 0.3 and abs(r0) < 0.05)}
+    return {
+        "corr_V3_orden_real": round(r, 3),
+        "corr_V3_orden_mezclado": round(r0, 3),
+        "plausible": bool(abs(r) > 0.3 and abs(r0) < 0.05),
+    }
 
 
 def partir(n: int, fracciones=(0.6, 0.2, 0.2)) -> Dict[str, slice]:
@@ -75,11 +81,20 @@ def evaluar(df: pd.DataFrame, modelo: str, particiones: Dict[str, np.ndarray]) -
     for fa in COSTOS_FALSA_ALARMA_EUR:
         u = elegir_umbral(pv, y[va], monto[va], fa)
         alerta = pt >= u
-        filas[str(fa)] = {"umbral": u, "recall": float((alerta & (y[te] == 1)).sum() / max(1, (y[te] == 1).sum())),
-                          "precision": float((alerta & (y[te] == 1)).sum() / max(1, alerta.sum())),
-                          "falsas_alarmas": int((alerta & (y[te] == 0)).sum()), "fraudes_que_escapan": int(((~alerta) & (y[te] == 1)).sum()),
-                          "costo_eur": costo(pt, y[te], monto[te], u, fa), "costo_sin_modelo_eur": sin_modelo}
-    return {"modelo": modelo, "ranking_ap": float(average_precision_score(y[te], pt)), "por_costo_de_falsa_alarma_eur": filas}
+        filas[str(fa)] = {
+            "umbral": u,
+            "recall": float((alerta & (y[te] == 1)).sum() / max(1, (y[te] == 1).sum())),
+            "precision": float((alerta & (y[te] == 1)).sum() / max(1, alerta.sum())),
+            "falsas_alarmas": int((alerta & (y[te] == 0)).sum()),
+            "fraudes_que_escapan": int(((~alerta) & (y[te] == 1)).sum()),
+            "costo_eur": costo(pt, y[te], monto[te], u, fa),
+            "costo_sin_modelo_eur": sin_modelo,
+        }
+    return {
+        "modelo": modelo,
+        "ranking_ap": float(average_precision_score(y[te], pt)),
+        "por_costo_de_falsa_alarma_eur": filas,
+    }
 
 
 def ejecutar(ruta_csv: Optional[Path] = None, lista_modelos: Optional[List[str]] = None) -> Dict:
@@ -89,11 +104,15 @@ def ejecutar(ruta_csv: Optional[Path] = None, lista_modelos: Optional[List[str]]
     idx = np.arange(len(df))
     por_tiempo = {k: idx[s] for k, s in p.items()}
     mezclado = np.random.default_rng(config.SEMILLA).permutation(idx)
-    al_azar = {k: mezclado[s] for k, s in p.items()}                       # el atajo que da resultados demasiado bonitos
-    return {"filas": len(df), "fraudes": int(df["es_fraude"].sum()), "verificacion_del_orden": ordenado_cronologicamente(df),
-            "corte_por_tiempo": [evaluar(df, m, por_tiempo) for m in lista_modelos],
-            "corte_al_azar_comparacion": [evaluar(df, m, al_azar) for m in lista_modelos],
-            "fraudes_en_prueba_por_tiempo": int(df["es_fraude"].values[por_tiempo["prueba"]].sum())}
+    al_azar = {k: mezclado[s] for k, s in p.items()}  # el atajo que da resultados demasiado bonitos
+    return {
+        "filas": len(df),
+        "fraudes": int(df["es_fraude"].sum()),
+        "verificacion_del_orden": ordenado_cronologicamente(df),
+        "corte_por_tiempo": [evaluar(df, m, por_tiempo) for m in lista_modelos],
+        "corte_al_azar_comparacion": [evaluar(df, m, al_azar) for m in lista_modelos],
+        "fraudes_en_prueba_por_tiempo": int(df["es_fraude"].values[por_tiempo["prueba"]].sum()),
+    }
 
 
 def main(argv=None) -> None:
@@ -102,13 +121,18 @@ def main(argv=None) -> None:
     a = ap.parse_args(argv)
     r = ejecutar(a.csv)
     print(f"Filas {r['filas']:,} | fraudes {r['fraudes']} | orden verificado: {r['verificacion_del_orden']}")
-    for titulo, clave in (("CORTE POR TIEMPO (el honesto)", "corte_por_tiempo"), ("CORTE AL AZAR (atajo, para comparar)", "corte_al_azar_comparacion")):
+    for titulo, clave in (
+        ("CORTE POR TIEMPO (el honesto)", "corte_por_tiempo"),
+        ("CORTE AL AZAR (atajo, para comparar)", "corte_al_azar_comparacion"),
+    ):
         print(f"\n{titulo}")
         for e in r[clave]:
             print(f"  {e['modelo']:18s} AP={e['ranking_ap']:.3f}")
             for fa, f in e["por_costo_de_falsa_alarma_eur"].items():
-                print(f"     falsa alarma={fa:>4} EUR  recall={f['recall']:.2f} precisión={f['precision']:.2f} falsas={f['falsas_alarmas']:>4} "
-                      f"escapan={f['fraudes_que_escapan']:>3}  costo={f['costo_eur']:>8.0f} (sin modelo {f['costo_sin_modelo_eur']:.0f})")
+                print(
+                    f"     falsa alarma={fa:>4} EUR  recall={f['recall']:.2f} precisión={f['precision']:.2f} falsas={f['falsas_alarmas']:>4} "
+                    f"escapan={f['fraudes_que_escapan']:>3}  costo={f['costo_eur']:>8.0f} (sin modelo {f['costo_sin_modelo_eur']:.0f})"
+                )
     ruta = config.RAIZ / "resultados" / "validacion_publica.json"
     ruta.parent.mkdir(parents=True, exist_ok=True)
     ruta.write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding="utf-8")

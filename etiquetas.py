@@ -3,6 +3,7 @@
 Al entrenar con corte en una fecha, solo se puede usar lo que YA se sabía ese día:
 un fraude que se confirma después del corte (o que nunca se confirma) se ve como compra legítima.
 """
+
 import pandas as pd
 
 from . import config

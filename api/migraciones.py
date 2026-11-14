@@ -12,6 +12,7 @@ Qué garantiza (y qué no):
 Para agregar un cambio de esquema: una función nueva `(conexion) -> None` y un `Migracion` con el siguiente número al final de la lista de
 `Almacen._migraciones`. Nunca se edita ni se renumera una migración ya publicada.
 """
+
 import os
 import sqlite3
 from dataclasses import dataclass
@@ -69,15 +70,33 @@ def _tiene_tabla(con: sqlite3.Connection) -> bool:
 
 def estado(con: sqlite3.Connection, migraciones: Sequence[Migracion]) -> List[Dict]:
     """Qué hay aplicado y qué falta, SIN tocar la base. Las que la base tiene y este código no conoce salen marcadas como `desconocida`."""
-    aplicadas = {r[0]: (r[1], r[2]) for r in con.execute("SELECT id, nombre, aplicada FROM migraciones")} if _tiene_tabla(con) else {}
-    filas = [{"id": m.id, "nombre": m.nombre, "aplicada": aplicadas[m.id][1] if m.id in aplicadas else None, "desconocida": False} for m in migraciones]
+    aplicadas = (
+        {r[0]: (r[1], r[2]) for r in con.execute("SELECT id, nombre, aplicada FROM migraciones")}
+        if _tiene_tabla(con)
+        else {}
+    )
+    filas = [
+        {
+            "id": m.id,
+            "nombre": m.nombre,
+            "aplicada": aplicadas[m.id][1] if m.id in aplicadas else None,
+            "desconocida": False,
+        }
+        for m in migraciones
+    ]
     conocidas = {m.id for m in migraciones}
-    filas += [{"id": i, "nombre": n, "aplicada": a, "desconocida": True} for i, (n, a) in sorted(aplicadas.items()) if i not in conocidas]
+    filas += [
+        {"id": i, "nombre": n, "aplicada": a, "desconocida": True}
+        for i, (n, a) in sorted(aplicadas.items())
+        if i not in conocidas
+    ]
     return filas
 
 
 def listar_copias(ruta: Path) -> List[Path]:
-    return sorted(ruta.parent.glob(ruta.name + SEPARADOR_COPIA + "*.sqlite3"))     # solo las copias, no sus archivos auxiliares
+    return sorted(
+        ruta.parent.glob(ruta.name + SEPARADOR_COPIA + "*.sqlite3")
+    )  # solo las copias, no sus archivos auxiliares
 
 
 def copia_previa(ruta: Path, primera: int, ahora: Callable[[], datetime] = datetime.now) -> Path:
@@ -93,7 +112,9 @@ def copia_previa(ruta: Path, primera: int, ahora: Callable[[], datetime] = datet
         origen = sqlite3.connect(str(ruta), timeout=30)
         dst = sqlite3.connect(str(destino))
         origen.backup(dst)
-        dst.execute("PRAGMA journal_mode=DELETE")                 # la copia hereda el modo WAL de la base; así queda como UN solo archivo, sin -wal ni -shm
+        dst.execute(
+            "PRAGMA journal_mode=DELETE"
+        )  # la copia hereda el modo WAL de la base; así queda como UN solo archivo, sin -wal ni -shm
         if dst.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
             raise CopiaPreviaFallo("La copia previa salió dañada.")
     except CopiaPreviaFallo:
@@ -101,12 +122,14 @@ def copia_previa(ruta: Path, primera: int, ahora: Callable[[], datetime] = datet
         raise
     except Exception as e:
         _quitar(destino)
-        raise CopiaPreviaFallo(f"No se pudo guardar la copia previa a migrar ({type(e).__name__}). No se migró nada: libera espacio o permisos y reintenta.") from e
+        raise CopiaPreviaFallo(
+            f"No se pudo guardar la copia previa a migrar ({type(e).__name__}). No se migró nada: libera espacio o permisos y reintenta."
+        ) from e
     finally:
         for c in (dst, origen):
             if c is not None:
                 c.close()
-    os.chmod(destino, 0o600)               # tiene los mismos datos que la base: mismos permisos
+    os.chmod(destino, 0o600)  # tiene los mismos datos que la base: mismos permisos
     return destino
 
 
@@ -117,8 +140,13 @@ def _quitar(archivo: Path) -> None:
         pass
 
 
-def aplicar(ruta: Path, abrir: Callable[[], sqlite3.Connection], migraciones: Sequence[Migracion], hay_datos: Callable[[sqlite3.Connection], bool],
-            ahora_iso: Callable[[], str]) -> List[int]:
+def aplicar(
+    ruta: Path,
+    abrir: Callable[[], sqlite3.Connection],
+    migraciones: Sequence[Migracion],
+    hay_datos: Callable[[sqlite3.Connection], bool],
+    ahora_iso: Callable[[], str],
+) -> List[int]:
     """Aplica en orden las migraciones que falten. Devuelve los números de las que aplicó ESTA llamada (vacío si ya estaba todo)."""
     validar(migraciones)
     con = abrir()
@@ -129,19 +157,25 @@ def aplicar(ruta: Path, abrir: Callable[[], sqlite3.Connection], migraciones: Se
         conocidas = {m.id for m in migraciones}
         desconocidas = sorted(r[0] for r in con.execute("SELECT id FROM migraciones") if r[0] not in conocidas)
         if desconocidas:
-            raise BaseMasNueva(f"Esta base tiene migraciones que este programa no conoce ({desconocidas}): la creó una versión más nueva. "
-                               "No se abre para no dañarla; actualiza el programa o restaura una copia anterior.")
+            raise BaseMasNueva(
+                f"Esta base tiene migraciones que este programa no conoce ({desconocidas}): la creó una versión más nueva. "
+                "No se abre para no dañarla; actualiza el programa o restaura una copia anterior."
+            )
         for m in migraciones:
-            con.execute("BEGIN IMMEDIATE")                        # una sola escritura a la vez, también entre procesos
+            con.execute("BEGIN IMMEDIATE")  # una sola escritura a la vez, también entre procesos
             try:
-                ya = {r[0] for r in con.execute("SELECT id FROM migraciones")}          # se relee DENTRO del bloqueo: otro proceso pudo aplicarla
+                ya = {
+                    r[0] for r in con.execute("SELECT id FROM migraciones")
+                }  # se relee DENTRO del bloqueo: otro proceso pudo aplicarla
                 if m.id in ya:
                     con.execute("COMMIT")
                     continue
                 if copia is None and hay_datos(con):
                     copia = copia_previa(ruta, m.id)
                 m.aplicar(con)
-                con.execute("INSERT INTO migraciones (id, nombre, aplicada) VALUES (?,?,?)", (m.id, m.nombre, ahora_iso()))
+                con.execute(
+                    "INSERT INTO migraciones (id, nombre, aplicada) VALUES (?,?,?)", (m.id, m.nombre, ahora_iso())
+                )
                 con.execute("COMMIT")
                 hechas.append(m.id)
             except BaseException:

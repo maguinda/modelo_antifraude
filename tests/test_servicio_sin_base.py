@@ -3,6 +3,7 @@
 Esto es lo que ganamos al sacar el SQL del servicio: una carrera («llegó otro pago mientras se calculaba») ya no depende de hilos y suerte, se SIMULA de forma exacta,
 intento por intento. Las pruebas con base de datos real (test_api.py, test_comercios.py…) siguen existiendo; estas prueban la lógica, aquellas el SQL.
 """
+
 import sqlite3
 from contextlib import contextmanager
 from types import SimpleNamespace
@@ -23,6 +24,7 @@ ANALISTA = Principal(9, 1, "analista", "PLATAFORMA", "Ana Pérez")
 # ------------------------------------------------------------------ los falsos
 class FalsaBase:
     """Una «base» que solo sabe de transacciones: lo escrito queda pendiente hasta el commit y se descarta con un rollback."""
+
     def __init__(self):
         self.eventos, self.pendientes, self.confirmadas, self.en_transaccion = [], [], [], False
         self.con = SimpleNamespace(nombre="conexion de mentira")
@@ -51,13 +53,19 @@ class FalsasEvaluaciones:
     def __init__(self, base):
         self.base = base
         self.marcas_programadas, self.llamadas_marcas = [], 0
-        self.previos_en_transaccion = []                  # ¿el cálculo del historial ocurrió con la transacción abierta?
+        self.previos_en_transaccion = []  # ¿el cálculo del historial ocurrió con la transacción abierta?
         self.por_tx, self.fallo_insert, self.al_fallar = {}, None, {}
         self.filas_extra = []
-        self.args_marcas, self.args_previos_cliente, self.args_previos_huella = [], [], []     # con qué argumentos lo llamó el servicio
+        self.args_marcas, self.args_previos_cliente, self.args_previos_huella = (
+            [],
+            [],
+            [],
+        )  # con qué argumentos lo llamó el servicio
 
     def _todas(self):
-        return [d for tipo, d in self.base.confirmadas + self.base.pendientes if tipo == "evaluacion"] + self.filas_extra
+        return [
+            d for tipo, d in self.base.confirmadas + self.base.pendientes if tipo == "evaluacion"
+        ] + self.filas_extra
 
     def por_transaccion(self, con, comercio_id, id_transaccion):
         return self.por_tx.get((comercio_id, id_transaccion))
@@ -87,7 +95,9 @@ class FalsasEvaluaciones:
 
     def insertar(self, con, **valores):
         if self.fallo_insert is not None:
-            self.por_tx.update(self.al_fallar)            # lo que «otro» ya había guardado y que el servicio podrá leer después del error
+            self.por_tx.update(
+                self.al_fallar
+            )  # lo que «otro» ya había guardado y que el servicio podrá leer después del error
             raise self.fallo_insert
         self.base.pendientes.append(("evaluacion", dict(valores)))
 
@@ -193,15 +203,30 @@ def test_un_pago_normal_se_guarda_una_vez_y_dentro_de_una_transaccion(artefacto)
     r = s.evaluar(PRINCIPAL, solicitud())
     assert r["repetida"] is False and r["decision"] == "APROBADA" and tipos(alm) == ["evaluacion"]
     guardada = alm.base.confirmadas[0][1]
-    assert guardada["comercio_id"] == COMERCIO and guardada["id_transaccion"] == "F1" and guardada["decision"] == "APROBADA" and guardada["id"] == r["id_evaluacion"]
-    assert alm.auditoria == [("evaluacion", r["id_evaluacion"], {"decision": "APROBADA", "modo": "normal", "latencia_ms": guardada["latencia_ms"]})]
+    assert (
+        guardada["comercio_id"] == COMERCIO
+        and guardada["id_transaccion"] == "F1"
+        and guardada["decision"] == "APROBADA"
+        and guardada["id"] == r["id_evaluacion"]
+    )
+    assert alm.auditoria == [
+        (
+            "evaluacion",
+            r["id_evaluacion"],
+            {"decision": "APROBADA", "modo": "normal", "latencia_ms": guardada["latencia_ms"]},
+        )
+    ]
     assert alm.base.eventos[-2:] == ["begin", "commit"]
 
 
 def test_un_pago_en_revision_guarda_su_revision_en_la_misma_transaccion_y_uno_aprobado_no(artefacto):  # noqa: F811
     alm, s = montar(artefacto)
     r = s.evaluar(PRINCIPAL, solicitud("R1", "CR1", minimo=True))
-    assert r["decision"] == "EN_REVISION" and tipos(alm) == ["evaluacion", "revision"] and alm.base.confirmadas[1][1] == {"id_evaluacion": r["id_evaluacion"], "comercio_id": COMERCIO}
+    assert (
+        r["decision"] == "EN_REVISION"
+        and tipos(alm) == ["evaluacion", "revision"]
+        and alm.base.confirmadas[1][1] == {"id_evaluacion": r["id_evaluacion"], "comercio_id": COMERCIO}
+    )
     alm2, s2 = montar(artefacto)
     assert s2.evaluar(PRINCIPAL, solicitud()) and tipos(alm2) == ["evaluacion"]
 
@@ -211,7 +236,9 @@ def test_si_falla_guardar_la_revision_no_queda_ni_la_evaluacion(artefacto):  # n
     alm.revisiones.fallo_crear = RuntimeError("falla al crear la revisión")
     with pytest.raises(RuntimeError, match="falla al crear"):
         s.evaluar(PRINCIPAL, solicitud("R2", "CR2", minimo=True))
-    assert alm.base.confirmadas == [] and alm.base.eventos[-1] == "rollback"                   # todo o nada: la evaluación ya insertada se deshizo con la revisión
+    assert (
+        alm.base.confirmadas == [] and alm.base.eventos[-1] == "rollback"
+    )  # todo o nada: la evaluación ya insertada se deshizo con la revisión
 
 
 def test_un_cliente_en_la_lista_negra_se_rechaza(artefacto):  # noqa: F811
@@ -225,34 +252,62 @@ def test_un_cliente_en_la_lista_negra_se_rechaza(artefacto):  # noqa: F811
 def test_si_nadie_mas_llega_se_calcula_una_sola_vez(artefacto):  # noqa: F811
     alm, s = montar(artefacto)
     s.evaluar(PRINCIPAL, solicitud())
-    assert alm.evaluaciones.previos_en_transaccion == [False] and alm.evaluaciones.llamadas_marcas == 2         # leer y comprobar, y nada más
+    assert (
+        alm.evaluaciones.previos_en_transaccion == [False] and alm.evaluaciones.llamadas_marcas == 2
+    )  # leer y comprobar, y nada más
 
 
 def test_el_servicio_le_pide_a_cada_repositorio_justo_lo_que_corresponde(artefacto):  # noqa: F811
     """Los falsos registran con qué argumentos los llamaron: si el servicio cruzara el cliente con la huella o el comercio con otro dato, aquí se vería."""
     alm, s = montar(artefacto)
     s.evaluar(PRINCIPAL, solicitud("F1", "CF1"))
-    assert alm.evaluaciones.args_marcas == [(COMERCIO, "CF1", "FP-CF1")] * 2                        # marcas: el comercio, el cliente y la huella del dispositivo
-    tope = s.aj                                                                                       # cada historial usa SU propio límite de los ajustes
-    assert alm.evaluaciones.args_previos_cliente == [(COMERCIO, "CF1", "2026-11-12T11:55:00", tope.max_historial_cliente)]          # comercio, cliente, fecha del pago y límite
-    assert alm.evaluaciones.args_previos_huella == [(COMERCIO, "FP-CF1", "CF1", "2026-11-12T11:55:00", tope.max_historial_huella)]  # comercio, huella, cliente a EXCLUIR, fecha y límite
-    assert tope.max_historial_cliente != tope.max_historial_huella                                   # (si fueran iguales, esta prueba no distinguiría un límite del otro)
+    assert (
+        alm.evaluaciones.args_marcas == [(COMERCIO, "CF1", "FP-CF1")] * 2
+    )  # marcas: el comercio, el cliente y la huella del dispositivo
+    tope = s.aj  # cada historial usa SU propio límite de los ajustes
+    assert alm.evaluaciones.args_previos_cliente == [
+        (COMERCIO, "CF1", "2026-11-12T11:55:00", tope.max_historial_cliente)
+    ]  # comercio, cliente, fecha del pago y límite
+    assert alm.evaluaciones.args_previos_huella == [
+        (COMERCIO, "FP-CF1", "CF1", "2026-11-12T11:55:00", tope.max_historial_huella)
+    ]  # comercio, huella, cliente a EXCLUIR, fecha y límite
+    assert (
+        tope.max_historial_cliente != tope.max_historial_huella
+    )  # (si fueran iguales, esta prueba no distinguiría un límite del otro)
 
 
 def test_si_llega_otro_pago_mientras_se_calcula_se_recalcula_y_se_guarda_una_vez(artefacto):  # noqa: F811
     alm, s = montar(artefacto)
-    alm.evaluaciones.marcas_programadas = [(0, 0), (1, 0), (1, 0), (1, 0)]          # intento 1: al comprobar, el historial cambió; intento 2: estable
+    alm.evaluaciones.marcas_programadas = [
+        (0, 0),
+        (1, 0),
+        (1, 0),
+        (1, 0),
+    ]  # intento 1: al comprobar, el historial cambió; intento 2: estable
     s.evaluar(PRINCIPAL, solicitud())
     assert alm.evaluaciones.previos_en_transaccion == [False, False] and alm.evaluaciones.llamadas_marcas == 4
-    assert tipos(alm) == ["evaluacion"]                                               # y se guardó UNA vez, con el historial nuevo
+    assert tipos(alm) == ["evaluacion"]  # y se guardó UNA vez, con el historial nuevo
 
 
 def test_si_llega_otro_pago_en_todos_los_intentos_el_ultimo_se_calcula_dentro_del_bloqueo_y_siempre_progresa(artefacto):  # noqa: F811
     alm, s = montar(artefacto)
-    alm.evaluaciones.marcas_programadas = [(0, 0), (1, 0), (1, 0), (2, 0), (2, 0), (3, 0), (3, 0)]    # un intruso en cada uno de los 3 primeros intentos
+    alm.evaluaciones.marcas_programadas = [
+        (0, 0),
+        (1, 0),
+        (1, 0),
+        (2, 0),
+        (2, 0),
+        (3, 0),
+        (3, 0),
+    ]  # un intruso en cada uno de los 3 primeros intentos
     r = s.evaluar(PRINCIPAL, solicitud())
-    assert alm.evaluaciones.previos_en_transaccion == [False, False, False, True]      # el 4.º se calcula con la transacción ABIERTA: nadie puede colarse
-    assert tipos(alm) == ["evaluacion"] and r["repetida"] is False                    # y aun así termina y guarda una sola vez
+    assert alm.evaluaciones.previos_en_transaccion == [
+        False,
+        False,
+        False,
+        True,
+    ]  # el 4.º se calcula con la transacción ABIERTA: nadie puede colarse
+    assert tipos(alm) == ["evaluacion"] and r["repetida"] is False  # y aun así termina y guarda una sola vez
     assert alm.base.eventos.count("begin") == 4 and alm.base.eventos.count("rollback") == 0
 
 
@@ -269,7 +324,11 @@ def test_un_pago_repetido_devuelve_lo_guardado_sin_guardar_otra_vez(artefacto): 
     primera, fila = guardar_primero(alm, s)
     alm.evaluaciones.por_tx[(COMERCIO, "F1")] = fila
     segunda = s.evaluar(PRINCIPAL, solicitud())
-    assert segunda["repetida"] is True and segunda["id_evaluacion"] == primera["id_evaluacion"] and tipos(alm) == ["evaluacion"]
+    assert (
+        segunda["repetida"] is True
+        and segunda["id_evaluacion"] == primera["id_evaluacion"]
+        and tipos(alm) == ["evaluacion"]
+    )
 
 
 def test_el_mismo_id_con_datos_distintos_da_409_y_no_guarda_nada_nuevo(artefacto):  # noqa: F811
@@ -287,7 +346,7 @@ def test_dos_peticiones_identicas_a_la_vez_la_segunda_recibe_la_guardada_por_la_
     _, fila = guardar_primero(alm, s)
     alm.base.confirmadas.clear()
     alm.evaluaciones.fallo_insert = sqlite3.IntegrityError("UNIQUE constraint failed")
-    alm.evaluaciones.al_fallar = {(COMERCIO, "F1"): fila}                           # cuando el insert falla, ya se ve lo que guardó la otra
+    alm.evaluaciones.al_fallar = {(COMERCIO, "F1"): fila}  # cuando el insert falla, ya se ve lo que guardó la otra
     r = s.evaluar(PRINCIPAL, solicitud())
     assert r["repetida"] is True and r["id_evaluacion"] == fila["id"]
 
@@ -315,14 +374,34 @@ def test_un_comercio_suspendido_no_guarda_nada_aunque_pase_la_autenticacion(arte
     alm.suspendido = True
     with pytest.raises(ErrorAPI) as e:
         s.evaluar(PRINCIPAL, solicitud())
-    assert e.value.status == 403 and e.value.titulo == "Comercio suspendido" and alm.base.confirmadas == [] and alm.base.eventos[-1] == "rollback"
+    assert (
+        e.value.status == 403
+        and e.value.titulo == "Comercio suspendido"
+        and alm.base.confirmadas == []
+        and alm.base.eventos[-1] == "rollback"
+    )
 
 
 # ------------------------------------------------------------------ consultar y aislamiento entre comercios
 def fila_de(id_, comercio, seg="AF-AAAA-BBBB"):
-    return {"id": id_, "comercio_id": comercio, "id_seguimiento": seg, "id_transaccion": "T", "decision": "APROBADA", "probabilidad": 0.1, "motivos_json": "[]", "reglas_json": "[]",
-            "modo": "normal", "modelo_nombre": "m", "modelo_version": "1", "modelo_conjunto": "c", "red_origen": "comercio", "estado_origen": "comercio", "creada": "2026-11-12T10:00:00",
-            "latencia_ms": 1.0}
+    return {
+        "id": id_,
+        "comercio_id": comercio,
+        "id_seguimiento": seg,
+        "id_transaccion": "T",
+        "decision": "APROBADA",
+        "probabilidad": 0.1,
+        "motivos_json": "[]",
+        "reglas_json": "[]",
+        "modo": "normal",
+        "modelo_nombre": "m",
+        "modelo_version": "1",
+        "modelo_conjunto": "c",
+        "red_origen": "comercio",
+        "estado_origen": "comercio",
+        "creada": "2026-11-12T10:00:00",
+        "latencia_ms": 1.0,
+    }
 
 
 def test_un_comercio_no_ve_las_evaluaciones_de_otro_y_responde_404_igual_que_si_no_existieran(artefacto):  # noqa: F811
@@ -331,9 +410,13 @@ def test_un_comercio_no_ve_las_evaluaciones_de_otro_y_responde_404_igual_que_si_
     for ident in ("ID-AJENA", "AF-AAAA-BBBB", "af-aaaa-bbbb", "ID-QUE-NO-EXISTE"):
         with pytest.raises(ErrorAPI) as e:
             s.obtener(PRINCIPAL, ident)
-        assert e.value.status == 404 and e.value.detalle == "No existe esa evaluación."        # el mismo mensaje exacto: no revela si existe
-    assert s.obtener(ANALISTA, "ID-AJENA")["id_evaluacion"] == "ID-AJENA"                       # el personal sí la ve
-    assert s.obtener(Principal(1, OTRO_COMERCIO, "comercio", "Otra"), "ID-AJENA")["id_evaluacion"] == "ID-AJENA"      # y su dueño también
+        assert (
+            e.value.status == 404 and e.value.detalle == "No existe esa evaluación."
+        )  # el mismo mensaje exacto: no revela si existe
+    assert s.obtener(ANALISTA, "ID-AJENA")["id_evaluacion"] == "ID-AJENA"  # el personal sí la ve
+    assert (
+        s.obtener(Principal(1, OTRO_COMERCIO, "comercio", "Otra"), "ID-AJENA")["id_evaluacion"] == "ID-AJENA"
+    )  # y su dueño también
 
 
 # ------------------------------------------------------------------ resolver revisiones, resultados y lista negra
@@ -344,8 +427,11 @@ def test_resolver_una_revision_solo_funciona_una_vez(artefacto):  # noqa: F811
     alm, s = montar(artefacto)
     alm.evaluaciones.filas_extra = [fila_de("E1", COMERCIO)]
     alm.revisiones.filas = {"E1": {"estado": "pendiente", "decision_analista": None, "nota": None, "resuelta": None}}
-    assert s.resolver_revision(ANALISTA, "E1", SOL_DECISION)["id_evaluacion"] == "E1" and alm.auditoria[-1][0] == "revision_resuelta"
-    alm.revisiones.cambiara = 0                                                          # la segunda vez, ya no hay una pendiente que cambiar
+    assert (
+        s.resolver_revision(ANALISTA, "E1", SOL_DECISION)["id_evaluacion"] == "E1"
+        and alm.auditoria[-1][0] == "revision_resuelta"
+    )
+    alm.revisiones.cambiara = 0  # la segunda vez, ya no hay una pendiente que cambiar
     with pytest.raises(ErrorAPI) as e:
         s.resolver_revision(ANALISTA, "E1", SOL_DECISION)
     assert e.value.status == 409
@@ -353,7 +439,7 @@ def test_resolver_una_revision_solo_funciona_una_vez(artefacto):  # noqa: F811
 
 def test_resolver_una_evaluacion_sin_revision_o_inexistente_da_404(artefacto):  # noqa: F811
     alm, s = montar(artefacto)
-    alm.evaluaciones.filas_extra = [fila_de("E2", COMERCIO)]                              # existe, pero sin revisión
+    alm.evaluaciones.filas_extra = [fila_de("E2", COMERCIO)]  # existe, pero sin revisión
     for ident in ("E2", "NO-EXISTE"):
         with pytest.raises(ErrorAPI) as e:
             s.resolver_revision(ANALISTA, ident, SOL_DECISION)
@@ -363,14 +449,33 @@ def test_resolver_una_evaluacion_sin_revision_o_inexistente_da_404(artefacto):  
 
 def test_la_cola_de_revision_entrega_lo_que_pide_el_panel_y_solo_dice_quien_resolvio_lo_resuelto(artefacto):  # noqa: F811
     alm, s = montar(artefacto)
-    base = {**fila_de("E5", COMERCIO), "comercio_nombre": "Tienda F", "rev_creada": "2026-11-12T10:00:00", "rev_resuelta": None, "senales_json": None, "fila_json": "{}"}
+    base = {
+        **fila_de("E5", COMERCIO),
+        "comercio_nombre": "Tienda F",
+        "rev_creada": "2026-11-12T10:00:00",
+        "rev_resuelta": None,
+        "senales_json": None,
+        "fila_json": "{}",
+    }
     alm.revisiones.totales = (2, 300000.0)
-    alm.revisiones.cola = [{**base, "rev_estado": "pendiente", "rev_por": "clave #3"}, {**base, "id": "E6", "rev_estado": "resuelta", "rev_por": "Ana Pérez", "rev_resuelta": "2026-11-12T11:00:00"}]
-    filtros = SimpleNamespace(comercio_id=COMERCIO)                                       # el servicio no mira dentro de los filtros: los pasa tal cual
+    alm.revisiones.cola = [
+        {**base, "rev_estado": "pendiente", "rev_por": "clave #3"},
+        {**base, "id": "E6", "rev_estado": "resuelta", "rev_por": "Ana Pérez", "rev_resuelta": "2026-11-12T11:00:00"},
+    ]
+    filtros = SimpleNamespace(comercio_id=COMERCIO)  # el servicio no mira dentro de los filtros: los pasa tal cual
     r = s.listar_revisiones("pendiente", 25, 50, filtros, "riesgo_desc")
-    assert alm.revisiones.ultima_consulta == ("pendiente", filtros, "riesgo_desc", 25, 50) and alm.revisiones.ultima_consulta[1] is filtros      # lo pedido llega tal cual al repositorio
-    assert (r["total"], r["monto_total_cop"]) == (2, 300000.0) and [x["id_evaluacion"] for x in r["revisiones"]] == ["E5", "E6"]
-    assert [x["resuelta_por"] for x in r["revisiones"]] == [None, "Ana Pérez"]                                               # quién resolvió: solo si ya está resuelta
+    assert (
+        alm.revisiones.ultima_consulta == ("pendiente", filtros, "riesgo_desc", 25, 50)
+        and alm.revisiones.ultima_consulta[1] is filtros
+    )  # lo pedido llega tal cual al repositorio
+    assert (r["total"], r["monto_total_cop"]) == (2, 300000.0) and [x["id_evaluacion"] for x in r["revisiones"]] == [
+        "E5",
+        "E6",
+    ]
+    assert [x["resuelta_por"] for x in r["revisiones"]] == [
+        None,
+        "Ana Pérez",
+    ]  # quién resolvió: solo si ya está resuelta
     assert r["revisiones"][0]["senales"] == {"suben": [], "bajan": []}
 
 
@@ -380,7 +485,9 @@ def test_informar_el_mismo_resultado_es_seguro_y_uno_distinto_da_409(artefacto):
     sol = lambda valor: SimpleNamespace(resultado=SimpleNamespace(value=valor), fecha_confirmacion=None, nota=None)
     assert s.registrar_resultado(PRINCIPAL, "E3", sol("LEGITIMA"))["repetida"] is False and tipos(alm) == ["resultado"]
     alm.resultados.previo = {"resultado": "LEGITIMA"}
-    assert s.registrar_resultado(PRINCIPAL, "E3", sol("LEGITIMA"))["repetida"] is True and tipos(alm) == ["resultado"]        # no se guarda dos veces
+    assert s.registrar_resultado(PRINCIPAL, "E3", sol("LEGITIMA"))["repetida"] is True and tipos(alm) == [
+        "resultado"
+    ]  # no se guarda dos veces
     with pytest.raises(ErrorAPI) as e:
         s.registrar_resultado(PRINCIPAL, "E3", sol("CONTRACARGO"))
     assert e.value.status == 409
@@ -393,15 +500,22 @@ def test_quitar_a_alguien_que_no_esta_en_la_lista_negra_da_404_y_agregar_deja_au
     alm.lista_negra.quitara = 0
     with pytest.raises(ErrorAPI) as e:
         s.quitar_lista_negra(PRINCIPAL, "CLI-X")
-    assert e.value.status == 404 and alm.auditoria[-1][0] == "lista_negra_agregar"        # no se audita lo que no pasó
+    assert e.value.status == 404 and alm.auditoria[-1][0] == "lista_negra_agregar"  # no se audita lo que no pasó
 
 
 def test_un_comercio_suspendido_tampoco_puede_tocar_resultados_ni_lista_negra(artefacto):  # noqa: F811
     alm, s = montar(artefacto)
     alm.suspendido = True
     alm.evaluaciones.filas_extra = [fila_de("E4", COMERCIO)]
-    for accion in (lambda: s.agregar_lista_negra(PRINCIPAL, "CLI-X", None), lambda: s.quitar_lista_negra(PRINCIPAL, "CLI-X"),
-                   lambda: s.registrar_resultado(PRINCIPAL, "E4", SimpleNamespace(resultado=SimpleNamespace(value="LEGITIMA"), fecha_confirmacion=None, nota=None))):
+    for accion in (
+        lambda: s.agregar_lista_negra(PRINCIPAL, "CLI-X", None),
+        lambda: s.quitar_lista_negra(PRINCIPAL, "CLI-X"),
+        lambda: s.registrar_resultado(
+            PRINCIPAL,
+            "E4",
+            SimpleNamespace(resultado=SimpleNamespace(value="LEGITIMA"), fecha_confirmacion=None, nota=None),
+        ),
+    ):
         with pytest.raises(ErrorAPI) as e:
             accion()
         assert e.value.status == 403

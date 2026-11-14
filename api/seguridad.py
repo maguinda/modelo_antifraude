@@ -1,4 +1,5 @@
 """Límite de peticiones por clave (ventana deslizante de un minuto)."""
+
 import threading
 import time
 from collections import defaultdict, deque

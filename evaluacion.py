@@ -1,4 +1,5 @@
 """Métricas, costo para la pyme y elección del umbral."""
+
 from typing import Dict, Optional, Sequence, Tuple
 
 import numpy as np
@@ -8,8 +9,7 @@ from sklearn.metrics import average_precision_score, precision_score, recall_sco
 from . import config
 
 
-def costo_total(puntaje, reales, montos, umbral: float,
-                costo_falsa_alarma: float = config.COSTO_FALSA_ALARMA) -> float:
+def costo_total(puntaje, reales, montos, umbral: float, costo_falsa_alarma: float = config.COSTO_FALSA_ALARMA) -> float:
     """Costo = monto de los fraudes que se escapan + costo de cada falsa alarma."""
     puntaje, reales, montos = np.asarray(puntaje), np.asarray(reales), np.asarray(montos)
     alerta = puntaje >= umbral
@@ -18,8 +18,7 @@ def costo_total(puntaje, reales, montos, umbral: float,
     return float(montos[escapan].sum() + falsas.sum() * costo_falsa_alarma)
 
 
-def elegir_umbral(puntaje, reales, montos,
-                  umbrales: Optional[Sequence[float]] = None) -> Tuple[float, float]:
+def elegir_umbral(puntaje, reales, montos, umbrales: Optional[Sequence[float]] = None) -> Tuple[float, float]:
     """Umbral con menor costo. Devuelve (umbral, costo). Se llama con datos de VALIDACIÓN."""
     umbrales = list(umbrales) if umbrales is not None else config.UMBRALES_A_PROBAR
     costos = [costo_total(puntaje, reales, montos, u) for u in umbrales]

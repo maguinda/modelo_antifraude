@@ -7,6 +7,7 @@ Qué revisa: que el servicio responda y rápido, que no tenga advertencias, el v
 y, lo más importante, que las copias de seguridad SIGAN haciéndose. Códigos de salida: 0 todo bien, 1 aviso, 2 crítico.
 Si defines MODELO_IA_ALERTA_URL manda un aviso (POST con JSON) solo cuando el estado CAMBIA, para no llenarte de mensajes; no incluye datos de clientes.
 """
+
 import argparse
 import json
 import os
@@ -28,7 +29,9 @@ NOMBRES = {OK: "OK", AVISO: "AVISO", CRITICO: "CRÍTICO"}
 Resultado = Tuple[int, str]
 
 
-def revisar_salud(url_interna: str, lento_seg: float = 1.5, muy_lento_seg: float = 5.0, abrir: Optional[Callable] = None) -> List[Resultado]:
+def revisar_salud(
+    url_interna: str, lento_seg: float = 1.5, muy_lento_seg: float = 5.0, abrir: Optional[Callable] = None
+) -> List[Resultado]:
     abrir = abrir or (lambda u, t: urllib.request.urlopen(u, timeout=t))
     t0 = time.perf_counter()
     try:
@@ -62,7 +65,10 @@ def revisar_certificado(url_publica: str, avisar_dias: int = 14, critico_dias: i
         return [(AVISO, "La dirección pública no es https: no se puede revisar el certificado.")]
     try:
         ctx = ssl.create_default_context()
-        with socket.create_connection((u.hostname, u.port or 443), timeout=8) as s, ctx.wrap_socket(s, server_hostname=u.hostname) as t:
+        with (
+            socket.create_connection((u.hostname, u.port or 443), timeout=8) as s,
+            ctx.wrap_socket(s, server_hostname=u.hostname) as t,
+        ):
             dias = dias_para_vencer(t.getpeercert()["notAfter"])
     except ssl.SSLError as e:
         return [(CRITICO, f"El certificado de {u.hostname} no es válido ({type(e).__name__}).")]
@@ -93,12 +99,18 @@ def revisar_base(bd: Path, wal_aviso_mb: int = 256) -> List[Resultado]:
             ok = con.execute("PRAGMA quick_check").fetchone()[0] == "ok"
         finally:
             con.close()
-        salida.append((OK, "La base de datos pasa la revisión rápida de integridad.") if ok else (CRITICO, "La base de datos NO pasa la revisión de integridad."))
+        salida.append(
+            (OK, "La base de datos pasa la revisión rápida de integridad.")
+            if ok
+            else (CRITICO, "La base de datos NO pasa la revisión de integridad.")
+        )
     except sqlite3.Error as e:
         salida.append((CRITICO, f"No se pudo revisar la base de datos ({type(e).__name__})."))
     wal = bd.with_name(bd.name + "-wal")
     if wal.exists() and wal.stat().st_size > wal_aviso_mb * 1024 * 1024:
-        salida.append((AVISO, "El archivo de registro de la base (WAL) está muy grande: puede haber una conexión que no cierra."))
+        salida.append(
+            (AVISO, "El archivo de registro de la base (WAL) está muy grande: puede haber una conexión que no cierra.")
+        )
     return salida
 
 
@@ -137,9 +149,17 @@ def notificar(url: str, nivel: int, res: List[Resultado]) -> None:
     if u.scheme != "https" and u.hostname not in ("127.0.0.1", "localhost"):
         print("Aviso: MODELO_IA_ALERTA_URL debe ser https; no se envió la alerta.", file=sys.stderr)
         return
-    cuerpo = json.dumps({"servicio": "antifraude", "estado": NOMBRES[nivel], "mensajes": [m for n, m in res if n > OK] or ["Todo volvió a la normalidad."]}).encode("utf-8")
+    cuerpo = json.dumps(
+        {
+            "servicio": "antifraude",
+            "estado": NOMBRES[nivel],
+            "mensajes": [m for n, m in res if n > OK] or ["Todo volvió a la normalidad."],
+        }
+    ).encode("utf-8")
     try:
-        urllib.request.urlopen(urllib.request.Request(url, data=cuerpo, headers={"Content-Type": "application/json"}), timeout=10).read()
+        urllib.request.urlopen(
+            urllib.request.Request(url, data=cuerpo, headers={"Content-Type": "application/json"}), timeout=10
+        ).read()
     except (urllib.error.URLError, OSError) as e:
         print(f"Aviso: no se pudo enviar la alerta ({type(e).__name__}).", file=sys.stderr)
 
@@ -155,7 +175,7 @@ def una_vez(a: argparse.Namespace) -> int:
         previo = int(estado.read_text().strip())
     except (OSError, ValueError):
         pass
-    if alerta and previo is not None and previo != nivel:                       # solo cuando CAMBIA el estado
+    if alerta and previo is not None and previo != nivel:  # solo cuando CAMBIA el estado
         notificar(alerta, nivel, res)
     try:
         estado.write_text(str(nivel))
@@ -166,7 +186,9 @@ def una_vez(a: argparse.Namespace) -> int:
 
 def main(argv=None) -> int:
     e = os.environ.get
-    ap = argparse.ArgumentParser(prog="python -m modelo_ia.despliegue.vigilancia", description="Revisión de salud del servicio antifraude.")
+    ap = argparse.ArgumentParser(
+        prog="python -m modelo_ia.despliegue.vigilancia", description="Revisión de salud del servicio antifraude."
+    )
     ap.add_argument("--url-interna", default=e("MODELO_IA_URL_INTERNA", "http://127.0.0.1:8000"))
     ap.add_argument("--url-publica", default=e("MODELO_IA_URL_PUBLICA", ""))
     ap.add_argument("--bd", type=Path, default=Path(e("MODELO_IA_BD", "/datos/api.sqlite3")))

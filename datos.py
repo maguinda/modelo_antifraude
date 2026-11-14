@@ -1,4 +1,5 @@
 """Cargar y validar el archivo de transacciones."""
+
 from pathlib import Path
 from typing import Optional, Union
 

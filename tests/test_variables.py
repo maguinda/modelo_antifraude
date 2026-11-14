@@ -9,14 +9,19 @@ def _cliente(montos_y_ciudades_y_minutos):
     base = pd.Timestamp("2026-03-01 10:00:00")
     filas = []
     for monto, ciudad, minuto, dispositivo in montos_y_ciudades_y_minutos:
-        filas.append({"id_cliente": "CLI-1", "fecha": base + pd.Timedelta(minutes=minuto),
-                      "localizacion": ciudad, "monto_cop": monto, "dispositivo": dispositivo})
+        filas.append(
+            {
+                "id_cliente": "CLI-1",
+                "fecha": base + pd.Timedelta(minutes=minuto),
+                "localizacion": ciudad,
+                "monto_cop": monto,
+                "dispositivo": dispositivo,
+            }
+        )
     return pd.DataFrame(filas)
 
 
-COMPRAS = [(100_000, "Bogotá", 0, "iPhone"),
-           (300_000, "Cali", 10, "Android"),
-           (3_000_000, "Cali", 500, "Android")]
+COMPRAS = [(100_000, "Bogotá", 0, "iPhone"), (300_000, "Cali", 10, "Android"), (3_000_000, "Cali", 500, "Android")]
 
 
 def test_historial_calculado_a_mano():
@@ -26,13 +31,12 @@ def test_historial_calculado_a_mano():
     assert list(d["dispositivo_nuevo_cliente"]) == [0, 1, 0]
     assert d["minutos_desde_anterior"].iloc[1] == pytest.approx(10)
     assert d["minutos_desde_anterior"].iloc[0] == config.TOPE_MINUTOS_HISTORIAL
-    assert d["monto_vs_promedio"].iloc[1] == pytest.approx(3.0)             # 300k frente a 100k
-    assert d["monto_vs_promedio"].iloc[2] == pytest.approx(3_000_000 / 200_000)   # promedio de 100k y 300k
+    assert d["monto_vs_promedio"].iloc[1] == pytest.approx(3.0)  # 300k frente a 100k
+    assert d["monto_vs_promedio"].iloc[2] == pytest.approx(3_000_000 / 200_000)  # promedio de 100k y 300k
 
 
 def test_monto_vs_promedio_tiene_tope_de_20():
-    d = variables.agregar_historial(_cliente([(100_000, "Bogotá", 0, "iPhone"),
-                                              (50_000_000, "Bogotá", 5, "iPhone")]))
+    d = variables.agregar_historial(_cliente([(100_000, "Bogotá", 0, "iPhone"), (50_000_000, "Bogotá", 5, "iPhone")]))
     assert d["monto_vs_promedio"].iloc[1] == 20
 
 
@@ -53,10 +57,10 @@ def test_historial_separa_a_los_clientes():
 
 
 def test_historial_conserva_el_orden_de_entrada():
-    d = _cliente(COMPRAS).iloc[::-1]                    # llega desordenado
+    d = _cliente(COMPRAS).iloc[::-1]  # llega desordenado
     r = variables.agregar_historial(d)
     assert list(r.index) == list(d.index)
-    assert r.loc[0, "n_compras_previas"] == 0           # la compra de las 10:00 sigue siendo la primera
+    assert r.loc[0, "n_compras_previas"] == 0  # la compra de las 10:00 sigue siendo la primera
 
 
 def test_columnas_de_conjunto_desconocido():

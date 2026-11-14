@@ -1,4 +1,5 @@
 """Claves por persona: nombres, rotación, último uso y la línea de comandos de administración."""
+
 import re
 import sqlite3
 from datetime import datetime, timedelta
@@ -17,7 +18,8 @@ def alm(tmp_path):
 
 
 def _fila(alm, clave_id):
-    con = sqlite3.connect(alm.ruta); con.row_factory = sqlite3.Row
+    con = sqlite3.connect(alm.ruta)
+    con.row_factory = sqlite3.Row
     return con.execute("SELECT * FROM claves WHERE id=?", (clave_id,)).fetchone()
 
 
@@ -31,16 +33,22 @@ def test_el_nombre_se_limpia_y_se_valida():
 
 def test_crear_usuario_solo_para_personas_y_sin_repetir_nombres_activos(alm):
     i, k = alm.crear_usuario("analista", "Ana Pérez")
-    assert k.startswith("mia_analista_") and alm.autenticar(k).usuario == "Ana Pérez" and alm.autenticar(k).rol == "analista"
+    assert (
+        k.startswith("mia_analista_")
+        and alm.autenticar(k).usuario == "Ana Pérez"
+        and alm.autenticar(k).rol == "analista"
+    )
     for repetido in ("Ana Pérez", "ana pérez", "  ANA   PÉREZ "):
         with pytest.raises(ValueError, match="Ya hay una clave activa"):
             alm.crear_usuario("analista", repetido)
     with pytest.raises(ValueError, match="Ya hay una clave activa"):
-        alm.crear_usuario("admin", "Ana Pérez")                                                       # analistas y administradores comparten el espacio de nombres
+        alm.crear_usuario("admin", "Ana Pérez")  # analistas y administradores comparten el espacio de nombres
     with pytest.raises(ValueError, match="personas con nombre"):
         alm.crear_usuario("comercio", "Tienda X")
     alm.desactivar_clave(i)
-    assert alm.autenticar(alm.crear_usuario("analista", "Ana Pérez")[1]).usuario == "Ana Pérez"       # tras la baja, el nombre vuelve a estar disponible
+    assert (
+        alm.autenticar(alm.crear_usuario("analista", "Ana Pérez")[1]).usuario == "Ana Pérez"
+    )  # tras la baja, el nombre vuelve a estar disponible
 
 
 def test_las_claves_de_comercio_no_llevan_nombre_de_persona(alm):
@@ -58,17 +66,22 @@ def test_el_ultimo_uso_se_anota_una_vez_por_hora(alm):
     primero = _fila(alm, i)["ultimo_uso"]
     assert primero is not None
     alm.autenticar(k)
-    assert _fila(alm, i)["ultimo_uso"] == primero                                                    # dentro de la hora: no se vuelve a escribir
+    assert _fila(alm, i)["ultimo_uso"] == primero  # dentro de la hora: no se vuelve a escribir
     hace_2h = (datetime.now() - timedelta(hours=2)).isoformat(timespec="microseconds")
-    con = sqlite3.connect(alm.ruta); con.execute("UPDATE claves SET ultimo_uso=? WHERE id=?", (hace_2h, i)); con.commit(); con.close()
+    con = sqlite3.connect(alm.ruta)
+    con.execute("UPDATE claves SET ultimo_uso=? WHERE id=?", (hace_2h, i))
+    con.commit()
+    con.close()
     alm.autenticar(k)
     assert _fila(alm, i)["ultimo_uso"] > hace_2h
 
 
 def test_si_no_se_puede_anotar_el_uso_la_autenticacion_no_falla(alm, monkeypatch):
     _, k = alm.crear_usuario("analista", "Ana Pérez")
+
     def bloqueada():
         raise sqlite3.OperationalError("database is locked")
+
     monkeypatch.setattr(alm, "transaccion", bloqueada)
     assert alm.autenticar(k).usuario == "Ana Pérez"
 
@@ -80,11 +93,11 @@ def test_rotar_apaga_la_clave_vieja_y_crea_otra_de_la_misma_persona(alm):
     assert n != i and alm.autenticar(vieja) is None and alm.autenticar(nueva).usuario == "Ana Pérez"
     assert _fila(alm, i)["activa"] == 0 and _fila(alm, n)["activa"] == 1
     with pytest.raises(ValueError, match="No existe una clave activa"):
-        alm.rotar_clave(i)                                                                            # la vieja ya no se puede rotar otra vez
+        alm.rotar_clave(i)  # la vieja ya no se puede rotar otra vez
     with pytest.raises(ValueError):
         alm.rotar_clave(9999)
     acciones = [r[0] for r in sqlite3.connect(alm.ruta).execute("SELECT accion FROM auditoria ORDER BY id")]
-    assert acciones.count("clave_creada") == 2 and "clave_desactivada" in acciones                    # todo queda en la auditoría
+    assert acciones.count("clave_creada") == 2 and "clave_desactivada" in acciones  # todo queda en la auditoría
 
 
 def test_listar_claves_nunca_revela_claves_ni_hashes(alm):
@@ -100,10 +113,13 @@ def test_una_base_vieja_sin_las_columnas_nuevas_se_actualiza(tmp_path):
     ruta = tmp_path / "vieja.sqlite3"
     Almacen(ruta, "p" * 40).inicializar()
     con = sqlite3.connect(ruta)
-    con.execute("ALTER TABLE claves DROP COLUMN ultimo_uso"); con.execute("ALTER TABLE claves DROP COLUMN creada_por")
+    con.execute("ALTER TABLE claves DROP COLUMN ultimo_uso")
+    con.execute("ALTER TABLE claves DROP COLUMN creada_por")
     con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
-    con.commit(); con.close()
-    a = Almacen(ruta, "p" * 40); a.inicializar()
+    con.commit()
+    con.close()
+    a = Almacen(ruta, "p" * 40)
+    a.inicializar()
     assert {"ultimo_uso", "creada_por"} <= {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(claves)")}
     assert a.autenticar(a.crear_usuario("analista", "Ana Pérez")[1]).usuario == "Ana Pérez"
 
@@ -111,18 +127,23 @@ def test_una_base_vieja_sin_las_columnas_nuevas_se_actualiza(tmp_path):
 # ------------------------------------------------------------------ línea de comandos
 @pytest.fixture
 def cli(tmp_path, monkeypatch, capsys):
-    monkeypatch.setenv("MODELO_IA_BD", str(tmp_path / "c.sqlite3")); monkeypatch.setenv("MODELO_IA_PEPPER", "q" * 40)
+    monkeypatch.setenv("MODELO_IA_BD", str(tmp_path / "c.sqlite3"))
+    monkeypatch.setenv("MODELO_IA_PEPPER", "q" * 40)
 
     def correr(*argv):
         try:
-            admin.main(list(argv)); codigo = 0
+            admin.main(list(argv))
+            codigo = 0
         except SystemExit as e:
             codigo = e.code if isinstance(e.code, int) else 2 if e.code else 0
-            mensaje = e.code if isinstance(e.code, str) else ""                                       # «raise SystemExit("ERROR: ...")» lo imprime el intérprete
+            mensaje = (
+                e.code if isinstance(e.code, str) else ""
+            )  # «raise SystemExit("ERROR: ...")» lo imprime el intérprete
         else:
             mensaje = ""
         s = capsys.readouterr()
         return codigo, s.out, s.err + mensaje
+
     return correr
 
 
@@ -134,12 +155,16 @@ def test_la_cli_exige_nombre_para_personas_y_muestra_la_clave_una_vez(cli):
     codigo, _, err = cli("crear-clave", "--rol", "admin", "--nombre", "ana pérez")
     assert codigo != 0 and "Ya hay una clave activa" in err
     assert cli("crear-comercio", "--nombre", "Tienda A")[0] == 0
-    assert cli("crear-clave", "--rol", "comercio", "--comercio-id", "2")[0] == 0                      # los comercios no necesitan nombre de persona
+    assert (
+        cli("crear-clave", "--rol", "comercio", "--comercio-id", "2")[0] == 0
+    )  # los comercios no necesitan nombre de persona
 
 
 def test_la_cli_lista_sin_mostrar_claves_y_avisa_de_las_que_no_tienen_nombre(cli, tmp_path):
     cli("crear-clave", "--rol", "analista", "--nombre", "Ana Pérez")
-    Almacen(tmp_path / "c.sqlite3", "q" * 40).crear_clave(PLATAFORMA, "analista", "")                   # una clave vieja, compartida y sin nombre
+    Almacen(tmp_path / "c.sqlite3", "q" * 40).crear_clave(
+        PLATAFORMA, "analista", ""
+    )  # una clave vieja, compartida y sin nombre
     codigo, out, _ = cli("listar-claves")
     assert codigo == 0 and "Ana Pérez" in out and "mia_" not in out and "nunca" in out
     assert "sin nombre" in out and "rotar-clave" in out

@@ -7,6 +7,7 @@ Todo queda en `modelo_ia/datos_ip/` (fuera de git) con un `manifiesto.json` (fue
 Las descargas son atómicas: se baja a un archivo temporal, se comprueba que se puede leer y solo entonces reemplaza al anterior; si algo falla,
 queda la versión vieja. DB-IP publica una base nueva cada mes, y cada mes cambia el nombre del archivo (por eso se prueba el mes actual y el anterior).
 """
+
 import argparse
 import gzip
 import hashlib
@@ -21,17 +22,39 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 CARPETA = Path(__file__).resolve().parents[1] / "datos_ip"
-TOPE_MB = 200                                              # ningún archivo de estas fuentes debería pasar de esto: si pasa, algo cambió y no se baja
-AGENTE = "antifraude-pyme/1.0"                             # identificador genérico, sin datos del proyecto ni de personas
+TOPE_MB = 200  # ningún archivo de estas fuentes debería pasar de esto: si pasa, algo cambió y no se baja
+AGENTE = "antifraude-pyme/1.0"  # identificador genérico, sin datos del proyecto ni de personas
 
 FUENTES: Dict[str, Dict] = {
-    "ciudad": {"url": "https://download.db-ip.com/free/dbip-city-lite-{mes}.mmdb.gz", "mensual": True, "gz": True, "archivo": "dbip-city-lite.mmdb",
-               "licencia": "CC BY 4.0 (DB-IP.com): exige atribución"},
-    "asn": {"url": "https://download.db-ip.com/free/dbip-asn-lite-{mes}.mmdb.gz", "mensual": True, "gz": True, "archivo": "dbip-asn-lite.mmdb",
-            "licencia": "CC BY 4.0 (DB-IP.com): exige atribución"},
-    "aws": {"url": "https://ip-ranges.amazonaws.com/ip-ranges.json", "archivo": "aws-ip-ranges.json", "licencia": "sin licencia publicada (revisar con abogado)"},
-    "google": {"url": "https://www.gstatic.com/ipranges/cloud.json", "archivo": "google-cloud.json", "licencia": "sin licencia publicada (revisar con abogado)"},
-    "tor": {"url": "https://check.torproject.org/torbulkexitlist", "archivo": "tor-salidas.txt", "licencia": "sin términos publicados (revisar con abogado)"},
+    "ciudad": {
+        "url": "https://download.db-ip.com/free/dbip-city-lite-{mes}.mmdb.gz",
+        "mensual": True,
+        "gz": True,
+        "archivo": "dbip-city-lite.mmdb",
+        "licencia": "CC BY 4.0 (DB-IP.com): exige atribución",
+    },
+    "asn": {
+        "url": "https://download.db-ip.com/free/dbip-asn-lite-{mes}.mmdb.gz",
+        "mensual": True,
+        "gz": True,
+        "archivo": "dbip-asn-lite.mmdb",
+        "licencia": "CC BY 4.0 (DB-IP.com): exige atribución",
+    },
+    "aws": {
+        "url": "https://ip-ranges.amazonaws.com/ip-ranges.json",
+        "archivo": "aws-ip-ranges.json",
+        "licencia": "sin licencia publicada (revisar con abogado)",
+    },
+    "google": {
+        "url": "https://www.gstatic.com/ipranges/cloud.json",
+        "archivo": "google-cloud.json",
+        "licencia": "sin licencia publicada (revisar con abogado)",
+    },
+    "tor": {
+        "url": "https://check.torproject.org/torbulkexitlist",
+        "archivo": "tor-salidas.txt",
+        "licencia": "sin términos publicados (revisar con abogado)",
+    },
 }
 
 
@@ -58,6 +81,7 @@ def verificar(clave: str, ruta: Path) -> str:
     """Comprueba que el archivo se puede LEER como lo que dice ser. Devuelve un texto corto de lo comprobado o lanza ValueError."""
     if clave in ("ciudad", "asn"):
         import maxminddb
+
         with maxminddb.open_database(str(ruta)) as bd:
             prueba = bd.get("8.8.8.8")
             if not isinstance(prueba, dict):
@@ -87,7 +111,13 @@ def _manifiesto(carpeta: Path) -> Dict:
         return {}
 
 
-def descargar(carpeta: Path = CARPETA, dias: int = 25, hoy: Optional[date] = None, leer: Callable[[str], bytes] = _leer, solo: Optional[List[str]] = None) -> Dict[str, str]:
+def descargar(
+    carpeta: Path = CARPETA,
+    dias: int = 25,
+    hoy: Optional[date] = None,
+    leer: Callable[[str], bytes] = _leer,
+    solo: Optional[List[str]] = None,
+) -> Dict[str, str]:
     """Baja lo que falta o está vencido. Devuelve {fuente: resultado}. Una falla en una fuente no borra ni toca lo ya descargado."""
     carpeta.mkdir(parents=True, exist_ok=True)
     hoy = hoy or date.today()
@@ -115,15 +145,23 @@ def descargar(carpeta: Path = CARPETA, dias: int = 25, hoy: Optional[date] = Non
                 finally:
                     if parte.exists():
                         parte.unlink()
-                man[clave] = {"fuente": url, "licencia": f["licencia"], "descargado": f"{hoy.isoformat()}T{datetime.now(timezone.utc).strftime('%H:%M:%S')}Z",
-                              "bytes": len(datos), "sha256": hashlib.sha256(datos).hexdigest(), "comprobado": detalle}
+                man[clave] = {
+                    "fuente": url,
+                    "licencia": f["licencia"],
+                    "descargado": f"{hoy.isoformat()}T{datetime.now(timezone.utc).strftime('%H:%M:%S')}Z",
+                    "bytes": len(datos),
+                    "sha256": hashlib.sha256(datos).hexdigest(),
+                    "comprobado": detalle,
+                }
                 resultado[clave] = f"descargado ({len(datos) / 2**20:.1f} MB; {detalle})"
                 error = None
                 break
-            except Exception as e:                           # se prueba la siguiente dirección (el mes anterior); se conserva lo que ya había
+            except Exception as e:  # se prueba la siguiente dirección (el mes anterior); se conserva lo que ya había
                 error = f"{type(e).__name__}: {str(e)[:120]}"
         if error:
-            resultado[clave] = f"FALLÓ ({error}); " + ("se conserva la versión anterior" if destino.exists() else "no hay versión anterior")
+            resultado[clave] = f"FALLÓ ({error}); " + (
+                "se conserva la versión anterior" if destino.exists() else "no hay versión anterior"
+            )
     tmp = carpeta / "manifiesto.json.parte"
     tmp.write_text(json.dumps(man, ensure_ascii=False, indent=1), encoding="utf-8")
     os.replace(tmp, carpeta / "manifiesto.json")

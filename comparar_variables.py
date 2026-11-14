@@ -7,6 +7,7 @@ Todo se mide en la PRUEBA con el umbral elegido en la validación.
 
 Uso:  python -m modelo_ia.comparar_variables --datos modelo_ia/datos/dataset_antifraude_1000000_transacciones.csv.gz
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -30,19 +31,33 @@ def _conjuntos() -> Dict[str, str]:
     return lista
 
 
-def ejecutar(ruta: Optional[Path] = None, modelos: Sequence[str] = ("logistica", "gradient_boosting"),
-             etiquetas_conocidas: bool = False, registrar: bool = True) -> Dict:
+def ejecutar(
+    ruta: Optional[Path] = None,
+    modelos: Sequence[str] = ("logistica", "gradient_boosting"),
+    etiquetas_conocidas: bool = False,
+    registrar: bool = True,
+) -> Dict:
     df, mascaras = entrenar.preparar_datos(ruta, "completo")
     filas, patrones = [], {}
     for nombre_modelo in modelos:
         for conjunto, lectura in _conjuntos().items():
             r = entrenar.ajustar_y_evaluar(df, mascaras, nombre_modelo, conjunto, etiquetas_conocidas)
             m = r["metricas_prueba"]
-            filas.append({"modelo": nombre_modelo, "conjunto": conjunto, "lectura": lectura,
-                          "n_variables": len(r["numericas"]) + len(r["categoricas"]),
-                          "recall": m["recall"], "precision": m["precision"], "ranking_ap": m["ranking_ap"],
-                          "falsas_alarmas": m["falsas_alarmas"], "fraudes_que_escapan": m["fraudes_que_escapan"],
-                          "costo_millones": m["costo_cop"] / 1e6, "umbral": m["umbral"]})
+            filas.append(
+                {
+                    "modelo": nombre_modelo,
+                    "conjunto": conjunto,
+                    "lectura": lectura,
+                    "n_variables": len(r["numericas"]) + len(r["categoricas"]),
+                    "recall": m["recall"],
+                    "precision": m["precision"],
+                    "ranking_ap": m["ranking_ap"],
+                    "falsas_alarmas": m["falsas_alarmas"],
+                    "fraudes_que_escapan": m["fraudes_que_escapan"],
+                    "costo_millones": m["costo_cop"] / 1e6,
+                    "umbral": m["umbral"],
+                }
+            )
             if conjunto in ("historial", "completo"):
                 patrones[(nombre_modelo, conjunto)] = r["recall_por_patron_prueba"]
             if registrar:
@@ -50,15 +65,35 @@ def ejecutar(ruta: Optional[Path] = None, modelos: Sequence[str] = ("logistica",
     tabla = pd.DataFrame(filas)
     ref = tabla[tabla["conjunto"] == "historial"].set_index("modelo")
     comp = tabla[tabla["conjunto"] == "completo"].set_index("modelo")
-    tabla["dif_ap"] = [row.ranking_ap - (ref.loc[row.modelo, "ranking_ap"] if row.lectura in ("suma", "todo")
-                                          else comp.loc[row.modelo, "ranking_ap"] if row.lectura == "quita" else row.ranking_ap)
-                       for row in tabla.itertuples()]
-    tabla["dif_costo_millones"] = [row.costo_millones - (ref.loc[row.modelo, "costo_millones"] if row.lectura in ("suma", "todo")
-                                                         else comp.loc[row.modelo, "costo_millones"] if row.lectura == "quita" else row.costo_millones)
-                                   for row in tabla.itertuples()]
+    tabla["dif_ap"] = [
+        row.ranking_ap
+        - (
+            ref.loc[row.modelo, "ranking_ap"]
+            if row.lectura in ("suma", "todo")
+            else comp.loc[row.modelo, "ranking_ap"]
+            if row.lectura == "quita"
+            else row.ranking_ap
+        )
+        for row in tabla.itertuples()
+    ]
+    tabla["dif_costo_millones"] = [
+        row.costo_millones
+        - (
+            ref.loc[row.modelo, "costo_millones"]
+            if row.lectura in ("suma", "todo")
+            else comp.loc[row.modelo, "costo_millones"]
+            if row.lectura == "quita"
+            else row.costo_millones
+        )
+        for row in tabla.itertuples()
+    ]
     por_patron = {f"{m}|{c}": v for (m, c), v in patrones.items()}
-    salida = {"datos_sinteticos": True, "etiquetas_conocidas": etiquetas_conocidas,
-              "tabla": tabla.round(4).to_dict(orient="records"), "recall_por_patron": por_patron}
+    salida = {
+        "datos_sinteticos": True,
+        "etiquetas_conocidas": etiquetas_conocidas,
+        "tabla": tabla.round(4).to_dict(orient="records"),
+        "recall_por_patron": por_patron,
+    }
     if registrar:
         ruta_json = config.RAIZ / "resultados" / "variables_resultado.json"
         ruta_json.parent.mkdir(parents=True, exist_ok=True)
@@ -75,8 +110,18 @@ def main(argv=None) -> None:
     a = ap.parse_args(argv)
     r = ejecutar(a.datos, a.modelos, a.etiquetas_conocidas, registrar=not a.sin_guardar)
     pd.set_option("display.width", 220)
-    cols = ["modelo", "conjunto", "n_variables", "recall", "precision", "ranking_ap", "dif_ap", "costo_millones",
-            "dif_costo_millones", "falsas_alarmas"]
+    cols = [
+        "modelo",
+        "conjunto",
+        "n_variables",
+        "recall",
+        "precision",
+        "ranking_ap",
+        "dif_ap",
+        "costo_millones",
+        "dif_costo_millones",
+        "falsas_alarmas",
+    ]
     print(r["tabla"][cols].round(3).to_string(index=False))
     for (m, c), v in r["patrones"].items():
         print(f"\nRecall por tipo de fraude: {m} / {c}")

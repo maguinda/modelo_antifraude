@@ -13,6 +13,7 @@ Qué sabe hacer, y con qué confianza:
     experiencia propia (intentos fallidos y clientes distintos por IP) y/o un proveedor de pago.
 Las bases se bajan con:  python -m modelo_ia.api.ip_datos descargar
 """
+
 import ipaddress
 import json
 import re
@@ -25,14 +26,70 @@ from .proveedores_ip import InfoIP
 
 REPUTACION = {"normal": 80, "centro_de_datos": 45, "tor": 20, "sin_datos": 50}
 # Operadores de alojamiento/nube conocidos (se busca en el nombre de la organización del ASN). Heurística: una IP de estos NO es de una persona en su casa.
-ALOJAMIENTO = ("AMAZON", "GOOGLE", "MICROSOFT", "DIGITALOCEAN", "OVH", "HETZNER", "LINODE", "AKAMAI CONNECTED CLOUD", "VULTR", "CHOOPA", "M247", "LEASEWEB",
-               "CONTABO", "ORACLE", "ALIBABA", "TENCENT", "SCALEWAY", "CLOUDFLARE", "DATACAMP", "PACKET", "EQUINIX", "COLOCROSSING", "HOSTINGER", "GODADDY",
-               "NAMECHEAP", "IONOS", "RACKSPACE", "FASTLY", "HOSTING", "DATACENTER", "DATA CENTER", "SERVERS", "VPS")
+ALOJAMIENTO = (
+    "AMAZON",
+    "GOOGLE",
+    "MICROSOFT",
+    "DIGITALOCEAN",
+    "OVH",
+    "HETZNER",
+    "LINODE",
+    "AKAMAI CONNECTED CLOUD",
+    "VULTR",
+    "CHOOPA",
+    "M247",
+    "LEASEWEB",
+    "CONTABO",
+    "ORACLE",
+    "ALIBABA",
+    "TENCENT",
+    "SCALEWAY",
+    "CLOUDFLARE",
+    "DATACAMP",
+    "PACKET",
+    "EQUINIX",
+    "COLOCROSSING",
+    "HOSTINGER",
+    "GODADDY",
+    "NAMECHEAP",
+    "IONOS",
+    "RACKSPACE",
+    "FASTLY",
+    "HOSTING",
+    "DATACENTER",
+    "DATA CENTER",
+    "SERVERS",
+    "VPS",
+)
 LIMITE_ANTIGUEDAD_DIAS = 60
 # Nombres cortos de uso corriente (los de la base son los formales de la ONU: «Estados Unidos de América (los)»). Los demás se limpian quitando el paréntesis.
-NOMBRES_PAIS = {"CO": "Colombia", "US": "Estados Unidos", "RU": "Rusia", "NL": "Países Bajos", "GB": "Reino Unido", "KR": "Corea del Sur", "VE": "Venezuela",
-                "BO": "Bolivia", "CN": "China", "DE": "Alemania", "FR": "Francia", "ES": "España", "MX": "México", "BR": "Brasil", "AR": "Argentina", "PE": "Perú",
-                "EC": "Ecuador", "CL": "Chile", "PA": "Panamá", "IN": "India", "NG": "Nigeria", "UA": "Ucrania", "TR": "Turquía", "VN": "Vietnam", "ID": "Indonesia"}
+NOMBRES_PAIS = {
+    "CO": "Colombia",
+    "US": "Estados Unidos",
+    "RU": "Rusia",
+    "NL": "Países Bajos",
+    "GB": "Reino Unido",
+    "KR": "Corea del Sur",
+    "VE": "Venezuela",
+    "BO": "Bolivia",
+    "CN": "China",
+    "DE": "Alemania",
+    "FR": "Francia",
+    "ES": "España",
+    "MX": "México",
+    "BR": "Brasil",
+    "AR": "Argentina",
+    "PE": "Perú",
+    "EC": "Ecuador",
+    "CL": "Chile",
+    "PA": "Panamá",
+    "IN": "India",
+    "NG": "Nigeria",
+    "UA": "Ucrania",
+    "TR": "Turquía",
+    "VN": "Vietnam",
+    "ID": "Indonesia",
+}
 
 
 def _registro(dato: Any) -> Dict[str, Any]:
@@ -56,21 +113,31 @@ class ProveedorPropio:
 
     def __init__(self, carpeta: Optional[Path] = None):
         import maxminddb
+
         self.carpeta = Path(carpeta or CARPETA)
         falta = [f["archivo"] for f in FUENTES.values() if not (self.carpeta / f["archivo"]).exists()]
         if falta:
-            raise ValueError(f"Faltan las bases de IP ({', '.join(falta)}). Bájalas con: python -m modelo_ia.api.ip_datos descargar")
+            raise ValueError(
+                f"Faltan las bases de IP ({', '.join(falta)}). Bájalas con: python -m modelo_ia.api.ip_datos descargar"
+            )
         self._ciudad = maxminddb.open_database(str(self.carpeta / FUENTES["ciudad"]["archivo"]))
         self._asn = maxminddb.open_database(str(self.carpeta / FUENTES["asn"]["archivo"]))
         self._nube: Dict[Tuple[int, int], Set[int]] = {}
-        for archivo, campos in ((FUENTES["aws"]["archivo"], ("ip_prefix", "ipv6_prefix")), (FUENTES["google"]["archivo"], ("ipv4Prefix", "ipv6Prefix"))):
+        for archivo, campos in (
+            (FUENTES["aws"]["archivo"], ("ip_prefix", "ipv6_prefix")),
+            (FUENTES["google"]["archivo"], ("ipv4Prefix", "ipv6Prefix")),
+        ):
             doc = json.loads((self.carpeta / archivo).read_text(encoding="utf-8"))
             for p in doc.get("prefixes", []) + doc.get("ipv6_prefixes", []):
                 texto = next((p[c] for c in campos if c in p), None)
                 if texto:
                     v, largo, base = _red_a_clave(ipaddress.ip_network(texto, strict=False))
                     self._nube.setdefault((v, largo), set()).add(base)
-        self._tor = {str(ipaddress.ip_address(l.strip())) for l in (self.carpeta / FUENTES["tor"]["archivo"]).read_text(encoding="utf-8").splitlines() if l.strip()}
+        self._tor = {
+            str(ipaddress.ip_address(l.strip()))
+            for l in (self.carpeta / FUENTES["tor"]["archivo"]).read_text(encoding="utf-8").splitlines()
+            if l.strip()
+        }
         man = _manifiesto(self.carpeta)
         fechas = [date.fromisoformat(m["descargado"][:10]) for m in man.values() if "descargado" in m]
         self.antiguedad_dias = (date.today() - min(fechas)).days if fechas else None
@@ -93,13 +160,25 @@ class ProveedorPropio:
         nombres_ciudad = _registro(_registro(ciudad.get("city")).get("names"))
         nombre_ciudad = nombres_ciudad.get("es") or nombres_ciudad.get("en")
         loc = _registro(ciudad.get("location"))
-        lat, lon = (loc.get("latitude"), loc.get("longitude")) if (iso != "CO" and iso is not None) else (None, None)   # ciudad poco fiable dentro de Colombia
+        lat, lon = (
+            (loc.get("latitude"), loc.get("longitude")) if (iso != "CO" and iso is not None) else (None, None)
+        )  # ciudad poco fiable dentro de Colombia
         org = str(asn.get("autonomous_system_organization", "")).upper()
-        con_asn = bool(asn.get("autonomous_system_number") or asn.get("autonomous_system_organization"))      # un registro sin número ni nombre de operador no cuenta
+        con_asn = bool(
+            asn.get("autonomous_system_number") or asn.get("autonomous_system_organization")
+        )  # un registro sin número ni nombre de operador no cuenta
         if str(a) in self._tor:
             return InfoIP("PROXY", pais, nombre_ciudad, True, REPUTACION["tor"], lat, lon)
         if self._en_nube(a) or any(k in org for k in ALOJAMIENTO):
             return InfoIP("PROXY", pais, nombre_ciudad, True, REPUTACION["centro_de_datos"], lat, lon)
         if not con_asn and iso is None:
             return InfoIP("DESCONOCIDA", "Desconocido", None, False, REPUTACION["sin_datos"])
-        return InfoIP("RESIDENCIAL" if con_asn else "DESCONOCIDA", pais, nombre_ciudad, False, REPUTACION["normal"] if con_asn else REPUTACION["sin_datos"], lat, lon)
+        return InfoIP(
+            "RESIDENCIAL" if con_asn else "DESCONOCIDA",
+            pais,
+            nombre_ciudad,
+            False,
+            REPUTACION["normal"] if con_asn else REPUTACION["sin_datos"],
+            lat,
+            lon,
+        )

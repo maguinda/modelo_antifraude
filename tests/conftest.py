@@ -1,4 +1,5 @@
 """Datos pequeños inventados para probar el código sin depender del archivo grande."""
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,29 +11,34 @@ def hacer_datos(n: int = 6000, semilla: int = 0) -> pd.DataFrame:
     rng = np.random.default_rng(semilla)
     fechas = pd.Timestamp("2026-01-01") + pd.to_timedelta(rng.integers(0, 315 * 24 * 3600, n), unit="s")
     anonima = rng.random(n) < 0.08
-    tipo_ip = np.where(anonima, rng.choice(["VPN", "Proxy", "IP desconocida"], n),
-                       rng.choice(["Residencial", "Móvil", "Empresarial"], n))
+    tipo_ip = np.where(
+        anonima,
+        rng.choice(["VPN", "Proxy", "IP desconocida"], n),
+        rng.choice(["Residencial", "Móvil", "Empresarial"], n),
+    )
     estado = rng.choice(["Conocido", "Nuevo", "No reconocido"], n, p=[0.90, 0.08, 0.02])
     fraude = ((anonima & (rng.random(n) < 0.5)) | ((estado != "Conocido") & (rng.random(n) < 0.4))).astype(int)
     canal = rng.choice(["App móvil", "API", "POS", "Web"], n)
     categoria = rng.choice(["Ropa", "Hotel", "Farmacia", "Electrónica"], n)
-    df = pd.DataFrame({
-        "numero_transaccion": [f"TXN-{i:06d}" for i in range(n)],
-        "fecha_pago": pd.Series(fechas).dt.strftime("%Y-%m-%d %H:%M:%S"),
-        "dispositivo": rng.choice(["iPhone", "Android", "Windows PC", "MacBook"], n),
-        "localizacion": rng.choice(["Bogotá, Colombia", "Cali, Colombia", "Medellín, Colombia"], n),
-        "monto_cop": np.maximum(1000, rng.lognormal(12.5, 1.0, n).astype(int)),
-        "detalle_pago": [f"{c} - compra realizada por {k}" for c, k in zip(categoria, canal)],
-        "metodo_pago": rng.choice(["Visa", "Nequi", "PSE"], n),
-        "canal_pago": canal,
-        "tipo_ip": tipo_ip,
-        "estado_dispositivo": estado,
-        "transacciones_ultimas_24h": rng.integers(1, 4, n),
-        "nivel_riesgo": "Bajo",
-        "es_fraude": fraude,
-        "id_cliente": [f"CLI-{i:04d}" for i in rng.integers(0, 300, n)],
-        "patron": np.where(fraude == 1, "toma_cuenta", "normal"),
-    })
+    df = pd.DataFrame(
+        {
+            "numero_transaccion": [f"TXN-{i:06d}" for i in range(n)],
+            "fecha_pago": pd.Series(fechas).dt.strftime("%Y-%m-%d %H:%M:%S"),
+            "dispositivo": rng.choice(["iPhone", "Android", "Windows PC", "MacBook"], n),
+            "localizacion": rng.choice(["Bogotá, Colombia", "Cali, Colombia", "Medellín, Colombia"], n),
+            "monto_cop": np.maximum(1000, rng.lognormal(12.5, 1.0, n).astype(int)),
+            "detalle_pago": [f"{c} - compra realizada por {k}" for c, k in zip(categoria, canal)],
+            "metodo_pago": rng.choice(["Visa", "Nequi", "PSE"], n),
+            "canal_pago": canal,
+            "tipo_ip": tipo_ip,
+            "estado_dispositivo": estado,
+            "transacciones_ultimas_24h": rng.integers(1, 4, n),
+            "nivel_riesgo": "Bajo",
+            "es_fraude": fraude,
+            "id_cliente": [f"CLI-{i:04d}" for i in rng.integers(0, 300, n)],
+            "patron": np.where(fraude == 1, "toma_cuenta", "normal"),
+        }
+    )
     return df
 
 
@@ -90,7 +96,9 @@ def hacer_datos_completos(n: int = 6000, semilla: int = 0) -> pd.DataFrame:
     dias = rng.integers(10, 120, n)
     confirmada = f & (rng.random(n) < 0.9)
     fecha = pd.to_datetime(df["fecha_pago"])
-    df["fecha_confirmacion_fraude"] = (fecha + pd.to_timedelta(dias, unit="D")).where(confirmada).dt.strftime("%Y-%m-%d %H:%M:%S")
+    df["fecha_confirmacion_fraude"] = (
+        (fecha + pd.to_timedelta(dias, unit="D")).where(confirmada).dt.strftime("%Y-%m-%d %H:%M:%S")
+    )
     df["contracargo"] = confirmada.astype(int)
     return df
 

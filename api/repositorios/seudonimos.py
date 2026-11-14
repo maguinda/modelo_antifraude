@@ -1,4 +1,5 @@
 """Todo lo que usa el secreto del servicio (el «pepper»): hash de las claves y huellas irreversibles de IP y dispositivo."""
+
 import hashlib
 import hmac
 import ipaddress
@@ -14,7 +15,9 @@ class Seudonimizador:
 
     def huella_ip(self, ip: str) -> str:
         """Huella IRREVERSIBLE de una IP (HMAC con el secreto del servicio): sirve para reconocer repeticiones sin guardar la IP."""
-        return hmac.new(self.pepper, ("ip|" + str(ipaddress.ip_address(ip))).encode("utf-8"), hashlib.sha256).hexdigest()[:16]
+        return hmac.new(
+            self.pepper, ("ip|" + str(ipaddress.ip_address(ip))).encode("utf-8"), hashlib.sha256
+        ).hexdigest()[:16]
 
     def codigo_ip(self, ip_huella: Optional[str]) -> Optional[str]:
         """Código corto (8 caracteres) de la huella de una IP, para agrupar y mostrar sin revelar la IP."""

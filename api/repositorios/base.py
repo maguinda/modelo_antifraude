@@ -1,4 +1,5 @@
 """La conexión a SQLite y las transacciones. Es la dueña del ÚNICO candado de escritura del proceso: todos los repositorios la comparten."""
+
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -13,10 +14,12 @@ class Base:
             raise ValueError("durabilidad debe ser NORMAL o FULL")
         self.ruta, self.durabilidad = Path(ruta), durabilidad
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
-        self._turno = threading.Lock()          # un solo guardado a la vez DENTRO de este proceso (en fila, sin pelear por la base)
+        self._turno = (
+            threading.Lock()
+        )  # un solo guardado a la vez DENTRO de este proceso (en fila, sin pelear por la base)
 
     def abrir(self) -> sqlite3.Connection:
-        con = sqlite3.connect(str(self.ruta), timeout=30, isolation_level=None)   # manejamos las transacciones a mano
+        con = sqlite3.connect(str(self.ruta), timeout=30, isolation_level=None)  # manejamos las transacciones a mano
         con.row_factory = sqlite3.Row
         con.execute("PRAGMA foreign_keys=ON")
         con.execute("PRAGMA busy_timeout=30000")

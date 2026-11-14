@@ -3,6 +3,7 @@
 Principio: una evaluación se hace dentro de UNA transacción de base de datos (BEGIN IMMEDIATE), de modo que
 dos pagos del mismo cliente nunca se evalúan «a la vez» sobre el mismo historial y un reintento no se cuenta dos veces.
 """
+
 import hashlib
 import json
 import logging
@@ -25,11 +26,29 @@ from .almacen import Almacen, ComercioNoAutorizado, Principal, ahora_iso, id_seg
 log = logging.getLogger("modelo_ia.api")
 
 # Columnas que pueden venir vacías sin que el modelo deje de funcionar (no siempre se miden)
-OPCIONALES_NULOS = {"tiempo_formulario_seg", "velocidad_tecleo_ms", "pego_numero_tarjeta", "mouse_natural",
-                    "distancia_ip_ciudad_km"}
-NUMERICAS_CRUDAS = ["monto_cop", "es_emulador", "distancia_ip_ciudad_km", "ip_es_datacenter", "ip_reputacion",
-                    "edad_cuenta_dias", "intentos_fallidos_24h", "cambio_credenciales_7d", "tiempo_formulario_seg",
-                    "velocidad_tecleo_ms", "pego_numero_tarjeta", "mouse_natural", "mes", "hora"]
+OPCIONALES_NULOS = {
+    "tiempo_formulario_seg",
+    "velocidad_tecleo_ms",
+    "pego_numero_tarjeta",
+    "mouse_natural",
+    "distancia_ip_ciudad_km",
+}
+NUMERICAS_CRUDAS = [
+    "monto_cop",
+    "es_emulador",
+    "distancia_ip_ciudad_km",
+    "ip_es_datacenter",
+    "ip_reputacion",
+    "edad_cuenta_dias",
+    "intentos_fallidos_24h",
+    "cambio_credenciales_7d",
+    "tiempo_formulario_seg",
+    "velocidad_tecleo_ms",
+    "pego_numero_tarjeta",
+    "mouse_natural",
+    "mes",
+    "hora",
+]
 
 
 class ErrorAPI(Exception):
@@ -62,31 +81,66 @@ def _hash_solicitud(solicitud, ip_huella: Optional[str] = None) -> str:
 
 # Nombres legibles de los datos que pueden faltar (para el mensaje del modo degradado)
 NOMBRES_LEGIBLES = {
-    "estado_dispositivo": "estado del dispositivo", "tipo_ip": "tipo de IP", "huella_dispositivo": "huella del dispositivo", "sistema_operativo": "sistema operativo", "navegador": "navegador",
-    "resolucion_pantalla": "resolución de pantalla", "zona_horaria_dispositivo": "zona horaria del dispositivo",
-    "es_emulador": "si es emulador", "ip_pais": "país de la IP", "ip_es_datacenter": "si la IP es de un centro de datos",
-    "ip_reputacion": "reputación de la IP", "kyc_nivel": "nivel de verificación (KYC)", "edad_cuenta_dias": "antigüedad de la cuenta",
-    "autenticacion_2fa": "resultado del 2FA", "intentos_fallidos_24h": "intentos de acceso fallidos",
-    "cambio_credenciales_7d": "cambio reciente de credenciales"}
+    "estado_dispositivo": "estado del dispositivo",
+    "tipo_ip": "tipo de IP",
+    "huella_dispositivo": "huella del dispositivo",
+    "sistema_operativo": "sistema operativo",
+    "navegador": "navegador",
+    "resolucion_pantalla": "resolución de pantalla",
+    "zona_horaria_dispositivo": "zona horaria del dispositivo",
+    "es_emulador": "si es emulador",
+    "ip_pais": "país de la IP",
+    "ip_es_datacenter": "si la IP es de un centro de datos",
+    "ip_reputacion": "reputación de la IP",
+    "kyc_nivel": "nivel de verificación (KYC)",
+    "edad_cuenta_dias": "antigüedad de la cuenta",
+    "autenticacion_2fa": "resultado del 2FA",
+    "intentos_fallidos_24h": "intentos de acceso fallidos",
+    "cambio_credenciales_7d": "cambio reciente de credenciales",
+}
 
 # Lo que ve el analista de cada pago (nunca la huella ni nada de tarjeta)
-CAMPOS_RESUMEN = ("fecha", "id_cliente", "monto_cop", "metodo_pago", "canal_pago", "categoria", "localizacion", "dispositivo",
-                  "estado_dispositivo", "tipo_ip", "ip_pais", "kyc_nivel", "edad_cuenta_dias", "autenticacion_2fa",
-                  "transacciones_ultimas_24h", "es_emulador")
+CAMPOS_RESUMEN = (
+    "fecha",
+    "id_cliente",
+    "monto_cop",
+    "metodo_pago",
+    "canal_pago",
+    "categoria",
+    "localizacion",
+    "dispositivo",
+    "estado_dispositivo",
+    "tipo_ip",
+    "ip_pais",
+    "kyc_nivel",
+    "edad_cuenta_dias",
+    "autenticacion_2fa",
+    "transacciones_ultimas_24h",
+    "es_emulador",
+)
 
 
 def _resumen(fila: Dict) -> Dict:
     r = {k: fila.get(k) for k in CAMPOS_RESUMEN if fila.get(k) is not None}
-    if fila.get("estado_origen") == "no_enviado":          # el valor guardado es solo un relleno: no se le muestra al analista como si fuera un dato
+    if (
+        fila.get("estado_origen") == "no_enviado"
+    ):  # el valor guardado es solo un relleno: no se le muestra al analista como si fuera un dato
         r.pop("estado_dispositivo", None)
     return r
 
 
 class ServicioEvaluacion:
-    def __init__(self, almacen: Almacen, artefacto: Dict, ajustes: Ajustes,
-                 reloj: Optional[Callable[[], datetime]] = None, proveedor=None, art_sin_estado: Optional[Dict] = None):
+    def __init__(
+        self,
+        almacen: Almacen,
+        artefacto: Dict,
+        ajustes: Ajustes,
+        reloj: Optional[Callable[[], datetime]] = None,
+        proveedor=None,
+        art_sin_estado: Optional[Dict] = None,
+    ):
         self.alm, self.art, self.aj = almacen, artefacto, ajustes
-        self.art_sin_estado = art_sin_estado          # modelo para pagos donde el comercio no manda el estado del dispositivo
+        self.art_sin_estado = art_sin_estado  # modelo para pagos donde el comercio no manda el estado del dispositivo
         self.proveedor = proveedor or proveedores_ip.crear_proveedor(ajustes.proveedor_ip)
         self.meta = artefacto["meta"]
         self.reloj = reloj or datetime.now
@@ -98,37 +152,57 @@ class ServicioEvaluacion:
         """Cosas que el equipo debe saber: p. ej. un modelo entrenado con un alcance de historial distinto al que usa la API."""
         avisos = []
         if self.proveedor.nombre == "simulado":
-            avisos.append("La inteligencia de IP es SIMULADA (solo reconoce rangos de documentación): no ubica IPs reales ni detecta VPN, proxy "
-                          "o centros de datos de verdad. Configura un proveedor real (MODELO_IA_PROVEEDOR_IP) antes de producción.")
+            avisos.append(
+                "La inteligencia de IP es SIMULADA (solo reconoce rangos de documentación): no ubica IPs reales ni detecta VPN, proxy "
+                "o centros de datos de verdad. Configura un proveedor real (MODELO_IA_PROVEEDOR_IP) antes de producción."
+            )
         edad = getattr(self.proveedor, "antiguedad_dias", None)
         if self.proveedor.nombre == "propio" and edad is not None and edad > 60:
-            avisos.append(f"Las bases de IP tienen {edad} días: se publican cada mes. Actualízalas con `python -m modelo_ia.api.ip_datos descargar`.")
+            avisos.append(
+                f"Las bases de IP tienen {edad} días: se publican cada mes. Actualízalas con `python -m modelo_ia.api.ip_datos descargar`."
+            )
         if self.art_sin_estado is None:
-            avisos.append("No hay modelo para pagos SIN `dispositivo.estado`: esos pagos quedarán en modo degradado (EN_REVISION). "
-                          "Entrénalo con `--sin-estado --como-actual-sin-estado`.")
+            avisos.append(
+                "No hay modelo para pagos SIN `dispositivo.estado`: esos pagos quedarán en modo degradado (EN_REVISION). "
+                "Entrénalo con `--sin-estado --como-actual-sin-estado`."
+            )
         if self.meta.get("alcance_historial", "plataforma") != "comercio":
-            avisos.append("El modelo se entrenó con el historial de TODOS los comercios juntos, pero la API calcula el historial por comercio: "
-                          "las variables de historial, perfil y huella valdrán menos que en el entrenamiento. Reentrena con --alcance comercio.")
+            avisos.append(
+                "El modelo se entrenó con el historial de TODOS los comercios juntos, pero la API calcula el historial por comercio: "
+                "las variables de historial, perfil y huella valdrán menos que en el entrenamiento. Reentrena con --alcance comercio."
+            )
         return avisos
 
     @property
     def info_modelo(self) -> Dict[str, str]:
-        return {"nombre": self.meta["modelo"], "version": self.meta["version"], "conjunto_variables": self.meta["conjunto"]}
+        return {
+            "nombre": self.meta["modelo"],
+            "version": self.meta["version"],
+            "conjunto_variables": self.meta["conjunto"],
+        }
 
     # ----------------------------------------------------------- evaluar
     def _comercio_puede_operar(self, con: sqlite3.Connection, principal: Principal, acuerdo: bool) -> None:
         """Se llama DENTRO del bloqueo de cada escritura de un comercio: si lo suspendieron (o, con el ajuste activo, no tiene acuerdo vigente), no se guarda nada."""
         try:
-            self.alm.verificar_comercio(con, principal.comercio_id, acuerdo and self.aj.exigir_acuerdo, self.reloj().date())
+            self.alm.verificar_comercio(
+                con, principal.comercio_id, acuerdo and self.aj.exigir_acuerdo, self.reloj().date()
+            )
         except ComercioNoAutorizado as e:
-            raise ErrorAPI(403, "Comercio suspendido" if e.codigo == "comercio_suspendido" else "Sin acuerdo de datos vigente", e.mensaje) from None
+            raise ErrorAPI(
+                403,
+                "Comercio suspendido" if e.codigo == "comercio_suspendido" else "Sin acuerdo de datos vigente",
+                e.mensaje,
+            ) from None
 
     def evaluar(self, principal: Principal, solicitud) -> Dict:
         t0 = time.perf_counter()
         ahora = self.reloj()
         fecha = traduccion.a_hora_bogota(solicitud.fecha_pago, ahora)
         if fecha < ahora - timedelta(days=self.aj.dias_pasado_maximo):
-            raise ErrorAPI(422, "Fecha fuera de rango", f"fecha_pago no puede ser anterior a {self.aj.dias_pasado_maximo} días.")
+            raise ErrorAPI(
+                422, "Fecha fuera de rango", f"fecha_pago no puede ser anterior a {self.aj.dias_pasado_maximo} días."
+            )
         if fecha > ahora + timedelta(minutes=self.aj.minutos_futuro_maximo):
             raise ErrorAPI(422, "Fecha fuera de rango", "fecha_pago está en el futuro.")
         if solicitud.monto_cop > self.aj.monto_maximo_cop:
@@ -150,30 +224,53 @@ class ServicioEvaluacion:
                         if repetida is not None:
                             return repetida
                         marcas = self._marcas(con, principal.comercio_id, fila)
-                        resultado, fila_con_24h, negra = self._calcular(con, principal.comercio_id, fila, solicitud, id_eval)
+                        resultado, fila_con_24h, negra = self._calcular(
+                            con, principal.comercio_id, fila, solicitud, id_eval
+                        )
                     latencia = round((time.perf_counter() - t0) * 1000, 2)
                 with self.alm.transaccion() as con:
-                    self._comercio_puede_operar(con, principal, acuerdo=True)             # releído DENTRO del bloqueo: tras suspender, nada se guarda
+                    self._comercio_puede_operar(
+                        con, principal, acuerdo=True
+                    )  # releído DENTRO del bloqueo: tras suspender, nada se guarda
                     repetida = self._repetida(con, principal, solicitud, huella_solicitud)
                     if repetida is not None:
                         return repetida
-                    if ultimo:                          # último intento: se calcula dentro del bloqueo, así que siempre progresa
+                    if ultimo:  # último intento: se calcula dentro del bloqueo, así que siempre progresa
                         marcas = self._marcas(con, principal.comercio_id, fila)
-                        resultado, fila_con_24h, negra = self._calcular(con, principal.comercio_id, fila, solicitud, id_eval)
+                        resultado, fila_con_24h, negra = self._calcular(
+                            con, principal.comercio_id, fila, solicitud, id_eval
+                        )
                         latencia = round((time.perf_counter() - t0) * 1000, 2)
                     elif self._marcas(con, principal.comercio_id, fila) != marcas:
                         continue
-                    return self._guardar(con, principal, solicitud, fila, id_eval, resultado, fila_con_24h, huella_solicitud, latencia, red_origen)
+                    return self._guardar(
+                        con,
+                        principal,
+                        solicitud,
+                        fila,
+                        id_eval,
+                        resultado,
+                        fila_con_24h,
+                        huella_solicitud,
+                        latencia,
+                        red_origen,
+                    )
         except sqlite3.IntegrityError:
             # Dos solicitudes idénticas llegaron a la vez: la segunda ya no puede insertar; devolvemos la guardada.
             with self.alm.lectura() as con:
                 previa = self.alm.evaluaciones.por_transaccion(con, principal.comercio_id, solicitud.id_transaccion)
                 if previa is not None and previa["solicitud_hash"] == huella_solicitud:
                     return self._respuesta(con, previa, repetida=True)
-            raise ErrorAPI(409, "Transacción repetida con datos distintos", "Ya existe una evaluación con ese id_transaccion.")
+            raise ErrorAPI(
+                409, "Transacción repetida con datos distintos", "Ya existe una evaluación con ese id_transaccion."
+            )
         except sqlite3.OperationalError as e:
             log.exception("base de datos no disponible")
-            raise ErrorAPI(503, "Servicio no disponible", "No se pudo guardar la evaluación. Trata el pago como EN_REVISION y reintenta.") from e
+            raise ErrorAPI(
+                503,
+                "Servicio no disponible",
+                "No se pudo guardar la evaluación. Trata el pago como EN_REVISION y reintenta.",
+            ) from e
 
     def _red_efectiva(self, solicitud):
         """Datos de red completos: lo que mandó el comercio manda; lo que falta lo pone el proveedor a partir de la IP (que no se guarda)."""
@@ -183,23 +280,34 @@ class ServicioEvaluacion:
             return campos, "comercio"
         try:
             info = self.proveedor.consultar(ip)
-        except Exception as e:                                   # no se registra el mensaje (podría traer la IP)
+        except Exception as e:  # no se registra el mensaje (podría traer la IP)
             log.error("falla del proveedor de IP (%s)", type(e).__name__)
             return campos, "proveedor_fallo"
-        relleno = {"tipo_ip": info.tipo_ip, "pais": info.pais, "ciudad_estimada": info.ciudad_estimada, "es_datacenter": info.es_datacenter,
-                   "reputacion": info.reputacion, "distancia_a_ciudad_km": proveedores_ip.distancia_km(solicitud.ciudad, info)}
+        relleno = {
+            "tipo_ip": info.tipo_ip,
+            "pais": info.pais,
+            "ciudad_estimada": info.ciudad_estimada,
+            "es_datacenter": info.es_datacenter,
+            "reputacion": info.reputacion,
+            "distancia_a_ciudad_km": proveedores_ip.distancia_km(solicitud.ciudad, info),
+        }
         for clave, valor in relleno.items():
             if campos.get(clave) is None:
                 campos[clave] = valor
         return campos, f"proveedor:{self.proveedor.nombre}"
 
-    def _repetida(self, con: sqlite3.Connection, principal: Principal, solicitud, huella_solicitud: str) -> Optional[Dict]:
+    def _repetida(
+        self, con: sqlite3.Connection, principal: Principal, solicitud, huella_solicitud: str
+    ) -> Optional[Dict]:
         previa = self.alm.evaluaciones.por_transaccion(con, principal.comercio_id, solicitud.id_transaccion)
         if previa is None:
             return None
         if previa["solicitud_hash"] != huella_solicitud:
-            raise ErrorAPI(409, "Transacción repetida con datos distintos",
-                           "Ya existe una evaluación con ese id_transaccion pero con datos diferentes.")
+            raise ErrorAPI(
+                409,
+                "Transacción repetida con datos distintos",
+                "Ya existe una evaluación con ese id_transaccion pero con datos diferentes.",
+            )
         return self._respuesta(con, previa, repetida=True)
 
     def _marcas(self, con: sqlite3.Connection, comercio_id: int, fila: Dict):
@@ -211,27 +319,70 @@ class ServicioEvaluacion:
         resultado, fila_con_24h = self._decidir(con, comercio_id, fila, negra, id_eval)
         return resultado, fila_con_24h, negra
 
-    def _guardar(self, con: sqlite3.Connection, principal: Principal, solicitud, fila: Dict, id_eval: str, resultado: Dict,
-                 fila_con_24h: Dict, huella_solicitud: str, latencia: float, red_origen: str = "comercio") -> Dict:
-        no_enviados = sorted(k for k in traduccion.NEUTROS if fila_con_24h.get(k) is None)         # lo que NO mandó el comercio (se rellenó con un valor neutro)
+    def _guardar(
+        self,
+        con: sqlite3.Connection,
+        principal: Principal,
+        solicitud,
+        fila: Dict,
+        id_eval: str,
+        resultado: Dict,
+        fila_con_24h: Dict,
+        huella_solicitud: str,
+        latencia: float,
+        red_origen: str = "comercio",
+    ) -> Dict:
+        no_enviados = sorted(
+            k for k in traduccion.NEUTROS if fila_con_24h.get(k) is None
+        )  # lo que NO mandó el comercio (se rellenó con un valor neutro)
         guardada = traduccion.con_neutros(fila_con_24h, id_eval)
-        id_seguimiento = id_seguimiento_libre(           # dentro del bloqueo de escritura: nadie más puede tomarlo entre la revisión y el guardado
-            lambda c: self.alm.evaluaciones.seguimiento_existe(con, c))
+        id_seguimiento = id_seguimiento_libre(  # dentro del bloqueo de escritura: nadie más puede tomarlo entre la revisión y el guardado
+            lambda c: self.alm.evaluaciones.seguimiento_existe(con, c)
+        )
         self.alm.evaluaciones.insertar(
-            con, id=id_eval, comercio_id=principal.comercio_id, id_transaccion=solicitud.id_transaccion, id_cliente=solicitud.id_cliente, fecha=fila["fecha"],
-            huella=guardada["huella_dispositivo"], fila_json=json.dumps(guardada, ensure_ascii=False, default=str), solicitud_hash=huella_solicitud,
-            decision=resultado["decision"], decision_modelo=resultado["decision_modelo"], probabilidad=resultado["probabilidad"],
-            motivos_json=json.dumps(resultado["motivos"], ensure_ascii=False), reglas_json=json.dumps(resultado["reglas"], ensure_ascii=False),
-            modelo_nombre=self.meta["modelo"], modelo_version=self.meta["version"], modelo_conjunto=self.meta["conjunto"], modo=resultado["modo"], latencia_ms=latencia,
-            creada=ahora_iso(), red_origen=red_origen, estado_origen=resultado["estado_origen"], id_seguimiento=id_seguimiento,
+            con,
+            id=id_eval,
+            comercio_id=principal.comercio_id,
+            id_transaccion=solicitud.id_transaccion,
+            id_cliente=solicitud.id_cliente,
+            fecha=fila["fecha"],
+            huella=guardada["huella_dispositivo"],
+            fila_json=json.dumps(guardada, ensure_ascii=False, default=str),
+            solicitud_hash=huella_solicitud,
+            decision=resultado["decision"],
+            decision_modelo=resultado["decision_modelo"],
+            probabilidad=resultado["probabilidad"],
+            motivos_json=json.dumps(resultado["motivos"], ensure_ascii=False),
+            reglas_json=json.dumps(resultado["reglas"], ensure_ascii=False),
+            modelo_nombre=self.meta["modelo"],
+            modelo_version=self.meta["version"],
+            modelo_conjunto=self.meta["conjunto"],
+            modo=resultado["modo"],
+            latencia_ms=latencia,
+            creada=ahora_iso(),
+            red_origen=red_origen,
+            estado_origen=resultado["estado_origen"],
+            id_seguimiento=id_seguimiento,
             ip_codigo=self.alm.codigo_ip(fila_con_24h.get("ip_huella")),
-            disp_codigo=None if fila.get("huella_dispositivo") is None else self.alm.codigo_dispositivo(fila["huella_dispositivo"]),
-            monto_cop=fila.get("monto_cop"), no_enviados_json=json.dumps(no_enviados),
-            senales_json=json.dumps(resultado["senales"], ensure_ascii=False) if (resultado["senales"]["suben"] or resultado["senales"]["bajan"]) else None)
+            disp_codigo=None
+            if fila.get("huella_dispositivo") is None
+            else self.alm.codigo_dispositivo(fila["huella_dispositivo"]),
+            monto_cop=fila.get("monto_cop"),
+            no_enviados_json=json.dumps(no_enviados),
+            senales_json=json.dumps(resultado["senales"], ensure_ascii=False)
+            if (resultado["senales"]["suben"] or resultado["senales"]["bajan"])
+            else None,
+        )
         if resultado["decision"] == "EN_REVISION":
             self.alm.revisiones.crear_pendiente(con, id_eval, principal.comercio_id, ahora_iso())
-        self.alm.auditar(con, principal.comercio_id, principal.clave_id, "evaluacion", id_eval,
-                         {"decision": resultado["decision"], "modo": resultado["modo"], "latencia_ms": latencia})
+        self.alm.auditar(
+            con,
+            principal.comercio_id,
+            principal.clave_id,
+            "evaluacion",
+            id_eval,
+            {"decision": resultado["decision"], "modo": resultado["modo"], "latencia_ms": latencia},
+        )
         return self._respuesta(con, self.alm.evaluaciones.por_id(con, id_eval), repetida=False)
 
     # ----------------------------------------------------------- decisión
@@ -243,22 +394,38 @@ class ServicioEvaluacion:
                     continue
                 if fila.get(c) is None and c not in faltan:
                     faltan.append(c)
-        if fila.get("tipo_ip") is None and "tipo_ip" not in faltan:       # variable base: sin IP ni clasificación no se puede puntuar
+        if (
+            fila.get("tipo_ip") is None and "tipo_ip" not in faltan
+        ):  # variable base: sin IP ni clasificación no se puede puntuar
             faltan.append("tipo_ip")
-        if fila.get("estado_dispositivo") is None:                        # solo falta si NO hay modelo sin estado (ver _decidir)
+        if fila.get("estado_dispositivo") is None:  # solo falta si NO hay modelo sin estado (ver _decidir)
             faltan.append("estado_dispositivo")
         return faltan
 
     def _variables(self, con: sqlite3.Connection, comercio_id: int, fila: Dict, id_eval: str):
         """Calcula las variables con LAS MISMAS funciones del entrenamiento sobre el historial guardado."""
         fecha = fila["fecha"]
-        previos_cliente = self.alm.evaluaciones.previos_cliente(con, comercio_id, fila["id_cliente"], fecha, self.aj.max_historial_cliente)
+        previos_cliente = self.alm.evaluaciones.previos_cliente(
+            con, comercio_id, fila["id_cliente"], fecha, self.aj.max_historial_cliente
+        )
         desde = (datetime.fromisoformat(fecha) - timedelta(hours=24)).isoformat()
-        n24 = 1 + sum(1 for p in previos_cliente if p["fecha"] > desde)         # incluye la compra actual, como en el entrenamiento
+        n24 = 1 + sum(
+            1 for p in previos_cliente if p["fecha"] > desde
+        )  # incluye la compra actual, como en el entrenamiento
         actual = dict(fila, transacciones_ultimas_24h=n24)
         filas = list(previos_cliente)
         if "huella" in self.grupos and fila.get("huella_dispositivo"):
-            filas = self.alm.evaluaciones.previos_huella(con, comercio_id, fila["huella_dispositivo"], fila["id_cliente"], fecha, self.aj.max_historial_huella) + filas
+            filas = (
+                self.alm.evaluaciones.previos_huella(
+                    con,
+                    comercio_id,
+                    fila["huella_dispositivo"],
+                    fila["id_cliente"],
+                    fecha,
+                    self.aj.max_historial_huella,
+                )
+                + filas
+            )
         mini = pd.DataFrame(filas + [actual])
         mini["fecha"] = pd.to_datetime(mini["fecha"])
         for c in NUMERICAS_CRUDAS:
@@ -267,8 +434,15 @@ class ServicioEvaluacion:
         calculada = variables.construir(mini, self.meta["conjunto"]).iloc[-1]
         columnas = self.meta["numericas"] + self.meta["categoricas"]
         pago = {c: _py(calculada[c]) for c in columnas}
-        for extra in ("id_cliente", "ciudad_distinta_anterior", "minutos_desde_anterior", "monto_cop",
-                      "transacciones_ultimas_24h", "estado_dispositivo", "tipo_ip"):
+        for extra in (
+            "id_cliente",
+            "ciudad_distinta_anterior",
+            "minutos_desde_anterior",
+            "monto_cop",
+            "transacciones_ultimas_24h",
+            "estado_dispositivo",
+            "tipo_ip",
+        ):
             if extra in calculada.index and extra not in pago:
                 pago[extra] = _py(calculada[extra])
         return pago, actual
@@ -284,7 +458,7 @@ class ServicioEvaluacion:
             estado_origen = "no_enviado"
             if self.art_sin_estado is not None:
                 modelo = self.art_sin_estado
-                fila["estado_dispositivo"] = ESTADO_RELLENO               # relleno fijo: ese modelo no lo usa
+                fila["estado_dispositivo"] = ESTADO_RELLENO  # relleno fijo: ese modelo no lo usa
         fila["estado_origen"] = estado_origen
         fila_24h = dict(fila, transacciones_ultimas_24h=1)
         try:
@@ -294,12 +468,27 @@ class ServicioEvaluacion:
             pago, fila_24h = self._variables(con, comercio_id, fila, id_eval)
             r = predecir.analizar_transaccion(pago, modelo, lista_negra=negra)
             decision = traduccion.DECISION_API[r["decision"]]
-            senales = explicacion_local.explicar(modelo["pipeline"], pago, modelo["meta"]) if decision != "APROBADA" else {"suben": [], "bajan": [], "puntaje_tipico": None}   # solo a lo que no se aprueba
-            return {"decision": decision, "decision_modelo": traduccion.DECISION_API[r["decision_modelo"]],
-                    "probabilidad": r["probabilidad_fraude"], "motivos": r["motivos"], "reglas": r["reglas_activadas"], "senales": senales,
-                    "modo": "normal", "estado_origen": estado_origen}, fila_24h
+            senales = (
+                explicacion_local.explicar(modelo["pipeline"], pago, modelo["meta"])
+                if decision != "APROBADA"
+                else {"suben": [], "bajan": [], "puntaje_tipico": None}
+            )  # solo a lo que no se aprueba
+            return {
+                "decision": decision,
+                "decision_modelo": traduccion.DECISION_API[r["decision_modelo"]],
+                "probabilidad": r["probabilidad_fraude"],
+                "motivos": r["motivos"],
+                "reglas": r["reglas_activadas"],
+                "senales": senales,
+                "modo": "normal",
+                "estado_origen": estado_origen,
+            }, fila_24h
         except DatosInsuficientes as e:
-            razon = "Modo degradado: faltan datos que el modelo necesita (" + ", ".join(NOMBRES_LEGIBLES.get(c, c) for c in e.faltan) + ")."
+            razon = (
+                "Modo degradado: faltan datos que el modelo necesita ("
+                + ", ".join(NOMBRES_LEGIBLES.get(c, c) for c in e.faltan)
+                + ")."
+            )
         except Exception:
             log.exception("falla del modelo; se responde en modo degradado")
             razon = "Modo degradado: falla interna del modelo."
@@ -307,11 +496,20 @@ class ServicioEvaluacion:
         parcial = dict(fila_24h)
         parcial["id_cliente"] = fila["id_cliente"]
         reglas = MotorReglas(construir_reglas_seguridad(negra)).explicar(
-            {k: v for k, v in parcial.items() if v is not None})
+            {k: v for k, v in parcial.items() if v is not None}
+        )
         rechaza = SEVERIDAD[reglas["decision"]] >= SEVERIDAD["BLOQUEAR"]
         decision = "RECHAZADA" if rechaza else "EN_REVISION"
-        return {"decision": decision, "decision_modelo": None, "probabilidad": None, "motivos": [razon],
-                "reglas": reglas["reglas_activadas"], "senales": {"suben": [], "bajan": [], "puntaje_tipico": None}, "modo": "degradado", "estado_origen": estado_origen}, fila_24h
+        return {
+            "decision": decision,
+            "decision_modelo": None,
+            "probabilidad": None,
+            "motivos": [razon],
+            "reglas": reglas["reglas_activadas"],
+            "senales": {"suben": [], "bajan": [], "puntaje_tipico": None},
+            "modo": "degradado",
+            "estado_origen": estado_origen,
+        }, fila_24h
 
     # ----------------------------------------------------------- respuestas
     def _respuesta(self, con: sqlite3.Connection, e: sqlite3.Row, repetida: bool) -> Dict:
@@ -320,20 +518,43 @@ class ServicioEvaluacion:
         revision = None
         decision_final = e["decision"]
         if rev is not None:
-            revision = {"estado": rev["estado"], "decision_analista": rev["decision_analista"], "nota": rev["nota"],
-                        "resuelta_en": rev["resuelta"]}
+            revision = {
+                "estado": rev["estado"],
+                "decision_analista": rev["decision_analista"],
+                "nota": rev["nota"],
+                "resuelta_en": rev["resuelta"],
+            }
             decision_final = rev["decision_analista"] if rev["estado"] == "resuelta" else None
-        return {"id_evaluacion": e["id"], "id_seguimiento": e["id_seguimiento"], "id_transaccion": e["id_transaccion"], "decision": e["decision"],
-                "decision_final": decision_final, "puntaje_riesgo": e["probabilidad"],
-                "motivos": json.loads(e["motivos_json"]), "reglas_activadas": json.loads(e["reglas_json"]), "modo": e["modo"],
-                "modelo": {"nombre": e["modelo_nombre"], "version": e["modelo_version"], "conjunto_variables": e["modelo_conjunto"]},
-                "revision": revision, "resultado_informado": res["resultado"] if res else None, "red_origen": e["red_origen"], "estado_origen": e["estado_origen"],
-                "evaluada_en": e["creada"], "latencia_ms": e["latencia_ms"], "repetida": repetida}
+        return {
+            "id_evaluacion": e["id"],
+            "id_seguimiento": e["id_seguimiento"],
+            "id_transaccion": e["id_transaccion"],
+            "decision": e["decision"],
+            "decision_final": decision_final,
+            "puntaje_riesgo": e["probabilidad"],
+            "motivos": json.loads(e["motivos_json"]),
+            "reglas_activadas": json.loads(e["reglas_json"]),
+            "modo": e["modo"],
+            "modelo": {
+                "nombre": e["modelo_nombre"],
+                "version": e["modelo_version"],
+                "conjunto_variables": e["modelo_conjunto"],
+            },
+            "revision": revision,
+            "resultado_informado": res["resultado"] if res else None,
+            "red_origen": e["red_origen"],
+            "estado_origen": e["estado_origen"],
+            "evaluada_en": e["creada"],
+            "latencia_ms": e["latencia_ms"],
+            "repetida": repetida,
+        }
 
     def _evaluacion_visible(self, con: sqlite3.Connection, principal: Principal, id_eval: str) -> sqlite3.Row:
-        e = self.alm.evaluaciones.por_identificador(con, id_eval)                          # se acepta el identificador de seguimiento o el interno
+        e = self.alm.evaluaciones.por_identificador(
+            con, id_eval
+        )  # se acepta el identificador de seguimiento o el interno
         if e is None or (principal.rol == "comercio" and e["comercio_id"] != principal.comercio_id):
-            raise ErrorAPI(404, "No encontrada", "No existe esa evaluación.")        # 404 también si es de otro comercio
+            raise ErrorAPI(404, "No encontrada", "No existe esa evaluación.")  # 404 también si es de otro comercio
         return e
 
     def obtener(self, principal: Principal, id_eval: str) -> Dict:
@@ -350,33 +571,66 @@ class ServicioEvaluacion:
             if previo is not None:
                 if previo["resultado"] == sol.resultado.value:
                     return self._respuesta(con, e, repetida=True)
-                raise ErrorAPI(409, "Resultado ya informado", "Esa evaluación ya tiene un resultado distinto registrado.")
-            self.alm.resultados.registrar(con, id_eval, e["comercio_id"], sol.resultado.value, fecha, sol.nota, ahora_iso())
-            self.alm.auditar(con, principal.comercio_id, principal.clave_id, "resultado", id_eval, {"resultado": sol.resultado.value})
+                raise ErrorAPI(
+                    409, "Resultado ya informado", "Esa evaluación ya tiene un resultado distinto registrado."
+                )
+            self.alm.resultados.registrar(
+                con, id_eval, e["comercio_id"], sol.resultado.value, fecha, sol.nota, ahora_iso()
+            )
+            self.alm.auditar(
+                con, principal.comercio_id, principal.clave_id, "resultado", id_eval, {"resultado": sol.resultado.value}
+            )
             return self._respuesta(con, e, repetida=False)
 
     # ----------------------------------------------------------- revisiones
-    def listar_revisiones(self, estado: str, limite: int, desplazamiento: int, filtros: Optional[Any] = None, orden: str = "antiguos") -> Dict:
+    def listar_revisiones(
+        self, estado: str, limite: int, desplazamiento: int, filtros: Optional[Any] = None, orden: str = "antiguos"
+    ) -> Dict:
         """La cola de revisión. `filtros` es el objeto ya validado de consultas.Filtros (sin SQL); el orden sale de una lista fija."""
         with self.alm.lectura() as con:
             tot, filas = self.alm.revisiones.listar(con, estado, filtros, orden, limite, desplazamiento)
-        return {"total": tot[0], "monto_total_cop": tot[1], "revisiones": [
-            {"id_evaluacion": f["id"], "id_seguimiento": f["id_seguimiento"], "comercio_id": f["comercio_id"], "comercio": f["comercio_nombre"], "id_transaccion": f["id_transaccion"],
-             "puntaje_riesgo": f["probabilidad"], "motivos": json.loads(f["motivos_json"]),
-             "reglas_activadas": json.loads(f["reglas_json"]), "creada_en": f["rev_creada"], "estado": f["rev_estado"],
-             "resuelta_en": f["rev_resuelta"], "resuelta_por": f["rev_por"] if f["rev_estado"] == "resuelta" else None,
-             "senales": json.loads(f["senales_json"]) if f["senales_json"] else {"suben": [], "bajan": []},
-             "resumen_pago": _resumen(json.loads(f["fila_json"]))} for f in filas]}
+        return {
+            "total": tot[0],
+            "monto_total_cop": tot[1],
+            "revisiones": [
+                {
+                    "id_evaluacion": f["id"],
+                    "id_seguimiento": f["id_seguimiento"],
+                    "comercio_id": f["comercio_id"],
+                    "comercio": f["comercio_nombre"],
+                    "id_transaccion": f["id_transaccion"],
+                    "puntaje_riesgo": f["probabilidad"],
+                    "motivos": json.loads(f["motivos_json"]),
+                    "reglas_activadas": json.loads(f["reglas_json"]),
+                    "creada_en": f["rev_creada"],
+                    "estado": f["rev_estado"],
+                    "resuelta_en": f["rev_resuelta"],
+                    "resuelta_por": f["rev_por"] if f["rev_estado"] == "resuelta" else None,
+                    "senales": json.loads(f["senales_json"]) if f["senales_json"] else {"suben": [], "bajan": []},
+                    "resumen_pago": _resumen(json.loads(f["fila_json"])),
+                }
+                for f in filas
+            ],
+        }
 
     def resolver_revision(self, principal: Principal, id_eval: str, sol) -> Dict:
         with self.alm.transaccion() as con:
             e = self.alm.evaluaciones.por_id(con, id_eval)
             if e is None or not self.alm.revisiones.existe(con, id_eval):
                 raise ErrorAPI(404, "No encontrada", "Esa evaluación no tiene una revisión.")
-            cambiadas = self.alm.revisiones.resolver(con, id_eval, sol.decision.value, sol.nota, principal.clave_id, ahora_iso())
+            cambiadas = self.alm.revisiones.resolver(
+                con, id_eval, sol.decision.value, sol.nota, principal.clave_id, ahora_iso()
+            )
             if cambiadas != 1:
                 raise ErrorAPI(409, "Revisión ya resuelta", "Esa revisión ya fue resuelta.")
-            self.alm.auditar(con, principal.comercio_id, principal.clave_id, "revision_resuelta", id_eval, {"decision": sol.decision.value})
+            self.alm.auditar(
+                con,
+                principal.comercio_id,
+                principal.clave_id,
+                "revision_resuelta",
+                id_eval,
+                {"decision": sol.decision.value},
+            )
             return self._respuesta(con, e, repetida=False)
 
     # ----------------------------------------------------------- lista negra (por comercio)
@@ -384,7 +638,9 @@ class ServicioEvaluacion:
         with self.alm.transaccion() as con:
             self._comercio_puede_operar(con, principal, acuerdo=False)
             self.alm.lista_negra.agregar(con, principal.comercio_id, id_cliente, motivo, ahora_iso())
-            self.alm.auditar(con, principal.comercio_id, principal.clave_id, "lista_negra_agregar", None, {"id_cliente": id_cliente})
+            self.alm.auditar(
+                con, principal.comercio_id, principal.clave_id, "lista_negra_agregar", None, {"id_cliente": id_cliente}
+            )
         return {"id_cliente": id_cliente, "motivo": motivo, "creada_en": ahora_iso()}
 
     def quitar_lista_negra(self, principal: Principal, id_cliente: str) -> None:
@@ -393,8 +649,13 @@ class ServicioEvaluacion:
             borradas = self.alm.lista_negra.quitar(con, principal.comercio_id, id_cliente)
             if borradas != 1:
                 raise ErrorAPI(404, "No encontrado", "Ese cliente no está en la lista negra.")
-            self.alm.auditar(con, principal.comercio_id, principal.clave_id, "lista_negra_quitar", None, {"id_cliente": id_cliente})
+            self.alm.auditar(
+                con, principal.comercio_id, principal.clave_id, "lista_negra_quitar", None, {"id_cliente": id_cliente}
+            )
 
     def listar_lista_negra(self, principal: Principal) -> List[Dict]:
         with self.alm.lectura() as con:
-            return [{"id_cliente": r["id_cliente"], "motivo": r["motivo"], "creada_en": r["creada"]} for r in self.alm.lista_negra.listar(con, principal.comercio_id)]
+            return [
+                {"id_cliente": r["id_cliente"], "motivo": r["motivo"], "creada_en": r["creada"]}
+                for r in self.alm.lista_negra.listar(con, principal.comercio_id)
+            ]

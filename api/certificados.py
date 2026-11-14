@@ -1,4 +1,5 @@
 """Certificado de PRUEBA para HTTPS en tu computador (autofirmado). No sirve para producción: allí lo pone un proxy con un certificado real."""
+
 import os
 import subprocess
 import time
@@ -16,8 +17,27 @@ def asegurar(carpeta: Path = CARPETA) -> Tuple[Path, Path]:
     cert, llave = carpeta / "cert.pem", carpeta / "llave.pem"
     vigente = cert.exists() and llave.exists() and (time.time() - cert.stat().st_mtime) < (VALIDEZ_DIAS - 7) * 86400
     if not vigente:
-        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", str(llave), "-out", str(cert),
-                        "-days", str(VALIDEZ_DIAS), "-subj", "/CN=localhost",
-                        "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1"], check=True, capture_output=True)
+        subprocess.run(
+            [
+                "openssl",
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-keyout",
+                str(llave),
+                "-out",
+                str(cert),
+                "-days",
+                str(VALIDEZ_DIAS),
+                "-subj",
+                "/CN=localhost",
+                "-addext",
+                "subjectAltName=DNS:localhost,IP:127.0.0.1",
+            ],
+            check=True,
+            capture_output=True,
+        )
         os.chmod(llave, 0o600)
     return cert, llave

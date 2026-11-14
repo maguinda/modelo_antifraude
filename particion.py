@@ -1,4 +1,5 @@
 """Dividir los datos por fecha: entrenamiento, validación y prueba."""
+
 from typing import Dict
 
 import pandas as pd
@@ -12,7 +13,7 @@ def dividir(df: pd.DataFrame) -> Dict[str, pd.Series]:
     Se divide por fecha y no al azar: en un comercio real el modelo siempre
     decide sobre compras posteriores a las que aprendió.
     """
-    fin_entrenamiento = pd.Timestamp(config.FIN_ENTRENAMIENTO) + pd.Timedelta(days=1)   # incluye ese día
+    fin_entrenamiento = pd.Timestamp(config.FIN_ENTRENAMIENTO) + pd.Timedelta(days=1)  # incluye ese día
     fin_validacion = pd.Timestamp(config.FIN_VALIDACION) + pd.Timedelta(days=1)
     if not fin_entrenamiento < fin_validacion:
         raise ValueError("Los cortes de fecha están en desorden: FIN_ENTRENAMIENTO debe ser anterior a FIN_VALIDACION.")
