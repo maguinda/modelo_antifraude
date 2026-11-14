@@ -144,6 +144,27 @@ las copias NO debe estar junto a ellas.**
   (`curl -H "X-API-Key: $CLAVE_ADMIN" …`) devuelve el formato Prometheus, sumando los 2 procesos de
   la API. No hay alertas ni tableros todavía: son los datos listos para conectarlos.
 
+## Segundo factor del administrador
+
+Con una sola clave de API, quien la robe puede crear, suspender o reactivar comercios y registrar acuerdos. El segundo factor pide además un **código de
+6 dígitos** de una app de autenticación (Google Authenticator, Authy, 1Password…) en esas 4 acciones. Las lecturas del administrador (panel, métricas)
+siguen con la clave sola. Se hace desde la **consola del servidor** (el secreto sale solo en tu terminal, **no lo pegues en un chat**):
+
+1. `docker compose exec api python -m modelo_ia.api.admin listar-claves` y busca el número (`id`) de tu clave de administrador.
+2. `… admin activar-mfa --id N` muestra el secreto y un enlace `otpauth://`. Ponlos en tu app. Queda **pendiente**: todavía no se exige.
+3. `… admin confirmar-mfa --id N --codigo 123456` con el código que muestre la app. Si el código es correcto, el segundo factor queda activo.
+4. Cuando todos los administradores lo tengan, en `.env` pon `MODELO_IA_EXIGIR_MFA=1` y `docker compose up -d`. Desde entonces cada acción envía
+   `X-TOTP: 123456`. Sin él: `401`; sin segundo factor activo en esa clave: `403`; 5 códigos malos seguidos: la clave se bloquea **15 minutos** (`429`).
+
+Un código no se puede usar dos veces. Si pierdes el teléfono, desde la consola: `admin desactivar-mfa --id N` y vuelve a activarlo (queda en la auditoría).
+Al **rotar** la clave de un administrador (`rotar-clave`) la clave nueva empieza **sin** segundo factor: actívalo de nuevo.
+
+**Límite por IP de claves inventadas.** Pasados `MODELO_IA_LIMITE_INVALIDAS` intentos por minuto con claves que no existen desde una misma IP, los siguientes
+reciben `429`. Las claves válidas nunca se frenan. La IP real viene del `X-Forwarded-For` que pone Caddy, y solo se cree si la conexión llega de una red de
+`MODELO_IA_PROXY_CONFIABLE`; si está vacío, todos los clientes parecen la misma IP y el servicio lo avisa al arrancar. La IP solo se guarda en memoria: no
+aparece en registros, métricas ni la base. El contador es **por proceso** (con 2 procesos, el límite efectivo es el doble). Esto no se ha probado con un
+Caddy real: al desplegar, comprueba que 25 claves inventadas seguidas desde tu casa terminan en `429`.
+
 ## Endurecer con el tiempo
 
 - **Política de contenido (`MODELO_IA_CSP`):** déjala en `report-only` unos días, revisa que las

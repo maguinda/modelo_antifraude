@@ -2,12 +2,14 @@
 
 from typing import Optional
 
-from fastapi import Depends, Query, Request, Security
+from fastapi import Depends, Header, Query, Request, Security
 from fastapi.security import APIKeyHeader
 
+from . import metricas
 from .ajustes import Ajustes
 from .almacen import Almacen, Principal
 from .consultas import ConsultasPanel, Filtros
+from .ip_cliente import ip_del_cliente
 from .servicio import ErrorAPI, ServicioEvaluacion
 
 esquema_clave = APIKeyHeader(
@@ -43,6 +45,22 @@ def principal_actual(request: Request, clave: Optional[str] = Security(esquema_c
             raise ErrorAPI(
                 403, "Comercio suspendido", "Este comercio está suspendido. Contacta al administrador del servicio."
             )
+        ip = ip_del_cliente(
+            request.client.host if request.client else None,
+            request.headers.get("x-forwarded-for"),
+            request.app.state.redes_proxy,
+        )
+        permitido, espera = request.app.state.limitador_invalidas.registrar(ip)
+        metricas.registrar_clave_invalida(limitada=not permitido)
+        if (
+            not permitido
+        ):  # demasiadas claves inventadas desde esa IP: se frena el ritmo (las claves válidas nunca llegan aquí)
+            raise ErrorAPI(
+                429,
+                "Demasiados intentos",
+                "Hubo demasiados intentos con claves no válidas desde tu dirección. Espera un momento.",
+                {"Retry-After": str(espera)},
+            )
         raise ErrorAPI(401, "No autenticado", "La clave de API no es válida.")
     permitido, espera = request.app.state.limitador.permitir(p.clave_id)
     if not permitido:
@@ -64,6 +82,48 @@ def exigir(*roles: str):
         return p
 
     return dependencia
+
+
+def exigir_admin_con_mfa(
+    request: Request,
+    p: Principal = Depends(exigir("admin")),
+    codigo: Optional[str] = Header(
+        None,
+        alias="X-TOTP",
+        description="Código de 6 dígitos de tu app de autenticación. Solo se pide si el servicio exige segundo factor (MODELO_IA_EXIGIR_MFA).",
+    ),
+) -> Principal:
+    """Las acciones de administrador que CAMBIAN algo: además de la clave, piden el código TOTP cuando el servicio lo exige. El orden importa:
+    primero el rol (un comercio o analista recibe 403 sin saber nada del segundo factor) y luego el estado del segundo factor de ESA clave."""
+    if not request.app.state.ajustes.exigir_mfa:
+        return p
+    almacen = request.app.state.almacen
+    if almacen.mfa_estado(p.clave_id) != "activa":
+        metricas.registrar_mfa("no_configurado")
+        raise ErrorAPI(
+            403,
+            "Segundo factor no configurado",
+            "Esta clave de administrador no tiene el segundo factor activo. Actívalo desde la consola del servidor con «admin activar-mfa».",
+        )
+    if not codigo:
+        metricas.registrar_mfa("falta_codigo")
+        raise ErrorAPI(
+            401, "Falta el código de verificación", "Envía el código de tu app de autenticación en la cabecera X-TOTP."
+        )
+    resultado, espera = almacen.mfa_verificar(p.clave_id, codigo, request.app.state.servicio.reloj().timestamp())
+    metricas.registrar_mfa(resultado)
+    if resultado == "ok":
+        return p
+    if resultado == "bloqueada":
+        raise ErrorAPI(
+            429,
+            "Clave bloqueada por intentos fallidos",
+            "Hubo demasiados códigos incorrectos seguidos. Espera antes de volver a intentar.",
+            {"Retry-After": str(espera)},
+        )
+    raise ErrorAPI(
+        401, "Código de verificación no válido", "El código no es correcto, ya se usó o venció. Genera uno nuevo."
+    )
 
 
 def filtros_panel(

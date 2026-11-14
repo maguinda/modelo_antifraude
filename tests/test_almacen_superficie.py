@@ -33,6 +33,12 @@ FIRMAS = {
     "lectura": "(self, instantanea=False)",
     "listar_claves": "(self)",
     "listar_comercios": "(self, hoy=None, con_nit=False)",
+    "mfa_confirmar": "(self, clave_id, ingresado, epoch)",
+    "mfa_desactivar": "(self, clave_id)",
+    "mfa_estado": "(self, clave_id)",
+    "mfa_estados": "(self)",
+    "mfa_iniciar": "(self, clave_id)",
+    "mfa_verificar": "(self, clave_id, ingresado, epoch)",
     "reactivar_comercio": "(self, comercio_id, por=None)",
     "registrar_acuerdo": "(self, comercio_id, version, firmado_en, vigente_hasta, referencia, por=None, hoy=None)",
     "rotar_clave": "(self, clave_id, creada_por=None)",
@@ -136,6 +142,7 @@ def test_todos_los_repositorios_comparten_la_misma_base_y_el_mismo_candado(tmp_p
         ),
         "claves.crear_usuario": lambda: a.claves.crear_usuario("admin", "Beto Ruiz"),
         "claves.desactivar_clave": lambda: a.claves.desactivar_clave(id_usuario),
+        "claves.mfa_verificar": lambda: a.claves.mfa_verificar(id_usuario, "000000", 0.0),
         "fachada.crear_comercio": lambda: a.crear_comercio("Tienda Y"),
     }
     for nombre, accion in acciones.items():

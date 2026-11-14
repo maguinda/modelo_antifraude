@@ -1,5 +1,6 @@
 """Claves de API y las personas dueñas de ellas: crear, rotar, apagar y autenticar."""
 
+import math
 import re
 import secrets
 import sqlite3
@@ -7,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from .. import totp
 from .auditoria import auditar
 from .base import Base
 from .comunes import PLATAFORMA, ahora_iso
@@ -23,6 +25,8 @@ class Principal:
 
 
 NOMBRE_MIN, NOMBRE_MAX = 3, 60
+MFA_FALLOS_MAXIMOS = 5  # códigos malos seguidos que bloquean la clave
+MFA_BLOQUEO_SEGUNDOS = 15 * 60
 USO_CADA_SEGUNDOS = (
     3600  # el «último uso» de una clave se anota como mucho una vez por hora (para no escribir en cada petición)
 )
@@ -159,3 +163,115 @@ class ClavesRepositorio:
         with self.base.transaccion() as con:
             con.execute("UPDATE claves SET activa = 0 WHERE id = ?", (clave_id,))
             auditar(con, None, clave_id, "clave_desactivada", None, {})
+
+    # ------------------------------------------------------------------ segundo factor (TOTP) del administrador
+    def mfa_iniciar(self, clave_id: int) -> str:
+        """Crea un secreto nuevo, PENDIENTE de confirmar con un código (así un error al copiarlo no deja a nadie fuera). Solo claves de administrador activas."""
+        with self.base.transaccion() as con:
+            fila = con.execute(
+                "SELECT rol, activa, comercio_id, mfa_confirmada FROM claves WHERE id=?", (clave_id,)
+            ).fetchone()
+            if fila is None or not fila["activa"]:
+                raise ValueError("No existe una clave activa con ese número.")
+            if fila["rol"] != "admin":
+                raise ValueError("El segundo factor es solo para claves de administrador.")
+            if fila["mfa_confirmada"]:
+                raise ValueError(
+                    "Esa clave ya tiene el segundo factor activo. Desactívalo primero si quieres cambiarlo."
+                )
+            secreto = totp.nuevo_secreto()
+            con.execute(
+                "UPDATE claves SET mfa_secreto=?, mfa_confirmada=0, mfa_ultimo_paso=0, mfa_fallos=0, mfa_bloqueo_hasta=NULL WHERE id=?",
+                (secreto, clave_id),
+            )
+            auditar(con, fila["comercio_id"], clave_id, "mfa_iniciado", None, {})
+        return secreto
+
+    def mfa_confirmar(self, clave_id: int, ingresado: str, epoch: float) -> bool:
+        """Activa el segundo factor si el código es válido para el secreto pendiente. Devuelve si quedó activo."""
+        with self.base.transaccion() as con:
+            fila = con.execute(
+                "SELECT mfa_secreto, mfa_confirmada, comercio_id FROM claves WHERE id=? AND activa=1", (clave_id,)
+            ).fetchone()
+            if fila is None or not fila["mfa_secreto"]:
+                raise ValueError("Esa clave no tiene un segundo factor pendiente. Usa «activar-mfa» primero.")
+            if fila["mfa_confirmada"]:
+                raise ValueError("Esa clave ya tiene el segundo factor activo.")
+            paso = totp.verificar(fila["mfa_secreto"], ingresado, epoch)
+            if paso is None:
+                auditar(con, fila["comercio_id"], clave_id, "mfa_confirmacion_fallida", None, {})
+                return False
+            con.execute("UPDATE claves SET mfa_confirmada=1, mfa_ultimo_paso=? WHERE id=?", (paso, clave_id))
+            auditar(con, fila["comercio_id"], clave_id, "mfa_activado", None, {})
+            return True
+
+    def mfa_desactivar(self, clave_id: int) -> None:
+        with self.base.transaccion() as con:
+            fila = con.execute("SELECT comercio_id, mfa_secreto FROM claves WHERE id=?", (clave_id,)).fetchone()
+            if fila is None:
+                raise ValueError("No existe una clave con ese número.")
+            if not fila["mfa_secreto"]:
+                raise ValueError("Esa clave no tiene segundo factor.")
+            con.execute(
+                "UPDATE claves SET mfa_secreto=NULL, mfa_confirmada=0, mfa_ultimo_paso=0, mfa_fallos=0, mfa_bloqueo_hasta=NULL WHERE id=?",
+                (clave_id,),
+            )
+            auditar(con, fila["comercio_id"], clave_id, "mfa_desactivado", None, {})
+
+    def mfa_estado(self, clave_id: int) -> str:
+        """'activa', 'pendiente' (falta confirmarla) o 'sin_mfa'."""
+        with self.base.lectura() as con:
+            fila = con.execute("SELECT mfa_secreto, mfa_confirmada FROM claves WHERE id=?", (clave_id,)).fetchone()
+        if fila is None or not fila["mfa_secreto"]:
+            return "sin_mfa"
+        return "activa" if fila["mfa_confirmada"] else "pendiente"
+
+    def mfa_estados(self) -> Dict[int, str]:
+        """El estado del segundo factor de cada clave de administrador activa (para la consola)."""
+        with self.base.lectura() as con:
+            return {
+                r["id"]: ("sin_mfa" if not r["mfa_secreto"] else ("activa" if r["mfa_confirmada"] else "pendiente"))
+                for r in con.execute(
+                    "SELECT id, mfa_secreto, mfa_confirmada FROM claves WHERE rol='admin' AND activa=1"
+                )
+            }
+
+    def mfa_verificar(self, clave_id: int, ingresado: object, epoch: float) -> Tuple[str, int]:
+        """Comprueba un código para una acción. Devuelve (resultado, segundos de espera):
+        'ok' · 'no_configurado' · 'bloqueada' · 'codigo_invalido'.
+
+        TODO se decide DENTRO del bloqueo de escritura, con el estado releído ahí: así dos peticiones con el mismo código a la vez no pasan las dos
+        (la primera avanza `mfa_ultimo_paso` y la segunda ya lo ve), y los fallos se cuentan igual con 2 procesos."""
+        with self.base.transaccion() as con:
+            fila = con.execute(
+                "SELECT mfa_secreto, mfa_confirmada, mfa_ultimo_paso, mfa_fallos, mfa_bloqueo_hasta, comercio_id FROM claves WHERE id=?",
+                (clave_id,),
+            ).fetchone()
+            if fila is None or not fila["mfa_secreto"] or not fila["mfa_confirmada"]:
+                return "no_configurado", 0
+            bloqueo = fila["mfa_bloqueo_hasta"]
+            if bloqueo is not None and epoch < bloqueo:
+                return "bloqueada", math.ceil(bloqueo - epoch)  # hacia arriba: nunca se promete menos de lo que falta
+            fallos = fila[
+                "mfa_fallos"
+            ]  # al bloquear ya se pusieron en cero, así que un bloqueo vencido empieza de cero solo
+            paso = totp.verificar(fila["mfa_secreto"], ingresado, epoch, ultimo_paso=fila["mfa_ultimo_paso"])
+            if paso is not None:
+                con.execute(
+                    "UPDATE claves SET mfa_ultimo_paso=?, mfa_fallos=0, mfa_bloqueo_hasta=NULL WHERE id=? AND mfa_ultimo_paso < ?",
+                    (paso, clave_id, paso),
+                )
+                return "ok", 0
+            fallos += 1
+            if fallos >= MFA_FALLOS_MAXIMOS:
+                con.execute(
+                    "UPDATE claves SET mfa_fallos=0, mfa_bloqueo_hasta=? WHERE id=?",
+                    (epoch + MFA_BLOQUEO_SEGUNDOS, clave_id),
+                )
+                auditar(
+                    con, fila["comercio_id"], clave_id, "mfa_bloqueada", None, {"minutos": MFA_BLOQUEO_SEGUNDOS // 60}
+                )
+                return "bloqueada", MFA_BLOQUEO_SEGUNDOS
+            con.execute("UPDATE claves SET mfa_fallos=?, mfa_bloqueo_hasta=NULL WHERE id=?", (fallos, clave_id))
+            auditar(con, fila["comercio_id"], clave_id, "mfa_fallido", None, {"seguidos": fallos})
+            return "codigo_invalido", 0

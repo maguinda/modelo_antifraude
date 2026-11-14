@@ -22,6 +22,9 @@ services:
       MODELO_IA_PROVEEDOR_IP: ${MODELO_IA_PROVEEDOR_IP:-simulado}
       MODELO_IA_EXIGIR_ACUERDO: ${MODELO_IA_EXIGIR_ACUERDO:-0}      # 1 = un comercio sin acuerdo de datos vigente no puede evaluar pagos (activar al empezar el piloto)
       MODELO_IA_LIMITE: ${MODELO_IA_LIMITE:-600}
+      MODELO_IA_LIMITE_INVALIDAS: ${MODELO_IA_LIMITE_INVALIDAS:-20}   # claves inventadas por minuto y por IP antes de responder 429 (las válidas nunca se frenan)
+      MODELO_IA_PROXY_CONFIABLE: ${MODELO_IA_PROXY_CONFIABLE:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16}   # la red del proxy (Caddy): solo de ahí se cree el X-Forwarded-For
+      MODELO_IA_EXIGIR_MFA: ${MODELO_IA_EXIGIR_MFA:-0}      # 1 = crear/suspender/reactivar comercios y registrar acuerdos piden el código de 6 dígitos (X-TOTP); activar tras «admin activar-mfa»
       MODELO_IA_HSTS: "0"                                    # el HSTS lo pone Caddy (quien termina el HTTPS)
     secrets: [pepper]
     volumes: ["datos:/datos"]

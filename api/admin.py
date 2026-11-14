@@ -6,6 +6,9 @@ Uso:
     python -m modelo_ia.api.admin crear-clave --rol analista --nombre "Ana Pérez"
     python -m modelo_ia.api.admin crear-clave --rol comercio --comercio-id 2
     python -m modelo_ia.api.admin listar-claves                                              # quién tiene acceso y cuándo la usó por última vez
+    python -m modelo_ia.api.admin activar-mfa --id 3                                         # segundo factor (código de 6 dígitos) de UN administrador: muestra el secreto UNA vez
+    python -m modelo_ia.api.admin confirmar-mfa --id 3 --codigo 123456                       # lo activa de verdad, con el primer código de su app de autenticación
+    python -m modelo_ia.api.admin desactivar-mfa --id 3                                      # si perdió el teléfono (se anota en la auditoría)
     python -m modelo_ia.api.admin rotar-clave --id 3                                         # cambia la clave de una persona (la anterior se apaga)
     python -m modelo_ia.api.admin desactivar-clave --id 3                                    # cuando alguien deja de trabajar con el sistema
     python -m modelo_ia.api.admin migraciones                                                # qué cambios de la base están aplicados y cuáles faltan (no toca nada)
@@ -16,8 +19,10 @@ sin afectar a las demás. No compartas claves.
 """
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 
+from . import totp
 from .ajustes import Ajustes
 from .almacen import Almacen, ComercioInexistente, OperacionNoPermitida
 from .migraciones import BaseMasNueva, CopiaPreviaFallo
@@ -56,6 +61,18 @@ def main(argv=None) -> None:
     )
     r = sub.add_parser("rotar-clave")
     r.add_argument("--id", type=int, required=True)
+    m1 = sub.add_parser(
+        "activar-mfa",
+        help="crea el secreto del segundo factor de una clave de administrador (queda pendiente de confirmar)",
+    )
+    m1.add_argument("--id", type=int, required=True)
+    m2 = sub.add_parser(
+        "confirmar-mfa", help="activa el segundo factor con el primer código de la app de autenticación"
+    )
+    m2.add_argument("--id", type=int, required=True)
+    m2.add_argument("--codigo", required=True, help="los 6 dígitos que muestra la app")
+    m3 = sub.add_parser("desactivar-mfa", help="quita el segundo factor de una clave (p. ej. si se perdió el teléfono)")
+    m3.add_argument("--id", type=int, required=True)
     d = sub.add_parser("desactivar-clave")
     d.add_argument("--id", type=int, required=True)
     a = ap.parse_args(argv)
@@ -158,19 +175,53 @@ def main(argv=None) -> None:
             print(clave)
         elif a.orden == "listar-claves":
             filas = almacen.listar_claves()
+            mfa = almacen.mfa_estados()
             print(
-                f"{'id':>3}  {'estado':8} {'rol':9} {'comercio':22} {'nombre o etiqueta':26} {'creada':10} último uso"
+                f"{'id':>3}  {'estado':8} {'rol':9} {'comercio':22} {'nombre o etiqueta':26} {'creada':10} {'último uso':16} 2.º factor"
             )
             for f in filas:
                 uso = (f["ultimo_uso"] or "nunca")[:16].replace("T", " ")
+                segundo = (
+                    {"activa": "activo", "pendiente": "pendiente", "sin_mfa": "no"}[mfa[f["id"]]]
+                    if f["id"] in mfa
+                    else "—"
+                )
                 print(
-                    f"{f['id']:>3}  {'activa' if f['activa'] else 'apagada':8} {f['rol']:9} {f['comercio'][:22]:22} {(f['etiqueta'] or '—')[:26]:26} {f['creada'][:10]} {uso}"
+                    f"{f['id']:>3}  {'activa' if f['activa'] else 'apagada':8} {f['rol']:9} {f['comercio'][:22]:22} {(f['etiqueta'] or '—')[:26]:26} {f['creada'][:10]} {uso:16} {segundo}"
                 )
             sin_nombre = [f for f in filas if f["activa"] and f["rol"] in ("analista", "admin") and not f["etiqueta"]]
             if sin_nombre:
                 print(
                     f"\nAviso: {len(sin_nombre)} clave(s) de analista o admin sin nombre (ids {', '.join(str(f['id']) for f in sin_nombre)}). Cámbialas por claves con nombre con «rotar-clave» o crea nuevas y apaga estas."
                 )
+        elif a.orden == "activar-mfa":
+            secreto = almacen.mfa_iniciar(a.id)
+            cuenta = next((f["etiqueta"] for f in almacen.listar_claves() if f["id"] == a.id), None) or f"clave-{a.id}"
+            print(
+                f"Segundo factor creado para la clave {a.id}, todavía NO activo. Se muestra UNA sola vez; no lo pegues en ningún chat ni documento."
+            )
+            print(
+                "Escribe este secreto en tu app de autenticación (Google Authenticator, Authy, 1Password…) o abre el enlace:"
+            )
+            print(f"  secreto: {secreto}")
+            print(f"  enlace:  {totp.uri(secreto, cuenta)}")
+            print(
+                f"Luego confírmalo con el primer código de 6 dígitos:  admin confirmar-mfa --id {a.id} --codigo 123456"
+            )
+        elif a.orden == "confirmar-mfa":
+            if almacen.mfa_confirmar(a.id, a.codigo, datetime.now().timestamp()):
+                print(
+                    f"Listo: la clave {a.id} tiene el segundo factor activo. Desde ahora, con MODELO_IA_EXIGIR_MFA=1, sus acciones de administrador piden el código en X-TOTP."
+                )
+            else:
+                raise SystemExit(
+                    "ERROR: el código no es correcto (revisa la hora del teléfono y que sea el de esta clave). El secreto sigue pendiente."
+                )
+        elif a.orden == "desactivar-mfa":
+            almacen.mfa_desactivar(a.id)
+            print(
+                f"Segundo factor de la clave {a.id} desactivado (queda anotado en la auditoría). Para volver a tenerlo: activar-mfa."
+            )
         elif a.orden == "rotar-clave":
             nuevo, clave = almacen.rotar_clave(a.id)
             print(f"La clave {a.id} quedó apagada. Clave nueva número {nuevo} (se muestra UNA sola vez):")

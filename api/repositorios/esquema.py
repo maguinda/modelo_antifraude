@@ -91,7 +91,10 @@ class Esquema:
 
     def migraciones(self) -> List[Migracion]:
         """Los cambios de esquema, en orden. Para agregar uno: una función nueva y un número más al final. Nunca se edita ni se renumera uno ya publicado."""
-        return [Migracion(1, "Esquema inicial y adopción de bases anteriores", self.m1_esquema_inicial)]
+        return [
+            Migracion(1, "Esquema inicial y adopción de bases anteriores", self.m1_esquema_inicial),
+            Migracion(2, "Segundo factor (TOTP) de las claves de administrador", self.m2_mfa_admin),
+        ]
 
     @staticmethod
     def hay_datos(con: sqlite3.Connection) -> bool:
@@ -144,6 +147,19 @@ class Esquema:
             con.execute(
                 "INSERT INTO comercios (id, nombre, creado) VALUES (?, 'PLATAFORMA', ?)", (PLATAFORMA, ahora_iso())
             )
+
+    def m2_mfa_admin(self, con: sqlite3.Connection) -> None:
+        """Migración 2: las columnas del segundo factor en `claves`. Una clave existente queda SIN segundo factor (nada cambia para ella hasta que se active)."""
+        columnas = {r["name"] for r in con.execute("PRAGMA table_info(claves)")}
+        for nueva, tipo in (
+            ("mfa_secreto", "TEXT"),  # el secreto TOTP en base32; NULL = sin segundo factor
+            ("mfa_confirmada", "INTEGER NOT NULL DEFAULT 0"),  # 0 = secreto creado pero aún sin confirmar con un código
+            ("mfa_ultimo_paso", "INTEGER NOT NULL DEFAULT 0"),  # último paso de 30 s aceptado: un código no se repite
+            ("mfa_fallos", "INTEGER NOT NULL DEFAULT 0"),  # códigos malos seguidos
+            ("mfa_bloqueo_hasta", "REAL"),  # instante (epoch) hasta el que la clave está bloqueada
+        ):
+            if nueva not in columnas:
+                con.execute(f"ALTER TABLE claves ADD COLUMN {nueva} {tipo}")
 
     def inicializar(self, migraciones: Optional[Sequence[Migracion]] = None) -> List[int]:
         """Pone la base al día aplicando las migraciones que falten (ver migraciones.py). Devuelve los números de las que aplicó esta vez.
