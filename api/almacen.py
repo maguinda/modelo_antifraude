@@ -163,5 +163,23 @@ class Almacen:
     def desactivar_clave(self, clave_id: int) -> None:
         return self.claves.desactivar_clave(clave_id)
 
+    def mfa_iniciar(self, clave_id: int) -> str:
+        return self.claves.mfa_iniciar(clave_id)
+
+    def mfa_confirmar(self, clave_id: int, ingresado: str, epoch: float) -> bool:
+        return self.claves.mfa_confirmar(clave_id, ingresado, epoch)
+
+    def mfa_desactivar(self, clave_id: int) -> None:
+        return self.claves.mfa_desactivar(clave_id)
+
+    def mfa_estado(self, clave_id: int) -> str:
+        return self.claves.mfa_estado(clave_id)
+
+    def mfa_estados(self) -> Dict[int, str]:
+        return self.claves.mfa_estados()
+
+    def mfa_verificar(self, clave_id: int, ingresado: object, epoch: float) -> Tuple[str, int]:
+        return self.claves.mfa_verificar(clave_id, ingresado, epoch)
+
     # ------------------------------------------------------------ auditoría
     auditar = staticmethod(auditar)

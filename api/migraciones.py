@@ -4,7 +4,8 @@ Qué garantiza (y qué no):
   - Cada migración corre en UNA transacción: si falla a la mitad, no queda nada a medias, y no se registra como aplicada.
   - Dos procesos arrancando a la vez (uvicorn --workers) no aplican la misma migración dos veces: se toma el bloqueo de escritura y el estado
     se RELEE dentro de él.
-  - Antes de aplicar el primer cambio pendiente a una base que ya tiene datos, se guarda una COPIA con la API de respaldo de SQLite. Si la copia
+  - Antes de aplicar el primer cambio pendiente a una base que ya tiene datos, se guarda una COPIA (UNA por actualización, aunque se apliquen varios
+    cambios o arranquen varios procesos a la vez) con la API de respaldo de SQLite. Si la copia
     no se puede hacer, NO se migra (fallar cerrado es mejor que migrar sin red de seguridad). Las copias no se borran solas.
   - Una base con migraciones que este código no conoce (de una versión más nueva) se rechaza: abrirla con código viejo podría dañarla.
   - NO deshace migraciones: protege de bajar de versión, no revierte. Para volver atrás se restaura la copia o el respaldo cifrado.
@@ -161,6 +162,10 @@ def aplicar(
                 f"Esta base tiene migraciones que este programa no conoce ({desconocidas}): la creó una versión más nueva. "
                 "No se abre para no dañarla; actualiza el programa o restaura una copia anterior."
             )
+        aplicadas_al_inicio = {r[0] for r in con.execute("SELECT id FROM migraciones")}
+        # La copia se hace ANTES DE LA PRIMERA que estaba pendiente al empezar esta llamada, no antes de cada una: si otro proceso aplicó la 1 y este llega
+        # para la 2, la copia de la actualización ya la hizo ese otro (una copia por actualización, aunque arranquen varios procesos a la vez).
+        primera_pendiente = next((m.id for m in migraciones if m.id not in aplicadas_al_inicio), None)
         for m in migraciones:
             con.execute("BEGIN IMMEDIATE")  # una sola escritura a la vez, también entre procesos
             try:
@@ -170,7 +175,7 @@ def aplicar(
                 if m.id in ya:
                     con.execute("COMMIT")
                     continue
-                if copia is None and hay_datos(con):
+                if copia is None and m.id == primera_pendiente and hay_datos(con):
                     copia = copia_previa(ruta, m.id)
                 m.aplicar(con)
                 con.execute(

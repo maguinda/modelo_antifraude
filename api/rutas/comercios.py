@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, Path
 
 from .. import esquemas as es
 from ..almacen import Almacen, ComercioInexistente, OperacionNoPermitida, Principal
-from ..dependencias import exigir, obtener_almacen, obtener_servicio
+from ..dependencias import exigir, exigir_admin_con_mfa, obtener_almacen, obtener_servicio
 from ..metadatos import RESPUESTAS_ERROR
 from ..servicio import ErrorAPI, ServicioEvaluacion
 
@@ -21,12 +21,12 @@ router = APIRouter()
     status_code=201,
     summary="Crear un comercio y su clave",
     operation_id="crear_comercio",
-    description="Solo administradores. La `clave_api` se muestra **una sola vez**.",
+    description="Solo administradores. La `clave_api` se muestra **una sola vez**. Si el servicio exige segundo factor, envía también el código en la cabecera `X-TOTP`.",
     responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 422, 429)},
 )
 def crear_comercio(
     solicitud: es.SolicitudComercio,
-    p: Principal = Depends(exigir("admin")),
+    p: Principal = Depends(exigir_admin_con_mfa),
     almacen: Almacen = Depends(obtener_almacen),
 ):
     try:
@@ -76,13 +76,13 @@ def listar_comercios(
     operation_id="suspender_comercio",
     summary="Suspender un comercio",
     description="Solo administradores. Todas las claves del comercio dejan de funcionar al instante (reciben `403`); ningún pago se guarda después. "
-    "Sus revisiones pendientes siguen visibles para los analistas. Repetir la llamada es seguro. La plataforma (el equipo) no se puede suspender.",
+    "Sus revisiones pendientes siguen visibles para los analistas. Repetir la llamada es seguro. La plataforma (el equipo) no se puede suspender. Si el servicio exige segundo factor, envía también el código en la cabecera `X-TOTP`.",
     responses=_ERR_COMERCIOS,
 )
 def suspender_comercio(
     id_comercio: int = Path(ge=1),
     solicitud: es.SolicitudSuspension = Body(...),
-    p: Principal = Depends(exigir("admin")),
+    p: Principal = Depends(exigir_admin_con_mfa),
     almacen: Almacen = Depends(obtener_almacen),
 ):
     cambio = _comercio_o_error(lambda: almacen.suspender_comercio(id_comercio, solicitud.motivo, p.clave_id))
@@ -95,11 +95,13 @@ def suspender_comercio(
     response_model=es.RespuestaEstadoComercio,
     operation_id="reactivar_comercio",
     summary="Reactivar un comercio suspendido",
-    description="Solo administradores. Sus claves vuelven a funcionar. Repetir la llamada es seguro.",
+    description="Solo administradores. Sus claves vuelven a funcionar. Repetir la llamada es seguro. Si el servicio exige segundo factor, envía también el código en la cabecera `X-TOTP`.",
     responses=_ERR_COMERCIOS,
 )
 def reactivar_comercio(
-    id_comercio: int = Path(ge=1), p: Principal = Depends(exigir("admin")), almacen: Almacen = Depends(obtener_almacen)
+    id_comercio: int = Path(ge=1),
+    p: Principal = Depends(exigir_admin_con_mfa),
+    almacen: Almacen = Depends(obtener_almacen),
 ):
     cambio = _comercio_o_error(lambda: almacen.reactivar_comercio(id_comercio, p.clave_id))
     return {"id_comercio": id_comercio, "estado": "activo", "cambio": cambio}
@@ -113,13 +115,13 @@ def reactivar_comercio(
     operation_id="registrar_acuerdo",
     summary="Registrar el acuerdo de datos de un comercio",
     description="Solo administradores. Guarda los DATOS del acuerdo (versión, fechas y cómo encontrar el archivo firmado), **no el documento**. "
-    "El historial no se edita: el último registrado es el que vale.",
+    "El historial no se edita: el último registrado es el que vale. Si el servicio exige segundo factor, envía también el código en la cabecera `X-TOTP`.",
     responses=_ERR_COMERCIOS,
 )
 def registrar_acuerdo(
     id_comercio: int = Path(ge=1),
     solicitud: es.SolicitudAcuerdo = Body(...),
-    p: Principal = Depends(exigir("admin")),
+    p: Principal = Depends(exigir_admin_con_mfa),
     servicio: ServicioEvaluacion = Depends(obtener_servicio),
     almacen: Almacen = Depends(obtener_almacen),
 ):

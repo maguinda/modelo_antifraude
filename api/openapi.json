@@ -1725,8 +1725,28 @@
         ]
       },
       "post": {
-        "description": "Solo administradores. La `clave_api` se muestra **una sola vez**.",
+        "description": "Solo administradores. La `clave_api` se muestra **una sola vez**. Si el servicio exige segundo factor, envía también el código en la cabecera `X-TOTP`.",
         "operationId": "crear_comercio",
+        "parameters": [
+          {
+            "description": "Código de 6 dígitos de tu app de autenticación. Solo se pide si el servicio exige segundo factor (MODELO_IA_EXIGIR_MFA).",
+            "in": "header",
+            "name": "X-TOTP",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código de 6 dígitos de tu app de autenticación. Solo se pide si el servicio exige segundo factor (MODELO_IA_EXIGIR_MFA).",
+              "title": "X-Totp"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1802,7 +1822,7 @@
     },
     "/v1/comercios/{id_comercio}/acuerdo": {
       "put": {
-        "description": "Solo administradores. Guarda los DATOS del acuerdo (versión, fechas y cómo encontrar el archivo firmado), **no el documento**. El historial no se edita: el último registrado es el que vale.",
+        "description": "Solo administradores. Guarda los DATOS del acuerdo (versión, fechas y cómo encontrar el archivo firmado), **no el documento**. El historial no se edita: el último registrado es el que vale. Si el servicio exige segundo factor, envía también el código en la cabecera `X-TOTP`.",
         "operationId": "registrar_acuerdo",
         "parameters": [
           {
@@ -1813,6 +1833,24 @@
               "minimum": 1,
               "title": "Id Comercio",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Código de 6 dígitos de tu app de autenticación. Solo se pide si el servicio exige segundo factor (MODELO_IA_EXIGIR_MFA).",
+            "in": "header",
+            "name": "X-TOTP",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código de 6 dígitos de tu app de autenticación. Solo se pide si el servicio exige segundo factor (MODELO_IA_EXIGIR_MFA).",
+              "title": "X-Totp"
             }
           }
         ],
@@ -2004,7 +2042,7 @@
     },
     "/v1/comercios/{id_comercio}/reactivar": {
       "post": {
-        "description": "Solo administradores. Sus claves vuelven a funcionar. Repetir la llamada es seguro.",
+        "description": "Solo administradores. Sus claves vuelven a funcionar. Repetir la llamada es seguro. Si el servicio exige segundo factor, envía también el código en la cabecera `X-TOTP`.",
         "operationId": "reactivar_comercio",
         "parameters": [
           {
@@ -2015,6 +2053,24 @@
               "minimum": 1,
               "title": "Id Comercio",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Código de 6 dígitos de tu app de autenticación. Solo se pide si el servicio exige segundo factor (MODELO_IA_EXIGIR_MFA).",
+            "in": "header",
+            "name": "X-TOTP",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código de 6 dígitos de tu app de autenticación. Solo se pide si el servicio exige segundo factor (MODELO_IA_EXIGIR_MFA).",
+              "title": "X-Totp"
             }
           }
         ],
@@ -2103,7 +2159,7 @@
     },
     "/v1/comercios/{id_comercio}/suspender": {
       "post": {
-        "description": "Solo administradores. Todas las claves del comercio dejan de funcionar al instante (reciben `403`); ningún pago se guarda después. Sus revisiones pendientes siguen visibles para los analistas. Repetir la llamada es seguro. La plataforma (el equipo) no se puede suspender.",
+        "description": "Solo administradores. Todas las claves del comercio dejan de funcionar al instante (reciben `403`); ningún pago se guarda después. Sus revisiones pendientes siguen visibles para los analistas. Repetir la llamada es seguro. La plataforma (el equipo) no se puede suspender. Si el servicio exige segundo factor, envía también el código en la cabecera `X-TOTP`.",
         "operationId": "suspender_comercio",
         "parameters": [
           {
@@ -2114,6 +2170,24 @@
               "minimum": 1,
               "title": "Id Comercio",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Código de 6 dígitos de tu app de autenticación. Solo se pide si el servicio exige segundo factor (MODELO_IA_EXIGIR_MFA).",
+            "in": "header",
+            "name": "X-TOTP",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código de 6 dígitos de tu app de autenticación. Solo se pide si el servicio exige segundo factor (MODELO_IA_EXIGIR_MFA).",
+              "title": "X-Totp"
             }
           }
         ],

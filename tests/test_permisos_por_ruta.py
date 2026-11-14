@@ -215,8 +215,8 @@ ORDEN_EN_SWAGGER = [
     "ver_lista_negra",
     "agregar_lista_negra",
     "quitar_lista_negra",
+    "crear_comercio",  # dentro de /v1/comercios el orden lo decide FastAPI al serializar; cambió al agregar el parámetro X-TOTP (solo cosmético)
     "listar_comercios",
-    "crear_comercio",
     "suspender_comercio",
     "reactivar_comercio",
     "registrar_acuerdo",

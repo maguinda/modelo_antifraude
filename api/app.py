@@ -23,7 +23,7 @@ from .observabilidad import ObservabilidadMiddleware, configurar_logs
 from .panel import registrar_panel
 from .proveedores_ip import crear_proveedor
 from .rutas import comercios, estado, evaluaciones, lista_negra, metricas, panel_datos, revisiones
-from .seguridad import LimitadorTasa
+from .seguridad import LimitadorClavesInvalidas, LimitadorTasa
 from .servicio import ServicioEvaluacion
 
 RUTAS = (
@@ -84,6 +84,10 @@ def crear_app(
         consultas,
     )
     app.state.limitador = LimitadorTasa(ajustes.limite_peticiones_por_minuto)
+    if ajustes.limite_claves_invalidas < 1:
+        raise RuntimeError("MODELO_IA_LIMITE_INVALIDAS debe ser 1 o más.")
+    app.state.limitador_invalidas = LimitadorClavesInvalidas(ajustes.limite_claves_invalidas)
+    app.state.redes_proxy = ajustes.redes_proxy()  # un valor mal escrito en MODELO_IA_PROXY_CONFIABLE impide arrancar
     registrar_manejo(app, ajustes)
     # el último middleware que se agrega queda por fuera: este ve la respuesta final de todos los demás
     app.add_middleware(ObservabilidadMiddleware)

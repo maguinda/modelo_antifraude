@@ -23,6 +23,8 @@ from modelo_ia.api.app import crear_app
 from modelo_ia.api.migraciones import BaseMasNueva, CopiaPreviaFallo, Migracion, copia_previa, sentencias, validar
 from modelo_ia.api.repositorios.esquema import Esquema
 
+IDS = [1, 2]  # las migraciones que existen hoy; quien agregue una nueva cambia solo estas dos constantes
+SIGUIENTE = 3  # el número de la próxima (las pruebas usan migraciones de juguete con este número)
 PEPPER = "p" * 40
 RAIZ = Path(__file__).resolve().parents[2]  # la carpeta que contiene modelo_ia/ (para lanzar procesos que lo importen)
 
@@ -207,17 +209,17 @@ def base_vieja(carpeta: Path, forma: int, nombre: str = "v.sqlite3"):
 # ------------------------------------------------------------------ una base nueva
 def test_una_base_nueva_se_migra_una_vez_sin_copia_y_reabrirla_no_hace_nada(tmp_path):
     alm = Almacen(tmp_path / "n.sqlite3", PEPPER)
-    assert alm.inicializar() == [1] and alm.inicializar() == [] and alm.inicializar() == []
+    assert alm.inicializar() == IDS and alm.inicializar() == [] and alm.inicializar() == []
     assert alm.copias_previas() == []  # no había nada que proteger
     est = alm.estado_migraciones()
     assert (
-        [(e["id"], e["desconocida"]) for e in est] == [(1, False)]
+        [(e["id"], e["desconocida"]) for e in est] == [(i, False) for i in IDS]
         and est[0]["aplicada"]
         and est[0]["nombre"].startswith("Esquema inicial")
     )
     con = sqlite3.connect(tmp_path / "n.sqlite3")
     assert (
-        con.execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == 1
+        con.execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == len(IDS)
         and con.execute("SELECT nombre FROM comercios WHERE id=?", (PLATAFORMA,)).fetchone()[0] == "PLATAFORMA"
     )
     assert (
@@ -228,12 +230,12 @@ def test_una_base_nueva_se_migra_una_vez_sin_copia_y_reabrirla_no_hace_nada(tmp_
 def test_los_numeros_de_las_migraciones_son_seguidos_y_el_estado_no_modifica_nada(tmp_path):
     alm = Almacen(tmp_path / "e.sqlite3", PEPPER)
     validar(alm._migraciones())
-    assert [m.id for m in alm._migraciones()] == [1]
+    assert [m.id for m in alm._migraciones()] == IDS
     con = sqlite3.connect(tmp_path / "e.sqlite3")  # una base vacía: el estado dice que falta todo y NO crea la tabla
     con.execute("CREATE TABLE otra (x INTEGER)")
     con.commit()
     con.row_factory = sqlite3.Row
-    assert [(e["id"], e["aplicada"]) for e in mig.estado(con, alm._migraciones())] == [(1, None)]
+    assert [(e["id"], e["aplicada"]) for e in mig.estado(con, alm._migraciones())] == [(i, None) for i in IDS]
     assert con.execute("SELECT 1 FROM sqlite_master WHERE name='migraciones'").fetchone() is None
 
 
@@ -246,7 +248,7 @@ def test_una_base_de_cada_forma_historica_se_adopta_sin_perder_nada(tmp_path, fo
     Almacen(ref, PEPPER).inicializar()
 
     alm = Almacen(ruta, PEPPER)
-    assert alm.inicializar() == [1]
+    assert alm.inicializar() == IDS
     assert foto(ruta) == antes  # ni una fila ni un valor de lo que existía cambió
     assert esquema(ruta) == esquema(ref) and sana(ruta)  # y quedó exactamente con el esquema de una base nueva
     assert alm.autenticar(clave).comercio_id is not None  # las claves siguen entrando
@@ -260,7 +262,7 @@ def test_una_base_de_cada_forma_historica_se_adopta_sin_perder_nada(tmp_path, fo
         f[0] and f[1] and f[2] and f[3] for f in filas
     )  # los códigos que faltaban se calcularon, sin repetirse
     assert [f[1:] for f in filas] == [tuple(d[1:]) for d in derivados(ruta)]
-    assert con.execute("SELECT id FROM migraciones").fetchall() == [(1,)]
+    assert con.execute("SELECT id FROM migraciones").fetchall() == [(i,) for i in IDS]
 
     copias = alm.copias_previas()  # y antes de tocarla se guardó UNA copia de cómo estaba
     assert (
@@ -301,22 +303,26 @@ def test_si_una_migracion_falla_no_queda_nada_a_medias_y_se_puede_reintentar(tmp
         con.execute("INSERT INTO tabla_que_no_existe VALUES (1)")  # falla aquí, con lo anterior ya hecho
 
     with pytest.raises(sqlite3.OperationalError):
-        alm.inicializar(alm._migraciones() + [Migracion(2, "falla a propósito", falla)])
+        alm.inicializar(alm._migraciones() + [Migracion(SIGUIENTE, "falla a propósito", falla)])
     con = sqlite3.connect(ruta)
     assert (
         con.execute("SELECT name FROM sqlite_master WHERE name='a_medias'").fetchone() is None
     )  # lo que alcanzó a hacer se deshizo entero
-    assert con.execute("SELECT id FROM migraciones").fetchall() == [(1,)]  # la 1 quedó aplicada y la 2 NO se registró
+    assert con.execute("SELECT id FROM migraciones").fetchall() == [
+        (i,) for i in IDS
+    ]  # las reales quedaron aplicadas y la de juguete NO se registró
     assert foto(ruta) == antes and sana(ruta) and len(alm.copias_previas()) == 1
 
     assert alm.inicializar(
-        alm._migraciones() + [Migracion(2, "arreglada", lambda c: c.execute("CREATE TABLE nueva (x INTEGER)"))]
-    ) == [2]
+        alm._migraciones() + [Migracion(SIGUIENTE, "arreglada", lambda c: c.execute("CREATE TABLE nueva (x INTEGER)"))]
+    ) == [SIGUIENTE]
     copias = alm.copias_previas()
     assert (
-        len(copias) == 2 and any("-v1-" in c.name for c in copias) and any("-v2-" in c.name for c in copias)
-    )  # cada paso, con su copia previa
-    assert sqlite3.connect(ruta).execute("SELECT id FROM migraciones ORDER BY id").fetchall() == [(1,), (2,)]
+        len(copias) == 2 and any("-v1-" in c.name for c in copias) and any(f"-v{SIGUIENTE}-" in c.name for c in copias)
+    )  # cada actualización (la primera, y la de la migración arreglada), con su copia previa
+    assert sqlite3.connect(ruta).execute("SELECT id FROM migraciones ORDER BY id").fetchall() == [
+        (i,) for i in IDS + [SIGUIENTE]
+    ]
 
 
 @pytest.mark.parametrize("forma", [None, 0, 3])
@@ -347,16 +353,18 @@ def test_si_falla_la_migracion_1_a_mitad_no_queda_el_esquema_a_medias(tmp_path, 
         )
         assert foto(ruta) == antes and sana(ruta)
     monkeypatch.undo()
-    assert Almacen(ruta, PEPPER).inicializar() == [1] and sana(ruta)  # y reintentar funciona
+    assert Almacen(ruta, PEPPER).inicializar() == IDS and sana(ruta)  # y reintentar funciona
 
 
 def test_una_migracion_ya_aplicada_no_se_vuelve_a_ejecutar_aunque_cambie(tmp_path):
     alm = Almacen(tmp_path / "x.sqlite3", PEPPER)
     alm.inicializar()
     llamadas = []
-    assert alm.inicializar(alm._migraciones() + [Migracion(2, "paso", lambda c: llamadas.append(1))]) == [2]
+    assert alm.inicializar(alm._migraciones() + [Migracion(SIGUIENTE, "paso", lambda c: llamadas.append(1))]) == [
+        SIGUIENTE
+    ]
     assert alm.inicializar(
-        alm._migraciones() + [Migracion(2, "paso", lambda c: llamadas.append(1))]
+        alm._migraciones() + [Migracion(SIGUIENTE, "paso", lambda c: llamadas.append(1))]
     ) == [] and llamadas == [1]
 
 
@@ -446,7 +454,7 @@ def test_una_base_de_una_version_mas_nueva_se_rechaza_sin_tocarla(tmp_path):
     with pytest.raises(BaseMasNueva, match="versión más nueva"):
         Almacen(ruta, PEPPER).inicializar()
     assert foto(ruta) == antes and esquema(ruta) == obj and alm.copias_previas() == []
-    assert [(e["id"], e["desconocida"]) for e in alm.estado_migraciones()] == [(1, False), (99, True)]
+    assert [(e["id"], e["desconocida"]) for e in alm.estado_migraciones()] == [(i, False) for i in IDS] + [(99, True)]
     with pytest.raises(BaseMasNueva):
         crear_app(Ajustes(ruta_bd=ruta, pepper=PEPPER))  # el servicio ni siquiera arranca
 
@@ -454,7 +462,7 @@ def test_una_base_de_una_version_mas_nueva_se_rechaza_sin_tocarla(tmp_path):
 def test_un_archivo_vacio_cuenta_como_base_nueva_y_uno_dañado_falla_con_claridad(tmp_path):
     vacio = tmp_path / "vacio.sqlite3"
     vacio.write_bytes(b"")
-    assert Almacen(vacio, PEPPER).inicializar() == [1]
+    assert Almacen(vacio, PEPPER).inicializar() == IDS
     roto = tmp_path / "roto.sqlite3"
     roto.write_bytes(b"esto no es una base de datos" * 100)
     with pytest.raises(sqlite3.DatabaseError):
@@ -560,9 +568,9 @@ def test_concurrencia_30_rondas_tres_procesos_arrancando_a_la_vez_migran_una_sol
         salidas = [p.communicate(timeout=120) for p in procs]
         assert [p.returncode for p in procs] == [0, 0, 0], (ronda, [s[1][-300:] for s in salidas])
         aplicadas = sorted(i for out, _ in salidas for i in json.loads(out))
-        assert aplicadas == [1], (ronda, aplicadas)  # la migración se aplicó UNA sola vez entre los tres
+        assert aplicadas == IDS, (ronda, aplicadas)  # la migración se aplicó UNA sola vez entre los tres
         alm = Almacen(ruta, PEPPER)
-        assert sqlite3.connect(ruta).execute("SELECT id FROM migraciones").fetchall() == [(1,)]
+        assert sqlite3.connect(ruta).execute("SELECT id FROM migraciones").fetchall() == [(i,) for i in IDS]
         assert len(alm.copias_previas()) == 1, ronda  # y hay una sola copia previa
         assert foto(ruta) == antes and sana(ruta), ronda
     con.close()
@@ -594,7 +602,7 @@ def test_la_consola_consulta_sin_modificar_y_migra_cuando_se_le_pide(cli, tmp_pa
     c, salida, _ = cli("migraciones")
     assert c == 0 and "todavía no existe" in salida and not ruta.exists()  # consultar no crea la base
     c, salida, _ = cli("migrar")
-    assert c == 0 and "migraciones aplicadas [1]" in salida
+    assert c == 0 and f"migraciones aplicadas {IDS}" in salida
     c, salida, _ = cli("migrar")
     assert c == 0 and "ya está al día" in salida
     c, salida, _ = cli("migraciones")
@@ -611,7 +619,7 @@ def test_con_una_base_vieja_consultar_no_la_toca_y_cualquier_otro_comando_la_mig
     c, salida, _ = cli("listar-claves")
     assert (
         c == 0
-        and "Base actualizada: migraciones aplicadas [1]" in salida
+        and f"Base actualizada: migraciones aplicadas {IDS}" in salida
         and "Copia previa guardada: c.sqlite3.antes-de-migrar-v1-" in salida
     )
     c, salida, _ = cli("migraciones")

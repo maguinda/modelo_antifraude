@@ -5,6 +5,8 @@ comercio o por id de pago crece sin límite):
   antifraude_http_peticiones_total{metodo,ruta,estado}   peticiones atendidas; `ruta` es la PLANTILLA (`/v1/panel/transacciones/{id}`), nunca el valor real
   antifraude_http_duracion_segundos{ruta}                 cuánto tardó cada una (histograma)
   antifraude_evaluaciones_total{decision,modo}            pagos evaluados por primera vez (un reintento idempotente no cuenta)
+  antifraude_claves_invalidas_total{resultado}            claves inventadas: «rechazada» (401) o «limitada» (429 por demasiados desde una IP); sin la IP
+  antifraude_mfa_total{resultado}                         segundo factor del administrador: ok, falta_codigo, codigo_invalido, bloqueada, no_configurado
 
 Con VARIOS procesos (`--workers 2`), cada uno contaría solo lo suyo: `prometheus_client` en modo multiproceso deja los contadores en archivos de
 una carpeta compartida (`PROMETHEUS_MULTIPROC_DIR`, que `servidor.py` crea sola) y al leer los suma. Esa variable debe existir ANTES de importar este
@@ -36,6 +38,25 @@ DURACION = Histogram(
 EVALUACIONES = Counter(
     "antifraude_evaluaciones_total", "Pagos evaluados por primera vez.", ["decision", "modo"], registry=REGISTRO
 )
+
+
+CLAVES_INVALIDAS = Counter(
+    "antifraude_claves_invalidas_total",
+    "Intentos con una clave de API que no existe.",
+    ["resultado"],
+    registry=REGISTRO,
+)
+MFA = Counter(
+    "antifraude_mfa_total", "Comprobaciones del segundo factor del administrador.", ["resultado"], registry=REGISTRO
+)
+
+
+def registrar_clave_invalida(limitada: bool) -> None:
+    CLAVES_INVALIDAS.labels("limitada" if limitada else "rechazada").inc()
+
+
+def registrar_mfa(resultado: str) -> None:
+    MFA.labels(resultado).inc()
 
 
 def registrar_peticion(metodo: str, ruta: str, estado: int, segundos: float) -> None:

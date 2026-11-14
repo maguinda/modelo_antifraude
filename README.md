@@ -24,6 +24,7 @@ que se va mejorando, etapa por etapa.
 - [Proveedor de IP propio (bases públicas, sin enviar la IP a nadie)](#proveedor-de-ip-propio-bases-públicas-sin-enviar-la-ip-a-nadie)
 - [Comercios: alta, suspensión y acuerdo de datos](#comercios-alta-suspensión-y-acuerdo-de-datos)
 - [Panel de control: ver todo, filtrar y rastrear (API de solo lectura)](#panel-de-control-ver-todo-filtrar-y-rastrear-api-de-solo-lectura)
+- [Seguridad de la cuenta de administrador: segundo factor y claves inválidas](#seguridad-de-la-cuenta-de-administrador-segundo-factor-y-claves-inválidas)
 - [Observabilidad: identificador de petición, registros y métricas](#observabilidad-identificador-de-petición-registros-y-métricas)
 - [Despliegue en un servidor real (preparado, todavía no desplegado)](#despliegue-en-un-servidor-real-preparado-todavía-no-desplegado)
 - [Adaptador de historial: el diagnóstico para un comercio (python -m modelo_ia.historial)](#adaptador-de-historial-el-diagnóstico-para-un-comercio-python--m-modelo_iahistorial)
@@ -185,6 +186,9 @@ registrada en la tabla `migraciones`.
   los piden como dependencias, así se pueden probar solas.
 - `manejo.py` — Errores en `application/problem+json`, límite de tamaño y cabeceras de seguridad de
   todas las respuestas.
+- `totp.py` · `ip_cliente.py` · `seguridad.py` — El segundo factor (TOTP, RFC 6238, sin dependencias),
+  la IP real detrás de un proxy y los límites de peticiones (ver «Seguridad de la cuenta de
+  administrador»).
 - `observabilidad.py` · `metricas.py` · `contexto.py` — El identificador de cada petición, los
   registros (logs) en JSON y las métricas (ver «Observabilidad»). Es un middleware por fuera de los
   demás.
@@ -713,6 +717,48 @@ cliente con muchas IPs, viaje imposible, ráfagas, proxy). Todo es inventado.
 la decisión de la Ley 1581: aquí lo ve el analista, no el comercio. Las ráfagas usan una ventana
 fija de 10 minutos. Con millones de filas habrá que medir el rendimiento de los resúmenes (hoy hay
 índices, pero se probó con unos miles).
+
+## Seguridad de la cuenta de administrador: segundo factor y claves inválidas
+
+**Segundo factor (TOTP).** Con `MODELO_IA_EXIGIR_MFA=1`, las 4 acciones de administrador que
+**cambian algo** (crear, suspender y reactivar comercios, registrar acuerdos) piden además el código
+de 6 dígitos de una app de autenticación en la cabecera `X-TOTP`. Las lecturas del administrador
+(panel, métricas, listar) siguen con la clave sola. Se activa desde la consola
+(`admin activar-mfa`, `admin confirmar-mfa`, `admin desactivar-mfa`): el secreto se muestra **una
+vez** en tu terminal y queda pendiente hasta confirmarlo con un primer código (así un error al
+copiarlo no deja a nadie fuera).
+
+- Es TOTP estándar (RFC 6238, HMAC-SHA1, 6 dígitos, pasos de 30 s) hecho con la biblioteca estándar;
+  una prueba lo comprueba contra los **vectores oficiales** de la RFC.
+- Se acepta el código del paso actual, uno antes y uno después (desfase de reloj de hasta ~30 s).
+  **Un código no se puede usar dos veces** ni uno más viejo que el último aceptado: se guarda el
+  último paso usado, y se decide dentro del bloqueo de escritura de la base, así dos peticiones con
+  el mismo código a la vez no pasan las dos, tampoco desde dos procesos.
+- **5 códigos malos seguidos bloquean esa clave 15 minutos** (`429` con `Retry-After`); un acierto
+  pone la cuenta en cero. El estado va en la base, así vale entre procesos.
+- Un comercio o un analista que llame a esas rutas recibe `403` sin ninguna pista del segundo factor.
+- El secreto, los códigos y los fallos **nunca** salen en registros, métricas, errores ni en el
+  detalle de la auditoría (sí queda constancia de `mfa_activado`, `mfa_fallido`, `mfa_bloqueada`…).
+- Apagado por defecto (`MODELO_IA_EXIGIR_MFA`), como el acuerdo de datos; en producción el servicio
+  avisa mientras esté apagado.
+
+**Límite por IP de claves inventadas.** Pasadas `MODELO_IA_LIMITE_INVALIDAS` (20) claves que no
+existen por minuto desde una IP, los siguientes intentos con claves inválidas reciben `429`. Las
+claves **válidas nunca se frenan**, y no cuentan las peticiones sin clave ni las de un comercio
+suspendido. Las claves son de 256 bits al azar: adivinarlas no es realista, así que esto sirve sobre
+todo para frenar el ruido y dar una alerta temprana (`antifraude_claves_invalidas_total`).
+
+- La IP real viene de `X-Forwarded-For` **solo si** la conexión llega de un proxy declarado en
+  `MODELO_IA_PROXY_CONFIABLE`; se toma la primera dirección no confiable de derecha a izquierda, así
+  lo que escriba un atacante a la izquierda no cuenta. Si no hay proxy declarado se usa la IP de la
+  conexión. Una IPv6 se agrupa por su red /64. Un valor mal escrito impide arrancar.
+- La IP solo vive en memoria del limitador (con tope de tamaño): no se guarda ni se escribe.
+
+**Límites:** protege contra una **clave de API robada**, no contra un servidor comprometido (la
+consola ya es de confianza). El secreto del TOTP está en la base sin cifrado adicional: cifrarlo con
+una clave guardada en el mismo servidor ayudaría poco. Los contadores por IP son **por proceso**. Un
+reintento del mismo código (p. ej. doble clic) cuenta como un fallo. Solo cubre al administrador. No
+probado con un Caddy real, con una app de autenticación real ni en celular.
 
 ## Observabilidad: identificador de petición, registros y métricas
 

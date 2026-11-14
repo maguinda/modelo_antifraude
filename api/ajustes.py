@@ -44,6 +44,15 @@ class Ajustes:
         "simulado"  # quién ubica y evalúa las IP (ver proveedores_ip.py); el simulado es solo de demostración
     )
     csp_modo: str = "report-only"  # política de contenido de /docs: 'report-only' (observa) o 'enforce' (bloquea)
+    exigir_mfa: bool = (
+        False  # si es True, las acciones de administrador que cambian algo piden el código TOTP (MODELO_IA_EXIGIR_MFA)
+    )
+    limite_claves_invalidas: int = (
+        20  # claves inventadas por minuto y por IP antes de responder 429 (MODELO_IA_LIMITE_INVALIDAS)
+    )
+    proxies_confiables: str = (
+        ""  # IP o redes (separadas por coma) cuyo X-Forwarded-For se acepta (MODELO_IA_PROXY_CONFIABLE)
+    )
     log_formato: str = "auto"  # registros: 'json' (una línea JSON por registro), 'texto' o 'auto' (json en producción, texto en desarrollo)
 
     @classmethod
@@ -58,6 +67,9 @@ class Ajustes:
         a.limite_peticiones_por_minuto = int(os.environ.get("MODELO_IA_LIMITE", a.limite_peticiones_por_minuto))
         a.csp_modo = os.environ.get("MODELO_IA_CSP", a.csp_modo)
         a.log_formato = os.environ.get("MODELO_IA_LOG_FORMATO", a.log_formato).strip().lower()
+        a.exigir_mfa = os.environ.get("MODELO_IA_EXIGIR_MFA", "").strip().lower() in ("1", "true", "si", "sí", "yes")
+        a.limite_claves_invalidas = int(os.environ.get("MODELO_IA_LIMITE_INVALIDAS", a.limite_claves_invalidas))
+        a.proxies_confiables = os.environ.get("MODELO_IA_PROXY_CONFIABLE", a.proxies_confiables).strip()
         a.proveedor_ip = os.environ.get("MODELO_IA_PROVEEDOR_IP", a.proveedor_ip)
         a.exigir_acuerdo = os.environ.get("MODELO_IA_EXIGIR_ACUERDO", "").strip().lower() in (
             "1",
@@ -69,6 +81,12 @@ class Ajustes:
         a.hsts_segundos = int(os.environ.get("MODELO_IA_HSTS", a.hsts_segundos))
         a.durabilidad = os.environ.get("MODELO_IA_DURABILIDAD", a.durabilidad)
         return a
+
+    def redes_proxy(self) -> tuple:
+        """Las redes de proxies confiables ya interpretadas. Un valor mal escrito es un error de configuración: el servicio no debe arrancar."""
+        from .ip_cliente import redes_confiables
+
+        return redes_confiables(self.proxies_confiables)
 
     def problemas_de_produccion(self) -> dict:
         """Lo que está mal para un servidor real. «bloqueantes» impiden arrancar; «avisos» se muestran pero se puede seguir."""
@@ -90,6 +108,16 @@ class Ajustes:
         if self.proveedor_ip == "simulado":
             avisos.append(
                 "El proveedor de IP es SIMULADO: no ubica IP reales. Configura uno real antes de evaluar pagos de verdad."
+            )
+        if not self.exigir_mfa:
+            avisos.append(
+                "MODELO_IA_EXIGIR_MFA no está activo: las acciones de administrador (crear o suspender comercios, acuerdos) piden solo la clave. "
+                "Activa el segundo factor de cada administrador («admin activar-mfa») y luego esta opción."
+            )
+        if not self.proxies_confiables:
+            avisos.append(
+                "MODELO_IA_PROXY_CONFIABLE está vacío: detrás de un proxy (Caddy) todas las peticiones parecen venir de la misma IP, y el límite por IP "
+                "de claves inválidas no distingue a nadie. Indica la red del proxy."
             )
         if self.csp_modo != "enforce":
             avisos.append(
