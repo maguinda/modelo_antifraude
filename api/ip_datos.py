@@ -8,6 +8,7 @@ Las descargas son atómicas: se baja a un archivo temporal, se comprueba que se 
 queda la versión vieja. DB-IP publica una base nueva cada mes, y cada mes cambia el nombre del archivo (por eso se prueba el mes actual y el anterior).
 """
 import argparse
+import colorsys
 import gzip
 import hashlib
 import ipaddress
