@@ -1,6 +1,7 @@
 # Versiones EXACTAS con las que se probó el servicio (las mismas del entorno de desarrollo). Los modelos guardados se entrenaron con estas versiones
 # de scikit-learn, numpy y pandas: si cambian, un modelo guardado puede cargar mal o dar otros números. Solo lo que hace falta para ejecutar el servicio
 # (sin pytest, playwright, httpx ni openpyxl, que son de desarrollo). Para actualizar: reentrenar, probar y cambiar aquí a propósito.
+# psycopg: el controlador de PostgreSQL (solo se usa si MODELO_IA_BD_URL apunta a PostgreSQL; cambio 7b)
 annotated-doc==0.0.5
 annotated-types==0.7.0
 anyio==4.12.1
@@ -14,6 +15,8 @@ maxminddb==2.8.2
 numpy==2.0.2
 pandas==2.3.3
 prometheus-client==0.21.1
+psycopg==3.2.13
+psycopg-binary==3.2.13
 pydantic==2.13.5
 pydantic-core==2.46.5
 python-dateutil==3.0.0

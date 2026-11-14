@@ -49,6 +49,15 @@ class ErrorDeRespaldo(Exception):
 
 
 # ------------------------------------------------------------------ la frase
+def _no_en_postgres() -> None:
+    """La copia cifrada de este programa es de SQLite. Con PostgreSQL se dice claro en vez de fallar con «no existe la base»."""
+    if os.environ.get("MODELO_IA_BD_URL") or os.environ.get("MODELO_IA_BD_URL_ARCHIVO"):
+        raise ErrorDeRespaldo(
+            "Esta instalación usa PostgreSQL: la copia de seguridad cifrada de este programa es solo de SQLite. "
+            "Haz la copia con pg_dump (ver el README, «PostgreSQL»)."
+        )
+
+
 def leer_frase(ruta) -> bytes:
     ruta = Path(ruta)
     try:
@@ -181,6 +190,7 @@ def _escribir_privado(destino: Path, contenido: bytes) -> None:
 
 
 def crear(bd: Path, carpeta: Path, frase_archivo: Path, ahora: Optional[datetime] = None) -> Dict:
+    _no_en_postgres()
     bd, carpeta, frase_archivo = Path(bd), Path(carpeta), Path(frase_archivo)
     frase = leer_frase(frase_archivo)
     if not bd.is_file():

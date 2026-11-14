@@ -53,7 +53,7 @@ def crear_app(
             raise RuntimeError("El servicio NO arranca en producción: " + " ".join(problemas["bloqueantes"]))
         for aviso in problemas["avisos"]:
             logging.getLogger("antifraude").warning("Producción: %s", aviso)
-    almacen = Almacen(ajustes.ruta_bd, ajustes.pepper, ajustes.durabilidad)
+    almacen = Almacen(ajustes.destino_bd, ajustes.pepper, ajustes.durabilidad)
     almacen.inicializar()
     # el modelo se carga SOLO después de verificar su huella contra el registro (ver registro_modelos.py)
     artefacto, artefacto_sin_estado, info_modelos = registro_modelos.preparar(

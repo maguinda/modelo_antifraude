@@ -5,8 +5,16 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from ..migraciones import Migracion, aplicar, estado as estado_de_migraciones, listar_copias, sentencias
-from .base import Base
+from ..migraciones import (
+    Migracion,
+    aplicar,
+    aplicar_pg,
+    estado as estado_de_migraciones,
+    listar_copias,
+    sentencias,
+)
+from . import esquema_pg
+from .base import BaseDeDatos
 from .comunes import PLATAFORMA, ahora_iso, id_seguimiento_libre
 from .seudonimos import Seudonimizador
 
@@ -79,7 +87,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS un_modelo_en_uso_por_rol ON modelos_registro(r
 
 
 class Esquema:
-    def __init__(self, base: Base, seudonimos: Seudonimizador):
+    def __init__(self, base: BaseDeDatos, seudonimos: Seudonimizador):
         self.base, self.seudonimos = base, seudonimos
 
     def rellenar_columnas_nuevas(self, con: sqlite3.Connection) -> None:
@@ -108,6 +116,8 @@ class Esquema:
 
     def migraciones(self) -> List[Migracion]:
         """Los cambios de esquema, en orden. Para agregar uno: una función nueva y un número más al final. Nunca se edita ni se renumera uno ya publicado."""
+        if getattr(self.base, "motor", "sqlite") == "postgresql":
+            return self.migraciones_pg()
         return [
             Migracion(1, "Esquema inicial y adopción de bases anteriores", self.m1_esquema_inicial),
             Migracion(2, "Segundo factor (TOTP) de las claves de administrador", self.m2_mfa_admin),
@@ -116,6 +126,23 @@ class Esquema:
                 4,
                 "SQL portable: secuencia de evaluaciones, reglas por evaluación y minutos de resolución",
                 self.m4_sql_portable,
+            ),
+        ]
+
+    def migraciones_pg(self) -> List[Migracion]:
+        """Las mismas cuatro migraciones (mismos números y nombres) para PostgreSQL: solo DDL, ver `esquema_pg.py`."""
+        return [
+            Migracion(
+                1,
+                "Esquema inicial y adopción de bases anteriores",
+                lambda con: esquema_pg.m1(con, DDL, INDICES_PANEL, PLATAFORMA, ahora_iso()),
+            ),
+            Migracion(2, "Segundo factor (TOTP) de las claves de administrador", esquema_pg.m2),
+            Migracion(3, "Registro de modelos con huella SHA-256", lambda con: esquema_pg.m3(con, REGISTRO_MODELOS)),
+            Migracion(
+                4,
+                "SQL portable: secuencia de evaluaciones, reglas por evaluación y minutos de resolución",
+                lambda con: esquema_pg.m4(con, SQL_PORTABLE),
             ),
         ]
 
@@ -234,6 +261,8 @@ class Esquema:
         """Pone la base al día aplicando las migraciones que falten (ver migraciones.py). Devuelve los números de las que aplicó esta vez.
 
         Si la base tiene datos, antes de migrar se guarda una copia junto a ella (`<base>.antes-de-migrar-vN-FECHA.sqlite3`); si no se puede, no se migra."""
+        if getattr(self.base, "motor", "sqlite") == "postgresql":
+            return aplicar_pg(self.base, migraciones if migraciones is not None else self.migraciones(), ahora_iso)
         con = self.base.abrir()
         try:
             con.execute("PRAGMA journal_mode=WAL")
@@ -254,4 +283,6 @@ class Esquema:
 
     def copias_previas(self) -> List[Path]:
         """Las copias que se guardaron antes de migrar. No se borran solas: tienen los mismos datos que la base, así que cuídalas igual."""
+        if getattr(self.base, "motor", "sqlite") == "postgresql":
+            return []  # en PostgreSQL la copia previa es un pg_dump que hace quien opera
         return listar_copias(self.base.ruta)

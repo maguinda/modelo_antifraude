@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .errores_bd import OPERACION
 from .ajustes import Ajustes
 from .metadatos import problema
 from .servicio import ErrorAPI
@@ -42,6 +43,15 @@ def registrar_manejo(app: FastAPI, ajustes: Ajustes) -> None:
 
     @app.exception_handler(Exception)
     async def _inesperado(request: Request, e: Exception):
+        # la base no está disponible (se cortó, no conecta, está bloqueada): se dice y se pide reintentar; no es un error del programa
+        if isinstance(e, OPERACION):
+            log.exception("base de datos no disponible")
+            return problema(
+                503,
+                "Servicio no disponible",
+                "La base de datos no responde. Trata el pago como EN_REVISION y reintenta.",
+                request.url.path,
+            )
         log.exception("error inesperado")
         return problema(
             500,

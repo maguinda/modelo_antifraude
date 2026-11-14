@@ -15,6 +15,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 
+from .errores_bd import INTEGRIDAD, OPERACION
 from .. import config, explicacion_local, predecir, variables
 from ..entrenar import ESTADO_RELLENO
 from ..reglas import SEVERIDAD, MotorReglas
@@ -255,7 +256,7 @@ class ServicioEvaluacion:
                         latencia,
                         red_origen,
                     )
-        except sqlite3.IntegrityError:
+        except INTEGRIDAD:
             # Dos solicitudes idénticas llegaron a la vez: la segunda ya no puede insertar; devolvemos la guardada.
             with self.alm.lectura() as con:
                 previa = self.alm.evaluaciones.por_transaccion(con, principal.comercio_id, solicitud.id_transaccion)
@@ -264,7 +265,7 @@ class ServicioEvaluacion:
             raise ErrorAPI(
                 409, "Transacción repetida con datos distintos", "Ya existe una evaluación con ese id_transaccion."
             )
-        except sqlite3.OperationalError as e:
+        except OPERACION as e:
             log.exception("base de datos no disponible")
             raise ErrorAPI(
                 503,

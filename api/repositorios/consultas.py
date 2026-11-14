@@ -97,8 +97,8 @@ class ConsultasRepositorio:
         donde, par = donde_de(f)
         t = con.execute(
             "SELECT COUNT(*) pagos, SUM(CASE WHEN decision = 'APROBADA' THEN 1 ELSE 0 END) aprobadas, SUM(CASE WHEN decision = 'EN_REVISION' THEN 1 ELSE 0 END) en_revision, SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, "
-            "COALESCE(SUM(monto_cop),0) monto, COALESCE(SUM(CASE WHEN decision='RECHAZADA' THEN monto_cop END),0) monto_rechazado, "
-            "COALESCE(SUM(CASE WHEN decision='EN_REVISION' THEN monto_cop END),0) monto_en_revision, "
+            "COALESCE(SUM(monto_cop),0.0) monto, COALESCE(SUM(CASE WHEN decision='RECHAZADA' THEN monto_cop END),0.0) monto_rechazado, "
+            "COALESCE(SUM(CASE WHEN decision='EN_REVISION' THEN monto_cop END),0.0) monto_en_revision, "
             "SUM(CASE WHEN modo = 'degradado' THEN 1 ELSE 0 END) degradados, SUM(CASE WHEN estado_origen = 'no_enviado' THEN 1 ELSE 0 END) sin_estado, AVG(latencia_ms) latencia_media "
             f"FROM evaluaciones e {donde}",
             par,
@@ -117,13 +117,13 @@ class ConsultasRepositorio:
         ).fetchall()
         por_comercio = con.execute(
             "SELECT e.comercio_id, c.nombre, COUNT(*) pagos, SUM(CASE WHEN decision = 'APROBADA' THEN 1 ELSE 0 END) aprobadas, SUM(CASE WHEN decision = 'EN_REVISION' THEN 1 ELSE 0 END) en_revision, "
-            "SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, COALESCE(SUM(CASE WHEN decision='RECHAZADA' THEN monto_cop END),0) monto_rechazado "
-            f"FROM evaluaciones e JOIN comercios c ON c.id = e.comercio_id {donde} GROUP BY e.comercio_id, c.nombre ORDER BY pagos DESC LIMIT 100",
+            "SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, COALESCE(SUM(CASE WHEN decision='RECHAZADA' THEN monto_cop END),0.0) monto_rechazado "
+            f"FROM evaluaciones e JOIN comercios c ON c.id = e.comercio_id {donde} GROUP BY e.comercio_id, c.nombre ORDER BY pagos DESC, e.comercio_id LIMIT 100",
             par,
         ).fetchall()
         reglas = con.execute(
             "SELECT er.regla regla, COUNT(*) veces, SUM(CASE WHEN e.decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas "
-            f"FROM evaluaciones e JOIN evaluacion_reglas er ON er.id_evaluacion = e.id {donde} GROUP BY er.regla ORDER BY veces DESC LIMIT 20",
+            f"FROM evaluaciones e JOIN evaluacion_reglas er ON er.id_evaluacion = e.id {donde} GROUP BY er.regla ORDER BY veces DESC, er.regla LIMIT 20",
             par,
         ).fetchall()
         hist = con.execute(
@@ -137,7 +137,7 @@ class ConsultasRepositorio:
                 "SELECT COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS analista, COUNT(*) AS resueltas, SUM(CASE WHEN r.decision_analista = 'APROBADA' THEN 1 ELSE 0 END) AS aprobadas, "
                 "SUM(CASE WHEN r.decision_analista = 'RECHAZADA' THEN 1 ELSE 0 END) AS rechazadas, AVG(r.minutos_resolucion) AS minutos_promedio "
                 f"FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion LEFT JOIN claves k ON k.id = r.clave_analista {_y(donde)} r.estado = 'resuelta' "
-                "GROUP BY r.clave_analista, k.etiqueta, k.id ORDER BY resueltas DESC LIMIT 50",
+                "GROUP BY r.clave_analista, k.etiqueta, k.id ORDER BY resueltas DESC, r.clave_analista LIMIT 50",
                 par,
             ).fetchall()
         alcance, par2 = ("WHERE e.comercio_id = ?", (f.comercio_id,)) if f.comercio_id is not None else ("", ())
@@ -163,20 +163,20 @@ class ConsultasRepositorio:
         ips = con.execute(
             "SELECT e.ip_codigo codigo, COUNT(*) pagos, COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) clientes, COUNT(DISTINCT e.comercio_id) comercios, "
             "SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, SUM(CASE WHEN decision = 'EN_REVISION' THEN 1 ELSE 0 END) en_revision, MIN(fecha) primera, MAX(fecha) ultima "
-            f"FROM evaluaciones e {base} e.ip_codigo IS NOT NULL GROUP BY e.ip_codigo HAVING COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) >= ? ORDER BY clientes DESC, pagos DESC LIMIT 50",
+            f"FROM evaluaciones e {base} e.ip_codigo IS NOT NULL GROUP BY e.ip_codigo HAVING COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) >= ? ORDER BY clientes DESC, pagos DESC, e.ip_codigo LIMIT 50",
             par + (minimo,),
         ).fetchall()
         disp = con.execute(
             "SELECT e.disp_codigo codigo, COUNT(*) pagos, COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) clientes, COUNT(DISTINCT e.comercio_id) comercios, "
             "SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, SUM(CASE WHEN decision = 'EN_REVISION' THEN 1 ELSE 0 END) en_revision, MIN(fecha) primera, MAX(fecha) ultima "
-            f"FROM evaluaciones e {base} e.disp_codigo IS NOT NULL GROUP BY e.disp_codigo HAVING COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) >= ? ORDER BY clientes DESC, pagos DESC LIMIT 50",
+            f"FROM evaluaciones e {base} e.disp_codigo IS NOT NULL GROUP BY e.disp_codigo HAVING COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) >= ? ORDER BY clientes DESC, pagos DESC, e.disp_codigo LIMIT 50",
             par + (minimo,),
         ).fetchall()
         clientes = con.execute(
             "SELECT e.comercio_id, c.nombre comercio, e.id_cliente, COUNT(*) pagos, COUNT(DISTINCT e.ip_codigo) ips, "
             "SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, MIN(fecha) primera, MAX(fecha) ultima "
             f"FROM evaluaciones e JOIN comercios c ON c.id = e.comercio_id {base} e.ip_codigo IS NOT NULL "
-            "GROUP BY e.comercio_id, e.id_cliente HAVING COUNT(DISTINCT e.ip_codigo) >= ? ORDER BY ips DESC, pagos DESC LIMIT 50",
+            "GROUP BY e.comercio_id, c.nombre, e.id_cliente HAVING COUNT(DISTINCT e.ip_codigo) >= ? ORDER BY ips DESC, pagos DESC, e.comercio_id, e.id_cliente LIMIT 50",
             par + (minimo,),
         ).fetchall()
         candidatas = con.execute(
@@ -205,6 +205,6 @@ class ConsultasRepositorio:
     # ------------------------------------------------------------------ comercios (para el filtro)
     def comercios_con_pagos(self, con: sqlite3.Connection) -> List[sqlite3.Row]:
         return con.execute(
-            "SELECT c.id, c.nombre, (c.activo = 0) AS suspendido, COUNT(e.id) pagos FROM comercios c LEFT JOIN evaluaciones e ON e.comercio_id = c.id "
-            "WHERE c.id != 1 GROUP BY c.id ORDER BY pagos DESC, c.nombre"
+            "SELECT c.id, c.nombre, CASE WHEN c.activo = 0 THEN 1 ELSE 0 END AS suspendido, COUNT(e.id) pagos FROM comercios c LEFT JOIN evaluaciones e ON e.comercio_id = c.id "
+            "WHERE c.id != 1 GROUP BY c.id ORDER BY pagos DESC, c.nombre, c.id"
         ).fetchall()

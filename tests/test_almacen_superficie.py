@@ -228,6 +228,7 @@ def test_rotar_una_clave_deja_escrito_quien_la_roto_y_apaga_la_anterior(tmp_path
     assert fila == (admin_id, 1, "Ana Pérez")
 
 
+@pytest.mark.solo_sqlite
 def test_la_durabilidad_solo_acepta_dos_valores_y_se_aplica_a_cada_conexion(tmp_path):
     for valor, esperado in (("NORMAL", 1), ("FULL", 2)):
         a = Almacen(tmp_path / f"{valor}.sqlite3", "p" * 40, valor)

@@ -3,9 +3,10 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from .. import config
+from .repositorios.motor_pg import es_direccion_pg
 
 PEPPER_DE_DESARROLLO = "pepper-de-desarrollo-cambiar-en-produccion"
 PEPPER_LARGO_MINIMO = 32
@@ -26,6 +27,9 @@ def _leer_secreto_de_archivo(ruta: str) -> str:
 @dataclass
 class Ajustes:
     ruta_bd: Path = config.RAIZ / "api" / "datos_api.sqlite3"
+    bd_url: Optional[str] = (
+        None  # dirección de PostgreSQL (MODELO_IA_BD_URL o MODELO_IA_BD_URL_ARCHIVO); si está, manda sobre ruta_bd
+    )
     pepper: str = PEPPER_DE_DESARROLLO  # secreto que protege las claves guardadas (MODELO_IA_PEPPER)
     ruta_modelo: Optional[Path] = None  # por defecto, el modelo actual (MODELO_IA_MODELO)
     limite_peticiones_por_minuto: int = 600  # por clave de API
@@ -60,10 +64,25 @@ class Ajustes:
     )
     log_formato: str = "auto"  # registros: 'json' (una línea JSON por registro), 'texto' o 'auto' (json en producción, texto en desarrollo)
 
+    @property
+    def destino_bd(self) -> Any:
+        """Lo que se le pasa al Almacen: la dirección de PostgreSQL si hay, o la ruta del archivo de SQLite."""
+        return self.bd_url if self.bd_url else self.ruta_bd
+
     @classmethod
     def desde_entorno(cls) -> "Ajustes":
         a = cls()
         a.ruta_bd = Path(os.environ.get("MODELO_IA_BD", a.ruta_bd))
+        if os.environ.get("MODELO_IA_BD_URL_ARCHIVO"):  # la dirección lleva la contraseña: por archivo, como el pepper
+            a.bd_url = _leer_secreto_de_archivo(os.environ["MODELO_IA_BD_URL_ARCHIVO"])
+        elif os.environ.get("MODELO_IA_BD_URL"):
+            a.bd_url = os.environ["MODELO_IA_BD_URL"].strip()
+        if a.bd_url is not None and not es_direccion_pg(a.bd_url):
+            raise ValueError(
+                "MODELO_IA_BD_URL debe empezar por postgresql:// (la base de SQLite se elige con MODELO_IA_BD)."
+            )
+        if a.bd_url is not None and os.environ.get("MODELO_IA_BD"):
+            raise ValueError("Elige UNA base: MODELO_IA_BD (SQLite) o MODELO_IA_BD_URL (PostgreSQL), no las dos.")
         a.pepper = os.environ.get("MODELO_IA_PEPPER", a.pepper)
         if os.environ.get("MODELO_IA_PEPPER_ARCHIVO"):  # manda sobre la variable directa
             a.pepper = _leer_secreto_de_archivo(os.environ["MODELO_IA_PEPPER_ARCHIVO"])

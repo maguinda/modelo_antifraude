@@ -13,6 +13,7 @@ import pytest
 
 from modelo_ia import deriva
 from modelo_ia.api.almacen import Almacen
+from modelo_ia.api.errores_bd import INTEGRIDAD
 
 SEQ = count(1)
 PEPPER = "p" * 40
@@ -161,7 +162,7 @@ def test_la_migracion_4_se_puede_correr_dos_veces_sin_duplicar(tmp_path):
 def test_una_base_nueva_ya_trae_seq_unica_y_no_se_puede_repetir(alm):
     guardar(alm, "T1")
     guardar(alm, "T2")
-    with pytest.raises(sqlite3.IntegrityError), alm.transaccion() as con:
+    with pytest.raises(INTEGRIDAD), alm.transaccion() as con:
         con.execute("UPDATE evaluaciones SET seq = 1")  # dos filas con el mismo seq no pueden existir (índice único)
 
 
@@ -339,6 +340,7 @@ def test_toda_cola_ordenada_por_un_valor_que_puede_ser_nulo_lo_dice_con_nulls_la
                 assert "DESC NULLS LAST" in sql, (nombre, sql)
 
 
+@pytest.mark.solo_sqlite
 def test_con_un_sqlite_demasiado_viejo_el_programa_avisa_en_claro_y_no_falla_a_mitad(tmp_path, monkeypatch):
     from modelo_ia.api.repositorios import base
 

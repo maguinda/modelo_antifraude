@@ -11,7 +11,7 @@ import sqlite3
 from typing import Any, Dict, List, Optional
 
 from .auditoria import auditar
-from .base import Base
+from .base import BaseDeDatos
 from .comunes import ahora_iso
 
 ROLES = ("principal", "sin_estado")
@@ -27,7 +27,7 @@ def _fila(r: sqlite3.Row) -> Dict[str, Any]:
 
 
 class ModelosRegistroRepositorio:
-    def __init__(self, base: Base):
+    def __init__(self, base: BaseDeDatos):
         self.base = base
 
     def registrar(

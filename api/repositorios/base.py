@@ -4,7 +4,19 @@ import sqlite3
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+from typing import Any, ContextManager, Iterator, Protocol
+
+
+class BaseDeDatos(Protocol):
+    """Lo que los repositorios necesitan de una base, sea SQLite (`Base`) o PostgreSQL (`BasePg`): abrir, escribir en una transacción y leer."""
+
+    ruta: Any
+
+    def abrir(self) -> Any: ...
+
+    def transaccion(self) -> ContextManager[Any]: ...
+
+    def lectura(self, instantanea: bool = False) -> ContextManager[Any]: ...
 
 
 VERSION_MINIMA_SQLITE = (3, 35, 0)  # primera versión con `RETURNING`
