@@ -48,7 +48,10 @@ class RevisionesRepositorio:
                 minutos = (
                     datetime.fromisoformat(resuelta) - datetime.fromisoformat(previa["creada"])
                 ).total_seconds() / 60
-            except ValueError:
+            except (
+                TypeError,
+                ValueError,
+            ):  # fecha dañada, o una con zona horaria y otra sin ella: sin minutos, pero la revisión sí se resuelve
                 minutos = None
         cur = con.execute(
             "UPDATE revisiones SET estado='resuelta', decision_analista=?, nota=?, clave_analista=?, resuelta=?, minutos_resolucion=? "

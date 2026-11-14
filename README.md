@@ -169,7 +169,7 @@ registrada en la tabla `migraciones`.
 - **Dos procesos arrancando a la vez** (`--workers`): el estado se relee dentro del bloqueo de
   escritura, así ninguna migración corre dos veces (30 rondas con procesos reales lo comprueban).
   Además, un **candado de archivo** (`<base>.migrar.lock`) cubre toda la actualización: el segundo
-  proceso espera a que el primero termine (hasta 120 s; si sigue ocupado, falla con un mensaje claro)
+  proceso espera a que el primero termine (hasta 600 s; si sigue ocupado, falla con un mensaje claro)
   y no repite ni la copia previa. Sin él, uno que llegaba
   entre dos migraciones del primero hacía una copia de más (lo encontró la CI; una prueba
   determinista lo reproduce). En Windows no hay candado de archivo y se mantiene solo el bloqueo de

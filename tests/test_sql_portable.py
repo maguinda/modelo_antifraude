@@ -348,3 +348,41 @@ def test_con_un_sqlite_demasiado_viejo_el_programa_avisa_en_claro_y_no_falla_a_m
         Almacen(tmp_path / "v.sqlite3", PEPPER)
     monkeypatch.setattr(base.sqlite3, "sqlite_version_info", (3, 35, 0))
     Almacen(tmp_path / "v.sqlite3", PEPPER)  # justo la mínima sí arranca
+
+
+def test_la_migracion_4_no_se_bloquea_con_reglas_dañadas_y_deja_esas_evaluaciones_sin_filas_de_reglas(tmp_path):
+    ruta = tmp_path / "v3.sqlite3"
+    base_v3(ruta)
+    con = sqlite3.connect(ruta)
+    for i, texto in enumerate(
+        ("{no es json", "5", '"texto"', '{"a": 1}'), start=10
+    ):  # dañado, número, texto suelto, objeto en vez de lista
+        con.execute(
+            "INSERT INTO evaluaciones (id, comercio_id, id_transaccion, id_cliente, fecha, fila_json, solicitud_hash, decision, probabilidad, "
+            "motivos_json, reglas_json, modelo_nombre, modelo_version, modelo_conjunto, modo, latencia_ms, creada) "
+            "VALUES (?,1,?,'C9','2026-11-12T09:00:00','{}',?,'APROBADA',0.2,'[]',?,'m','1','completo','normal',1.0,'2026-11-12T09:00:00')",
+            (f"x{i}", f"X{i}", f"hx{i}", texto),
+        )
+    con.commit()
+    con.close()
+    assert Almacen(ruta, PEPPER).inicializar() == [4]  # antes, un solo texto dañado impedía arrancar
+    filas = (
+        sqlite3.connect(ruta)
+        .execute("SELECT id_evaluacion FROM evaluacion_reglas WHERE id_evaluacion LIKE 'x%'")
+        .fetchall()
+    )
+    assert filas == []
+    assert (
+        sqlite3.connect(ruta).execute("SELECT COUNT(*) FROM evaluacion_reglas WHERE id_evaluacion='e1'").fetchone()[0]
+        == 2
+    )  # las buenas, intactas
+
+
+def test_una_revision_con_fechas_incompatibles_se_resuelve_igual_y_deja_los_minutos_vacios(alm):
+    id_ = guardar(alm, "T1")
+    with alm.transaccion() as con:
+        alm.revisiones.crear_pendiente(con, id_, alm.comercio, "2026-11-12T11:00:00+00:00")  # con zona horaria
+        assert (
+            alm.revisiones.resolver(con, id_, "APROBADA", None, 1, "2026-11-12T11:10:00") == 1
+        )  # sin zona: restarlas daría TypeError
+        assert tuple(con.execute("SELECT estado, minutos_resolucion FROM revisiones").fetchone()) == ("resuelta", None)
