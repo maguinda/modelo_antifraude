@@ -1,6 +1,74 @@
 {
   "components": {
     "schemas": {
+      "AcuerdoHistorial": {
+        "properties": {
+          "dias_para_vencer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Para Vencer"
+          },
+          "estado": {
+            "description": "`sin_acuerdo`, `vigente`, `vence_pronto` (30 días o menos), `vencido` o `reemplazado` (uno más nuevo lo sustituyó).",
+            "title": "Estado",
+            "type": "string"
+          },
+          "firmado_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firmado En"
+          },
+          "referencia": {
+            "title": "Referencia",
+            "type": "string"
+          },
+          "registrado": {
+            "title": "Registrado",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "vigente_hasta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigente Hasta"
+          }
+        },
+        "required": [
+          "estado",
+          "referencia",
+          "registrado"
+        ],
+        "title": "AcuerdoHistorial",
+        "type": "object"
+      },
       "Autenticacion2fa": {
         "enum": [
           "NO_EXIGIDA",
@@ -250,6 +318,64 @@
         "title": "EntradaListaNegra",
         "type": "object"
       },
+      "EstadoAcuerdo": {
+        "properties": {
+          "dias_para_vencer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Para Vencer"
+          },
+          "estado": {
+            "description": "`sin_acuerdo`, `vigente`, `vence_pronto` (30 días o menos), `vencido` o `reemplazado` (uno más nuevo lo sustituyó).",
+            "title": "Estado",
+            "type": "string"
+          },
+          "firmado_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firmado En"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "vigente_hasta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigente Hasta"
+          }
+        },
+        "required": [
+          "estado"
+        ],
+        "title": "EstadoAcuerdo",
+        "type": "object"
+      },
       "EstadoDispositivo": {
         "enum": [
           "CONOCIDO",
@@ -258,6 +384,105 @@
         ],
         "title": "EstadoDispositivo",
         "type": "string"
+      },
+      "FilaComercio": {
+        "properties": {
+          "acuerdo": {
+            "$ref": "#/components/schemas/EstadoAcuerdo"
+          },
+          "claves_activas": {
+            "title": "Claves Activas",
+            "type": "integer"
+          },
+          "creado": {
+            "title": "Creado",
+            "type": "string"
+          },
+          "estado": {
+            "description": "`activo` o `suspendido`.",
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "motivo_suspension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Suspension"
+          },
+          "nit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo lo ve un administrador (en una persona natural es su cédula).",
+            "title": "Nit"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "pagos": {
+            "title": "Pagos",
+            "type": "integer"
+          },
+          "razon_social": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Razon Social"
+          },
+          "suspendido_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspendido En"
+          },
+          "ultimo_uso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimo Uso"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "estado",
+          "creado",
+          "claves_activas",
+          "pagos",
+          "acuerdo"
+        ],
+        "title": "FilaComercio",
+        "type": "object"
       },
       "FilaRevision": {
         "properties": {
@@ -757,6 +982,23 @@
         "title": "ReglaActivada",
         "type": "object"
       },
+      "RespuestaAcuerdo": {
+        "properties": {
+          "acuerdo": {
+            "$ref": "#/components/schemas/EstadoAcuerdo"
+          },
+          "id_acuerdo": {
+            "title": "Id Acuerdo",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id_acuerdo",
+          "acuerdo"
+        ],
+        "title": "RespuestaAcuerdo",
+        "type": "object"
+      },
       "RespuestaComercio": {
         "properties": {
           "clave_api": {
@@ -779,6 +1021,31 @@
           "clave_api"
         ],
         "title": "RespuestaComercio",
+        "type": "object"
+      },
+      "RespuestaEstadoComercio": {
+        "properties": {
+          "cambio": {
+            "description": "`false` si ya estaba así (repetir la operación es seguro y no hace nada).",
+            "title": "Cambio",
+            "type": "boolean"
+          },
+          "estado": {
+            "description": "`activo` o `suspendido`, después de la operación.",
+            "title": "Estado",
+            "type": "string"
+          },
+          "id_comercio": {
+            "title": "Id Comercio",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id_comercio",
+          "estado",
+          "cambio"
+        ],
+        "title": "RespuestaEstadoComercio",
         "type": "object"
       },
       "RespuestaEvaluacion": {
@@ -1049,14 +1316,86 @@
         "title": "Senales",
         "type": "object"
       },
+      "SolicitudAcuerdo": {
+        "additionalProperties": false,
+        "properties": {
+          "firmado_en": {
+            "description": "Fecha de firma (AAAA-MM-DD). No puede ser futura.",
+            "format": "date",
+            "title": "Firmado En",
+            "type": "string"
+          },
+          "referencia": {
+            "description": "Cómo encontrar el archivo firmado (su nombre o su huella SHA-256). El documento NO se guarda en el sistema.",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Referencia",
+            "type": "string"
+          },
+          "version": {
+            "description": "Versión del documento, por ejemplo `v1.2`.",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          },
+          "vigente_hasta": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Opcional. Si no se pone, no vence.",
+            "title": "Vigente Hasta"
+          }
+        },
+        "required": [
+          "version",
+          "firmado_en",
+          "referencia"
+        ],
+        "title": "SolicitudAcuerdo",
+        "type": "object"
+      },
       "SolicitudComercio": {
         "additionalProperties": false,
         "properties": {
+          "nit": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9][0-9.\\-]{3,18}[0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Opcional. Ojo: en una persona natural el NIT es su cédula (dato personal); solo lo ve un administrador.",
+            "title": "Nit"
+          },
           "nombre": {
             "maxLength": 80,
             "minLength": 2,
             "title": "Nombre",
             "type": "string"
+          },
+          "razon_social": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Opcional. Nombre legal del comercio.",
+            "title": "Razon Social"
           }
         },
         "required": [
@@ -1253,6 +1592,23 @@
         "title": "SolicitudResultado",
         "type": "object"
       },
+      "SolicitudSuspension": {
+        "additionalProperties": false,
+        "properties": {
+          "motivo": {
+            "description": "Por qué se suspende. Queda en la auditoría.",
+            "maxLength": 200,
+            "minLength": 3,
+            "title": "Motivo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "motivo"
+        ],
+        "title": "SolicitudSuspension",
+        "type": "object"
+      },
       "TipoDispositivo": {
         "enum": [
           "IPHONE",
@@ -1297,6 +1653,65 @@
   "openapi": "3.1.0",
   "paths": {
     "/v1/comercios": {
+      "get": {
+        "description": "Solo analistas y administradores. El NIT solo lo ve un administrador.",
+        "operationId": "listar_comercios",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FilaComercio"
+                  },
+                  "title": "Response Listar Comercios",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Comercios, su estado y su acuerdo de datos",
+        "tags": [
+          "Administración"
+        ]
+      },
       "post": {
         "description": "Solo administradores. La `clave_api` se muestra **una sola vez**.",
         "operationId": "crear_comercio",
@@ -1339,7 +1754,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "422": {
             "content": {
@@ -1368,6 +1783,416 @@
           }
         ],
         "summary": "Crear un comercio y su clave",
+        "tags": [
+          "Administración"
+        ]
+      }
+    },
+    "/v1/comercios/{id_comercio}/acuerdo": {
+      "put": {
+        "description": "Solo administradores. Guarda los DATOS del acuerdo (versión, fechas y cómo encontrar el archivo firmado), **no el documento**. El historial no se edita: el último registrado es el que vale.",
+        "operationId": "registrar_acuerdo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id_comercio",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Id Comercio",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudAcuerdo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaAcuerdo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "No existe (o no pertenece a tu comercio)."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Conflicto: el recurso ya existe con datos distintos o ya fue resuelto."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Datos inválidos (incluye el envío de datos de tarjeta)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Registrar el acuerdo de datos de un comercio",
+        "tags": [
+          "Administración"
+        ]
+      }
+    },
+    "/v1/comercios/{id_comercio}/acuerdos": {
+      "get": {
+        "description": "Solo analistas y administradores. Del más reciente (el que vale) al más viejo.",
+        "operationId": "historial_acuerdos",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id_comercio",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Id Comercio",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AcuerdoHistorial"
+                  },
+                  "title": "Response Historial Acuerdos",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "No existe (o no pertenece a tu comercio)."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Datos inválidos (incluye el envío de datos de tarjeta)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Historial de acuerdos de un comercio",
+        "tags": [
+          "Administración"
+        ]
+      }
+    },
+    "/v1/comercios/{id_comercio}/reactivar": {
+      "post": {
+        "description": "Solo administradores. Sus claves vuelven a funcionar. Repetir la llamada es seguro.",
+        "operationId": "reactivar_comercio",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id_comercio",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Id Comercio",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaEstadoComercio"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "No existe (o no pertenece a tu comercio)."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Conflicto: el recurso ya existe con datos distintos o ya fue resuelto."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Datos inválidos (incluye el envío de datos de tarjeta)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Reactivar un comercio suspendido",
+        "tags": [
+          "Administración"
+        ]
+      }
+    },
+    "/v1/comercios/{id_comercio}/suspender": {
+      "post": {
+        "description": "Solo administradores. Todas las claves del comercio dejan de funcionar al instante (reciben `403`); ningún pago se guarda después. Sus revisiones pendientes siguen visibles para los analistas. Repetir la llamada es seguro. La plataforma (el equipo) no se puede suspender.",
+        "operationId": "suspender_comercio",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id_comercio",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Id Comercio",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudSuspension"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaEstadoComercio"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "No existe (o no pertenece a tu comercio)."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Conflicto: el recurso ya existe con datos distintos o ya fue resuelto."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Datos inválidos (incluye el envío de datos de tarjeta)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Suspender un comercio",
         "tags": [
           "Administración"
         ]
@@ -2076,7 +2901,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "409": {
             "content": {
@@ -2187,7 +3012,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "404": {
             "content": {
@@ -2286,7 +3111,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "404": {
             "content": {
@@ -2376,7 +3201,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "429": {
             "content": {
@@ -2437,7 +3262,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "404": {
             "content": {
@@ -2533,7 +3358,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "422": {
             "content": {
@@ -2651,7 +3476,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "429": {
             "content": {
@@ -3008,7 +3833,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "404": {
             "content": {
@@ -3420,7 +4245,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "404": {
             "content": {
@@ -3511,7 +4336,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "404": {
             "content": {
@@ -3900,7 +4725,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "404": {
             "content": {
@@ -4322,7 +5147,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "422": {
             "content": {
@@ -4411,7 +5236,7 @@
                 }
               }
             },
-            "description": "La clave no tiene permiso para esta operación."
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
           },
           "404": {
             "content": {

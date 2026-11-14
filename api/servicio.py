@@ -20,7 +20,7 @@ from ..reglas import SEVERIDAD, MotorReglas
 from ..reglas.seguridad import construir_reglas_seguridad
 from . import proveedores_ip, traduccion
 from .ajustes import Ajustes
-from .almacen import PLATAFORMA, Almacen, Principal, ahora_iso, id_seguimiento_libre
+from .almacen import PLATAFORMA, Almacen, ComercioNoAutorizado, Principal, ahora_iso, id_seguimiento_libre
 
 log = logging.getLogger("modelo_ia.api")
 
@@ -116,6 +116,13 @@ class ServicioEvaluacion:
         return {"nombre": self.meta["modelo"], "version": self.meta["version"], "conjunto_variables": self.meta["conjunto"]}
 
     # ----------------------------------------------------------- evaluar
+    def _comercio_puede_operar(self, con: sqlite3.Connection, principal: Principal, acuerdo: bool) -> None:
+        """Se llama DENTRO del bloqueo de cada escritura de un comercio: si lo suspendieron (o, con el ajuste activo, no tiene acuerdo vigente), no se guarda nada."""
+        try:
+            self.alm.verificar_comercio(con, principal.comercio_id, acuerdo and self.aj.exigir_acuerdo, self.reloj().date())
+        except ComercioNoAutorizado as e:
+            raise ErrorAPI(403, "Comercio suspendido" if e.codigo == "comercio_suspendido" else "Sin acuerdo de datos vigente", e.mensaje) from None
+
     def evaluar(self, principal: Principal, solicitud) -> Dict:
         t0 = time.perf_counter()
         ahora = self.reloj()
@@ -146,6 +153,7 @@ class ServicioEvaluacion:
                         resultado, fila_con_24h, negra = self._calcular(con, principal.comercio_id, fila, solicitud, id_eval)
                     latencia = round((time.perf_counter() - t0) * 1000, 2)
                 with self.alm.transaccion() as con:
+                    self._comercio_puede_operar(con, principal, acuerdo=True)             # releído DENTRO del bloqueo: tras suspender, nada se guarda
                     repetida = self._repetida(con, principal, solicitud, huella_solicitud)
                     if repetida is not None:
                         return repetida
@@ -357,6 +365,7 @@ class ServicioEvaluacion:
     # ----------------------------------------------------------- resultados (mejora continua)
     def registrar_resultado(self, principal: Principal, id_eval: str, sol) -> Dict:
         with self.alm.transaccion() as con:
+            self._comercio_puede_operar(con, principal, acuerdo=False)
             e = self._evaluacion_visible(con, principal, id_eval)
             fecha = (sol.fecha_confirmacion or self.reloj()).isoformat()
             previo = con.execute("SELECT resultado FROM resultados WHERE id_evaluacion=?", (id_eval,)).fetchone()
@@ -408,6 +417,7 @@ class ServicioEvaluacion:
     # ----------------------------------------------------------- lista negra (por comercio)
     def agregar_lista_negra(self, principal: Principal, id_cliente: str, motivo: Optional[str]) -> Dict:
         with self.alm.transaccion() as con:
+            self._comercio_puede_operar(con, principal, acuerdo=False)
             con.execute("INSERT OR REPLACE INTO lista_negra (comercio_id, id_cliente, motivo, creada) VALUES (?,?,?,?)",
                         (principal.comercio_id, id_cliente, motivo, ahora_iso()))
             self.alm.auditar(con, principal.comercio_id, principal.clave_id, "lista_negra_agregar", None, {"id_cliente": id_cliente})
@@ -415,6 +425,7 @@ class ServicioEvaluacion:
 
     def quitar_lista_negra(self, principal: Principal, id_cliente: str) -> None:
         with self.alm.transaccion() as con:
+            self._comercio_puede_operar(con, principal, acuerdo=False)
             cur = con.execute("DELETE FROM lista_negra WHERE comercio_id=? AND id_cliente=?", (principal.comercio_id, id_cliente))
             if cur.rowcount != 1:
                 raise ErrorAPI(404, "No encontrado", "Ese cliente no está en la lista negra.")

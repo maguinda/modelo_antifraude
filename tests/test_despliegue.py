@@ -326,8 +326,8 @@ def test_en_produccion_el_servicio_se_niega_a_arrancar_con_un_secreto_malo(tmp_p
 
 def test_los_avisos_de_produccion_no_impiden_arrancar_pero_se_dicen():
     p = Ajustes(pepper="s" * 40).problemas_de_produccion()
-    assert p["bloqueantes"] == [] and len(p["avisos"]) == 3 and any("SIMULADO" in a for a in p["avisos"])
-    ok = Ajustes(pepper="s" * 40, durabilidad="FULL", proveedor_ip="real", csp_modo="enforce").problemas_de_produccion()
+    assert p["bloqueantes"] == [] and len(p["avisos"]) == 4 and any("SIMULADO" in a for a in p["avisos"]) and any("EXIGIR_ACUERDO" in a for a in p["avisos"])
+    ok = Ajustes(pepper="s" * 40, durabilidad="FULL", proveedor_ip="real", csp_modo="enforce", exigir_acuerdo=True).problemas_de_produccion()
     assert ok == {"bloqueantes": [], "avisos": []}
 
 

@@ -208,7 +208,9 @@ python -m modelo_ia.api.exportar_openapi  # escribe modelo_ia/api/openapi.json
 | `POST /v1/evaluaciones/{id}/resultado` | comercio | Informar fraude confirmado, contracargo o legítimo. |
 | `GET /v1/revisiones`, `POST /v1/revisiones/{id}/resolver` | analista | Cola de revisión manual y su resolución (una sola vez). |
 | `GET/PUT/DELETE /v1/lista-negra` | comercio | Clientes que se rechazan siempre en ese comercio. |
-| `POST /v1/comercios` | admin | Crear un comercio y su clave. |
+| `POST /v1/comercios` | admin | Crear un comercio y su clave (razón social y NIT opcionales). |
+| `GET /v1/comercios`, `GET /v1/comercios/{id}/acuerdos` | analista, admin | Comercios con su estado y acuerdo de datos; el NIT solo lo ve el admin. |
+| `POST /v1/comercios/{id}/suspender`, `…/reactivar`, `PUT …/acuerdo` | admin | Suspender o reactivar un comercio y registrar su acuerdo de datos (ver «Comercios: alta, suspensión y acuerdo de datos»). |
 | `GET /v1/modelo`, `GET /v1/salud` | cualquiera / sin clave | Modelo en uso y salud del servicio. |
 
 ### Probarla en tu computador (modo demo)
@@ -313,6 +315,13 @@ La primera prueba de carga **encontró un problema real**: con muchas peticiones
 Las descargas son atómicas y verificadas (si una falla se conserva la versión anterior); `GET /v1/salud` avisa si las bases tienen más de 60 días. Para cambiar a un proveedor de pago basta otra clase con `consultar(ip)`.
 
 **Créditos y licencias de terceros.** La ubicación de IP usa las bases gratuitas de [DB-IP.com](https://db-ip.com) (licencia CC BY 4.0: exige atribución, que se da en el pie del panel y del dashboard y en esta documentación). Los rangos de AWS y Google Cloud y la lista de salidas de Tor no publican licencia o términos: **pendiente de revisar con un abogado**, junto al acuerdo de datos.
+
+## Comercios: alta, suspensión y acuerdo de datos
+- **Alta:** `POST /v1/comercios` (admin) o `admin crear-comercio`; la clave se muestra una sola vez. Razón social y NIT son opcionales; el NIT (en una persona natural es su cédula) solo lo ve un administrador y nunca va a la auditoría ni a otras respuestas.
+- **Suspender / reactivar** (`POST /v1/comercios/{id}/suspender` con un `motivo`, y `…/reactivar`; o `admin suspender-comercio` y `reactivar-comercio`): todas las claves del comercio dan `403 Comercio suspendido` al instante. La comprobación se hace **dentro del bloqueo de guardado** de cada escritura, así que ningún pago, resultado ni cambio de lista negra se guarda después de suspender (una prueba de 30 rondas concurrentes lo comprueba). Repetirlo es seguro. La plataforma (el equipo) **no se puede suspender**, y los analistas siguen viendo y resolviendo sus revisiones pendientes. Una clave inventada sigue dando 401.
+- **Acuerdo de datos** (`PUT /v1/comercios/{id}/acuerdo` o `admin registrar-acuerdo`): se guardan **los datos** (versión, fecha de firma, vigencia y referencia al archivo firmado), no el documento. El historial no se edita (lo impiden triggers): el último registrado es el que vale. Estados: `sin_acuerdo`, `vigente`, `vence_pronto` (30 días o menos) y `vencido`.
+- **Exigir el acuerdo:** `MODELO_IA_EXIGIR_ACUERDO=1` hace que un comercio sin acuerdo vigente reciba `403` al evaluar pagos (reportar resultados y usar su lista negra siguen permitidos). Viene **apagado** para no estorbar a la demo; `GET /v1/salud` avisa mientras lo esté. Activarlo al empezar el piloto.
+- **Pendiente:** no valida que el acuerdo sea legalmente correcto (eso lo revisa el abogado), no hay contraseña ni segundo factor para el admin, el nombre del comercio no es único y los umbrales siguen siendo iguales para todos. Un comercio suspendido que no maneje el `403` en su checkout puede dejar de vender: la guía de integración debe decirlo.
 
 ## Panel de control: ver todo, filtrar y rastrear (API de solo lectura)
 
