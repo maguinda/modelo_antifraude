@@ -439,15 +439,46 @@ def test_la_consola_solo_activa_el_segundo_factor_en_claves_de_administrador_act
 
 
 def test_rotar_la_clave_de_un_admin_deja_la_nueva_sin_segundo_factor(consola, capsys):
-    alm, _ = consola
+    alm, ruta = consola
     admin_id, _ = alm.crear_usuario("admin", "Rota Admin")
     secreto = alm.mfa_iniciar(admin_id)
     assert alm.mfa_confirmar(admin_id, totp.codigo(secreto, time.time()), time.time())
+    assert secreto_guardado(ruta, admin_id) == secreto
     nuevo_id, _ = alm.rotar_clave(admin_id)
     assert (
         alm.mfa_estado(nuevo_id) == "sin_mfa"
     )  # el segundo factor era de la clave anterior: hay que activarlo de nuevo
-    assert alm.mfa_estado(admin_id) == "activa"  # (la clave vieja está apagada y ya no autentica)
+    assert alm.mfa_estado(admin_id) == "sin_mfa"  # y la vieja, apagada, ya no guarda su secreto
+    assert secreto_guardado(ruta, admin_id) is None
+
+
+def secreto_guardado(ruta, clave_id):
+    """Lo que hay en la columna del secreto TOTP de esa clave (directo en la base)."""
+    return sqlite3.connect(ruta).execute("SELECT mfa_secreto FROM claves WHERE id=?", (clave_id,)).fetchone()[0]
+
+
+def test_desactivar_una_clave_de_admin_borra_su_secreto_y_no_toca_las_demas(consola):
+    alm, ruta = consola
+    a, _ = alm.crear_usuario("admin", "Apagar Admin")
+    b, _ = alm.crear_usuario("admin", "Otra Admin")
+    pendiente, _ = alm.crear_usuario("admin", "Pendiente Admin")
+    for clave_id in (a, b):
+        secreto = alm.mfa_iniciar(clave_id)
+        assert alm.mfa_confirmar(clave_id, totp.codigo(secreto, time.time()), time.time())
+    alm.mfa_iniciar(pendiente)  # también un secreto todavía pendiente
+    assert all(secreto_guardado(ruta, i) for i in (a, b, pendiente))
+    alm.desactivar_clave(a)
+    alm.desactivar_clave(pendiente)
+    assert (
+        secreto_guardado(ruta, a) is None and secreto_guardado(ruta, pendiente) is None
+    )  # se borraron los de las claves apagadas
+    assert secreto_guardado(ruta, b) is not None and alm.mfa_estado(b) == "activa"  # la otra clave sigue con el suyo
+    fila = (
+        sqlite3.connect(ruta)
+        .execute("SELECT mfa_confirmada, mfa_ultimo_paso, mfa_fallos, mfa_bloqueo_hasta FROM claves WHERE id=?", (a,))
+        .fetchone()
+    )
+    assert tuple(fila) == (0, 0, 0, None)
 
 
 # ------------------------------------------------------------------ migración 2
