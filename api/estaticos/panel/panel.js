@@ -105,7 +105,7 @@
 
     var det = el("div", "detalle"), izq = el("div", "col-izq");
     var porque = el("section"); porque.appendChild(el("h3", null, "Por qué dudó"));
-    var hay = false;
+    var hay = window.AntifraudeSenales.pintar(porque, rev.senales, rev.puntaje_riesgo);       // lo que más pesó, en palabras
     (rev.motivos || []).forEach(function (m) { porque.appendChild(add(el("div", "motivo"), el("strong", null, m))); hay = true; });
     (rev.reglas_activadas || []).forEach(function (x) { porque.appendChild(add(el("div", "motivo"), el("strong", null, x.regla), el("p", null, x.motivo + " (" + x.accion + ")"))); hay = true; });
     if (!hay) porque.appendChild(el("p", "meta", "El modelo no vio una causa concreta: la probabilidad quedó en la zona de duda."));

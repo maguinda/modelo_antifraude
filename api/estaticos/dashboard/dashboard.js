@@ -407,10 +407,12 @@
         ol.appendChild(li);
       });
       pasos.appendChild(ol);
+      var sen = tarjeta("Señales que más pesaron", "Qué empujó el puntaje de este pago frente a uno típico.");
+      if (!window.AntifraudeSenales.pintar(sen, d.senales, d.puntaje_riesgo)) sen.appendChild(vacio(d.decision.inicial === "APROBADA" ? "Solo se calculan para los pagos que no se aprueban." : "Para este pago no se calcularon señales (el modelo no trae referencia, o no hubo señales que pesaran lo suficiente)."));
       var rtar = tarjeta("Reglas activadas", d.reglas_activadas.length ? "Cada una puede subir o fijar la decisión." : null);
       if (!d.reglas_activadas.length) rtar.appendChild(vacio("Ninguna regla de seguridad se activó."));
       else d.reglas_activadas.forEach(function (r) { var b = el("div", "relacionado"); add(b, add(el("div"), el("span", "chip regla", r.regla), el("p", "sub", r.motivo)), el("strong", null, r.accion)); rtar.appendChild(b); });
-      c.appendChild(add(el("div", "rejilla dos pila"), pasos, rtar));
+      c.appendChild(add(el("div", "rejilla dos pila"), pasos, add(el("div", "pila"), sen, rtar)));
 
       var dat = tarjeta("Datos recibidos", d.campos_no_enviados.length ? "Los marcados «No enviado» no los mandó el comercio: se rellenaron con un valor neutro." : "El comercio mandó todos los datos.");
       Object.keys(d.datos_recibidos).forEach(function (g) {

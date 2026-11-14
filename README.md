@@ -62,6 +62,7 @@ Por defecto lee `datos/dataset_antifraude_500000_transacciones.csv`. Con otro ar
 | `comparar.py` | Prueba varios modelos con los mismos datos. |
 | `predecir.py` | Carga un modelo guardado y decide sobre un pago. |
 | `explicacion.py` | Dice por qué el modelo sospecha de un pago (por ahora, solo modelos lineales). |
+| `explicacion_local.py` | Las «señales que más pesaron» en un pago que no se aprobó, para cualquier modelo (también Gradient Boosting): parte de un pago típico, pone las señales reales una a una (valores de Shapley estimados) y dice cuántos puntos de probabilidad aportó cada una, en frases verificables. Solo la ve el personal; se calcula al decidir y se guarda. Los modelos viejos reciben su referencia con `python -m modelo_ia.explicacion_local agregar-referencia`. Explican al modelo, no prueban fraude. |
 | `experimentos.py` | Bitácora: cada entrenamiento deja una fila en `resultados/experimentos.csv`. |
 | `reglas/motor.py` | Motor de reglas: una regla es «si pasa esto, entonces revisar o bloquear»; gana la más severa y dice qué regla se activó. |
 | `reglas/reglas_base.py` | Reglas fijas de la línea base para H1: versión ingenua (umbrales redondos) y versión ajustada con la validación. |
