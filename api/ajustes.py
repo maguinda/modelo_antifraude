@@ -36,6 +36,7 @@ class Ajustes:
     monto_maximo_cop: int = 200_000_000
     durabilidad: str = "NORMAL"                        # NORMAL (rápida) o FULL (fuerza cada guardado a disco; más lenta)
     hsts_segundos: int = 0                             # HSTS solo por HTTPS; 0 = apagado (en localhost el navegador lo recordaría meses)
+    exigir_acuerdo: bool = False                       # si es True, un comercio sin acuerdo de datos vigente no puede evaluar pagos (MODELO_IA_EXIGIR_ACUERDO)
     proveedor_ip: str = "simulado"                     # quién ubica y evalúa las IP (ver proveedores_ip.py); el simulado es solo de demostración
     csp_modo: str = "report-only"                     # política de contenido de /docs: 'report-only' (observa) o 'enforce' (bloquea)
 
@@ -51,6 +52,7 @@ class Ajustes:
         a.limite_peticiones_por_minuto = int(os.environ.get("MODELO_IA_LIMITE", a.limite_peticiones_por_minuto))
         a.csp_modo = os.environ.get("MODELO_IA_CSP", a.csp_modo)
         a.proveedor_ip = os.environ.get("MODELO_IA_PROVEEDOR_IP", a.proveedor_ip)
+        a.exigir_acuerdo = os.environ.get("MODELO_IA_EXIGIR_ACUERDO", "").strip().lower() in ("1", "true", "si", "sí", "yes")
         a.hsts_segundos = int(os.environ.get("MODELO_IA_HSTS", a.hsts_segundos))
         a.durabilidad = os.environ.get("MODELO_IA_DURABILIDAD", a.durabilidad)
         return a
@@ -64,6 +66,8 @@ class Ajustes:
             bloqueantes.append(f"El secreto es demasiado corto (mínimo {PEPPER_LARGO_MINIMO} caracteres).")
         if self.durabilidad != "FULL":
             avisos.append("MODELO_IA_DURABILIDAD no es FULL: si se va la luz puede perderse lo último que se guardó. En producción conviene FULL.")
+        if not self.exigir_acuerdo:
+            avisos.append("MODELO_IA_EXIGIR_ACUERDO no está activo: se aceptan pagos de comercios sin acuerdo de datos vigente. Actívalo cuando empiece el piloto.")
         if self.proveedor_ip == "simulado":
             avisos.append("El proveedor de IP es SIMULADO: no ubica IP reales. Configura uno real antes de evaluar pagos de verdad.")
         if self.csp_modo != "enforce":

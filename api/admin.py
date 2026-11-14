@@ -15,13 +15,20 @@ sin afectar a las demás. No compartas claves.
 import argparse
 
 from .ajustes import Ajustes
-from .almacen import PLATAFORMA, Almacen
+from .almacen import PLATAFORMA, Almacen, ComercioInexistente, OperacionNoPermitida
 
 
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description="Administración del servicio antifraude.")
     sub = ap.add_subparsers(dest="orden", required=True)
     c = sub.add_parser("crear-comercio"); c.add_argument("--nombre", required=True)
+    c.add_argument("--razon-social", default=None); c.add_argument("--nit", default=None)
+    sub.add_parser("listar-comercios")
+    sp = sub.add_parser("suspender-comercio"); sp.add_argument("--id", type=int, required=True); sp.add_argument("--motivo", required=True)
+    rc = sub.add_parser("reactivar-comercio"); rc.add_argument("--id", type=int, required=True)
+    ac = sub.add_parser("registrar-acuerdo"); ac.add_argument("--comercio-id", type=int, required=True); ac.add_argument("--version", required=True)
+    ac.add_argument("--firmado", required=True, help="AAAA-MM-DD"); ac.add_argument("--vigente-hasta", default=None, help="AAAA-MM-DD (opcional)")
+    ac.add_argument("--referencia", required=True, help="nombre o huella SHA-256 del archivo firmado (el documento no se guarda)")
     k = sub.add_parser("crear-clave"); k.add_argument("--rol", required=True, choices=["comercio", "analista", "admin"])
     k.add_argument("--comercio-id", type=int, default=None); k.add_argument("--etiqueta", default="")
     k.add_argument("--nombre", default=None, help="obligatorio para analista y admin: la persona dueña de la clave")
@@ -37,8 +44,23 @@ def main(argv=None) -> None:
         print("AVISO: usando el secreto de desarrollo. Define MODELO_IA_PEPPER antes de usar esto de verdad.")
     try:
         if a.orden == "crear-comercio":
-            id_comercio = almacen.crear_comercio(a.nombre)
+            id_comercio = almacen.crear_comercio(a.nombre, a.razon_social, a.nit)
             print(f"Comercio creado con id {id_comercio}. Ahora crea su clave con: crear-clave --rol comercio --comercio-id {id_comercio}")
+        elif a.orden == "listar-comercios":
+            for c in almacen.listar_comercios():
+                ac_ = c["acuerdo"]
+                print(f"{c['id']:>3}  {c['estado']:10} {c['nombre'][:26]:26} claves {c['claves_activas']}  pagos {c['pagos']:>6}  acuerdo: {ac_['estado']}" + (f" ({ac_['version']}, hasta {ac_['vigente_hasta'] or 'sin vencimiento'})" if ac_["version"] else ""))
+        elif a.orden == "suspender-comercio":
+            print("Comercio suspendido: sus claves ya no funcionan." if almacen.suspender_comercio(a.id, a.motivo) else "Ese comercio ya estaba suspendido.")
+        elif a.orden == "reactivar-comercio":
+            print("Comercio reactivado: sus claves vuelven a funcionar." if almacen.reactivar_comercio(a.id) else "Ese comercio ya estaba activo.")
+        elif a.orden == "registrar-acuerdo":
+            from datetime import date as _fecha
+            try:
+                firmado, hasta = _fecha.fromisoformat(a.firmado), (_fecha.fromisoformat(a.vigente_hasta) if a.vigente_hasta else None)
+            except ValueError:
+                ap.error("las fechas van como AAAA-MM-DD")
+            print(f"Acuerdo registrado (número {almacen.registrar_acuerdo(a.comercio_id, a.version, firmado, hasta, a.referencia)}).")
         elif a.orden == "crear-clave":
             if a.rol == "comercio" and a.comercio_id is None:
                 ap.error("para el rol comercio indica --comercio-id")
@@ -67,7 +89,7 @@ def main(argv=None) -> None:
         else:
             almacen.desactivar_clave(a.id)
             print("Clave desactivada.")
-    except ValueError as e:
+    except (ValueError, ComercioInexistente, OperacionNoPermitida) as e:
         raise SystemExit(f"ERROR: {e}")
 
 

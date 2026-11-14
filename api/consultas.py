@@ -362,5 +362,5 @@ class ConsultasPanel:
     def comercios(self) -> List[Dict]:
         with self.alm.lectura() as con:
             return [dict(r) for r in con.execute(
-                "SELECT c.id, c.nombre, COUNT(e.id) pagos FROM comercios c LEFT JOIN evaluaciones e ON e.comercio_id = c.id "
+                "SELECT c.id, c.nombre, (c.activo = 0) AS suspendido, COUNT(e.id) pagos FROM comercios c LEFT JOIN evaluaciones e ON e.comercio_id = c.id "
                 "WHERE c.id != 1 GROUP BY c.id ORDER BY pagos DESC, c.nombre")]

@@ -1,7 +1,7 @@
 """Contrato de la API: lo que recibe y lo que responde (de aquí sale el OpenAPI y la página Swagger)."""
 import ipaddress
 import re
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -211,6 +211,19 @@ class SolicitudResolverRevision(_Base):
 
 class SolicitudComercio(_Base):
     nombre: str = Field(min_length=2, max_length=80)
+    razon_social: Optional[str] = Field(None, min_length=2, max_length=120, description="Opcional. Nombre legal del comercio.")
+    nit: Optional[str] = Field(None, pattern=r"^[0-9][0-9.\-]{3,18}[0-9]$", description="Opcional. Ojo: en una persona natural el NIT es su cédula (dato personal); solo lo ve un administrador.")
+
+
+class SolicitudSuspension(_Base):
+    motivo: str = Field(min_length=3, max_length=200, description="Por qué se suspende. Queda en la auditoría.")
+
+
+class SolicitudAcuerdo(_Base):
+    version: str = Field(min_length=1, max_length=40, description="Versión del documento, por ejemplo `v1.2`.")
+    firmado_en: date = Field(description="Fecha de firma (AAAA-MM-DD). No puede ser futura.")
+    vigente_hasta: Optional[date] = Field(None, description="Opcional. Si no se pone, no vence.")
+    referencia: str = Field(min_length=1, max_length=120, description="Cómo encontrar el archivo firmado (su nombre o su huella SHA-256). El documento NO se guarda en el sistema.")
 
 
 class SolicitudListaNegra(_Base):
@@ -303,6 +316,45 @@ class RespuestaYo(BaseModel):
     rol: str = Field(description="`comercio`, `analista` o `admin`.")
     usuario: Optional[str] = Field(None, description="Para analistas y administradores: el nombre de la persona dueña de la clave.")
     comercio: str = Field(description="El comercio al que pertenece la clave (para analistas y administradores, la plataforma).")
+
+
+class EstadoAcuerdo(BaseModel):
+    estado: str = Field(description="`sin_acuerdo`, `vigente`, `vence_pronto` (30 días o menos), `vencido` o `reemplazado` (uno más nuevo lo sustituyó).")
+    version: Optional[str] = None
+    firmado_en: Optional[str] = None
+    vigente_hasta: Optional[str] = None
+    dias_para_vencer: Optional[int] = None
+
+
+class AcuerdoHistorial(EstadoAcuerdo):
+    referencia: str
+    registrado: str
+
+
+class FilaComercio(BaseModel):
+    id: int
+    nombre: str
+    razon_social: Optional[str] = None
+    nit: Optional[str] = Field(None, description="Solo lo ve un administrador (en una persona natural es su cédula).")
+    estado: str = Field(description="`activo` o `suspendido`.")
+    suspendido_en: Optional[str] = None
+    motivo_suspension: Optional[str] = None
+    creado: str
+    claves_activas: int
+    ultimo_uso: Optional[str] = None
+    pagos: int
+    acuerdo: EstadoAcuerdo
+
+
+class RespuestaEstadoComercio(BaseModel):
+    id_comercio: int
+    estado: str = Field(description="`activo` o `suspendido`, después de la operación.")
+    cambio: bool = Field(description="`false` si ya estaba así (repetir la operación es seguro y no hace nada).")
+
+
+class RespuestaAcuerdo(BaseModel):
+    id_acuerdo: int
+    acuerdo: EstadoAcuerdo
 
 
 class RespuestaComercio(BaseModel):

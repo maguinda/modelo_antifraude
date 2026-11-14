@@ -20,6 +20,7 @@ services:
       MODELO_IA_PEPPER_ARCHIVO: /run/secrets/pepper          # el secreto va en un archivo, no en una variable de entorno
       MODELO_IA_CSP: ${MODELO_IA_CSP:-report-only}
       MODELO_IA_PROVEEDOR_IP: ${MODELO_IA_PROVEEDOR_IP:-simulado}
+      MODELO_IA_EXIGIR_ACUERDO: ${MODELO_IA_EXIGIR_ACUERDO:-0}      # 1 = un comercio sin acuerdo de datos vigente no puede evaluar pagos (activar al empezar el piloto)
       MODELO_IA_LIMITE: ${MODELO_IA_LIMITE:-600}
       MODELO_IA_HSTS: "0"                                    # el HSTS lo pone Caddy (quien termina el HTTPS)
     secrets: [pepper]

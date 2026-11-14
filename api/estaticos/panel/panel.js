@@ -190,7 +190,7 @@
   function cargarComercios() {
     return api("/v1/panel/comercios").then(function (lista) {
       var sel = $("comercio");
-      lista.forEach(function (c) { var o = el("option", null, c.nombre); o.value = String(c.id); sel.appendChild(o); });
+      lista.forEach(function (c) { var o = el("option", null, c.nombre + (c.suspendido ? " (suspendido)" : "")); o.value = String(c.id); sel.appendChild(o); });
       $("campoComercio").hidden = lista.length < 2;
     }).catch(function () { $("campoComercio").hidden = true; });
   }

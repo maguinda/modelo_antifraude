@@ -104,7 +104,7 @@
       add(c, (function () { var l = el("label", null, d.et); l.htmlFor = id; return l; })());
       if (d.tipo === "select" || d.tipo === "comercio") {
         ctl = el("select");
-        (d.tipo === "comercio" ? [["", "Todos los comercios"]].concat(comercios.map(function (x) { return [String(x.id), x.nombre]; })) : d.op).forEach(function (o) {
+        (d.tipo === "comercio" ? [["", "Todos los comercios"]].concat(comercios.map(function (x) { return [String(x.id), x.nombre + (x.suspendido ? " (suspendido)" : "")]; })) : d.op).forEach(function (o) {
           var op = el("option", null, o[1]); op.value = o[0]; ctl.appendChild(op);
         });
       } else {

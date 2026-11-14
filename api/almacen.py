@@ -12,15 +12,36 @@ import sqlite3
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 PLATAFORMA = 1          # id del «comercio» al que pertenecen las claves de analistas y administradores
 
+
+class ComercioNoAutorizado(Exception):
+    """Un comercio no puede operar ahora: está suspendido (`comercio_suspendido`) o no tiene acuerdo de datos vigente (`sin_acuerdo`)."""
+    def __init__(self, codigo: str, mensaje: str):
+        super().__init__(mensaje)
+        self.codigo, self.mensaje = codigo, mensaje
+
+
+class ComercioInexistente(Exception):
+    """El id de comercio no existe (o es el de la plataforma, que no se administra como un comercio)."""
+
+
+class OperacionNoPermitida(Exception):
+    """Algo que no se debe hacer nunca, ni siendo administrador (p. ej. suspender la plataforma y dejar sin acceso a todo el equipo)."""
+
 DDL = """
 CREATE TABLE IF NOT EXISTS comercios (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, creado TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1);
+    id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, creado TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1,
+    razon_social TEXT, nit TEXT, suspendido_en TEXT, motivo_suspension TEXT);
+CREATE TABLE IF NOT EXISTS acuerdos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, comercio_id INTEGER NOT NULL REFERENCES comercios(id), version TEXT NOT NULL, firmado_en TEXT NOT NULL,
+    vigente_hasta TEXT, referencia TEXT NOT NULL, registrado TEXT NOT NULL, registrado_por INTEGER);
+CREATE TRIGGER IF NOT EXISTS acuerdos_no_se_edita BEFORE UPDATE ON acuerdos BEGIN SELECT RAISE(ABORT, 'los acuerdos no se editan: se registra uno nuevo'); END;
+CREATE TRIGGER IF NOT EXISTS acuerdos_no_se_borra BEFORE DELETE ON acuerdos BEGIN SELECT RAISE(ABORT, 'los acuerdos no se borran'); END;
 CREATE TABLE IF NOT EXISTS claves (
     id INTEGER PRIMARY KEY AUTOINCREMENT, hash TEXT NOT NULL UNIQUE, comercio_id INTEGER NOT NULL REFERENCES comercios(id),
     rol TEXT NOT NULL CHECK (rol IN ('comercio','analista','admin')), etiqueta TEXT, activa INTEGER NOT NULL DEFAULT 1, creada TEXT NOT NULL);
@@ -61,6 +82,27 @@ CREATE INDEX IF NOT EXISTS ix_eval_decision ON evaluaciones (decision, fecha);
 CREATE INDEX IF NOT EXISTS ix_eval_ip ON evaluaciones (ip_codigo, fecha);
 CREATE INDEX IF NOT EXISTS ix_eval_disp ON evaluaciones (disp_codigo, fecha);
 """
+
+
+def _texto(valor: Any, minimo: int, maximo: int, nombre: str) -> str:
+    """Texto libre limpio: sin espacios de más, sin caracteres de control ni < >, y dentro del largo permitido."""
+    t = re.sub(r"\s+", " ", str(valor or "")).strip()
+    if not minimo <= len(t) <= maximo or re.search(r"[\x00-\x1f\x7f<>]", t):
+        raise ValueError(f"{nombre} debe tener entre {minimo} y {maximo} caracteres y no llevar signos < o >.")
+    return t
+
+
+DIAS_AVISO_VENCIMIENTO = 30
+
+
+def estado_acuerdo(ultimo: Optional[Any], hoy: date) -> Dict[str, Any]:
+    """El estado del acuerdo de datos de un comercio a partir de su último registro: sin_acuerdo, vigente, vence_pronto (en 30 días o menos) o vencido."""
+    if ultimo is None:
+        return {"estado": "sin_acuerdo", "version": None, "firmado_en": None, "vigente_hasta": None, "dias_para_vencer": None}
+    hasta = date.fromisoformat(ultimo["vigente_hasta"]) if ultimo["vigente_hasta"] else None
+    dias = (hasta - hoy).days if hasta else None
+    estado = "vigente" if dias is None or dias > DIAS_AVISO_VENCIMIENTO else "vence_pronto" if dias >= 0 else "vencido"
+    return {"estado": estado, "version": ultimo["version"], "firmado_en": ultimo["firmado_en"], "vigente_hasta": ultimo["vigente_hasta"], "dias_para_vencer": dias}
 
 
 def ahora_iso() -> str:
@@ -156,6 +198,10 @@ class Almacen:
             for nueva in ("ultimo_uso", "creada_por"):                      # bases creadas antes de existir estas columnas
                 if nueva not in claves:
                     con.execute(f"ALTER TABLE claves ADD COLUMN {nueva} " + ("TEXT" if nueva == "ultimo_uso" else "INTEGER"))
+            comercios = {r["name"] for r in con.execute("PRAGMA table_info(comercios)")}
+            for nueva in ("razon_social", "nit", "suspendido_en", "motivo_suspension"):          # bases creadas antes de existir estas columnas
+                if nueva not in comercios:
+                    con.execute(f"ALTER TABLE comercios ADD COLUMN {nueva} TEXT")
             con.executescript(INDICES_PANEL)
             if con.execute("SELECT 1 FROM comercios WHERE id=?", (PLATAFORMA,)).fetchone() is None:
                 con.execute("INSERT INTO comercios (id, nombre, creado) VALUES (?, 'PLATAFORMA', ?)", (PLATAFORMA, ahora_iso()))
@@ -208,11 +254,109 @@ class Almacen:
         """Código corto e irreversible de la huella del dispositivo (la huella real no se muestra)."""
         return hmac.new(self.pepper, ("disp|" + str(huella)).encode("utf-8"), hashlib.sha256).hexdigest()[:8].upper()
 
-    def crear_comercio(self, nombre: str) -> int:
+    def crear_comercio(self, nombre: str, razon_social: Optional[str] = None, nit: Optional[str] = None, por: Optional[int] = None) -> int:
+        razon_social = _texto(razon_social, 2, 120, "La razón social") if razon_social else None
+        if nit is not None and not re.fullmatch(r"[0-9][0-9.\-]{3,18}[0-9]", str(nit)):
+            raise ValueError("El NIT debe llevar solo números, puntos o guion (de 5 a 20 caracteres).")
         with self.transaccion() as con:
-            cur = con.execute("INSERT INTO comercios (nombre, creado) VALUES (?, ?)", (nombre, ahora_iso()))
-            self.auditar(con, None, None, "comercio_creado", None, {"nombre": nombre, "id": cur.lastrowid})
+            cur = con.execute("INSERT INTO comercios (nombre, creado, razon_social, nit) VALUES (?, ?, ?, ?)", (nombre, ahora_iso(), razon_social, nit))
+            self.auditar(con, None, por, "comercio_creado", None, {"nombre": nombre, "id": cur.lastrowid, "con_nit": nit is not None})   # el NIT nunca va a la auditoría
             return int(cur.lastrowid)
+
+    # ------------------------------------------------------------ suspensión y acuerdo de datos
+    def verificar_comercio(self, con: sqlite3.Connection, comercio_id: int, exigir_acuerdo: bool = False, hoy: Optional[date] = None) -> None:
+        """Se llama DENTRO del bloqueo de cada escritura de un comercio: así, ningún pago se guarda después de que se suspendió (se relee el estado
+        aquí, no antes). La plataforma (analistas y administradores) nunca se bloquea."""
+        if comercio_id == PLATAFORMA:
+            return
+        c = con.execute("SELECT activo FROM comercios WHERE id=?", (comercio_id,)).fetchone()
+        if c is None or not c["activo"]:
+            raise ComercioNoAutorizado("comercio_suspendido", "Este comercio está suspendido. Contacta al administrador del servicio.")
+        if exigir_acuerdo:
+            ult = con.execute("SELECT * FROM acuerdos WHERE comercio_id=? ORDER BY id DESC LIMIT 1", (comercio_id,)).fetchone()
+            if estado_acuerdo(ult, hoy or date.today())["estado"] not in ("vigente", "vence_pronto"):
+                raise ComercioNoAutorizado("sin_acuerdo", "Este comercio no tiene un acuerdo de datos vigente. Contacta al administrador del servicio.")
+
+    def comercio_suspendido_por_clave(self, clave: str) -> bool:
+        """¿Esta clave (válida y activa) es de un comercio suspendido? Solo se pregunta cuando la autenticación falló."""
+        with self.lectura() as con:
+            return con.execute("SELECT 1 FROM claves k JOIN comercios c ON c.id = k.comercio_id WHERE k.hash=? AND k.activa=1 AND c.activo=0",
+                               (self._hash(clave),)).fetchone() is not None
+
+    def suspender_comercio(self, comercio_id: int, motivo: str, por: Optional[int] = None) -> bool:
+        """Devuelve True si se suspendió ahora, False si ya estaba suspendido (repetirlo no hace nada ni ensucia la auditoría)."""
+        motivo = _texto(motivo, 3, 200, "El motivo")
+        if comercio_id == PLATAFORMA:
+            raise OperacionNoPermitida("El comercio interno de la plataforma no se puede suspender: dejaría sin acceso a todo el equipo.")
+        with self.transaccion() as con:
+            c = con.execute("SELECT activo FROM comercios WHERE id=?", (comercio_id,)).fetchone()
+            if c is None:
+                raise ComercioInexistente("No existe ese comercio.")
+            if not c["activo"]:
+                return False
+            con.execute("UPDATE comercios SET activo=0, suspendido_en=?, motivo_suspension=? WHERE id=?", (ahora_iso(), motivo, comercio_id))
+            self.auditar(con, comercio_id, por, "comercio_suspendido", None, {"motivo": motivo})
+            return True
+
+    def reactivar_comercio(self, comercio_id: int, por: Optional[int] = None) -> bool:
+        with self.transaccion() as con:
+            c = con.execute("SELECT activo FROM comercios WHERE id=?", (comercio_id,)).fetchone()
+            if c is None:
+                raise ComercioInexistente("No existe ese comercio.")
+            if c["activo"]:
+                return False
+            con.execute("UPDATE comercios SET activo=1, suspendido_en=NULL, motivo_suspension=NULL WHERE id=?", (comercio_id,))
+            self.auditar(con, comercio_id, por, "comercio_reactivado", None, {})
+            return True
+
+    def registrar_acuerdo(self, comercio_id: int, version: str, firmado_en: date, vigente_hasta: Optional[date], referencia: str,
+                          por: Optional[int] = None, hoy: Optional[date] = None) -> int:
+        """Guarda los DATOS de un acuerdo de datos (no el documento). El historial no se edita: uno nuevo reemplaza al anterior como vigente."""
+        hoy = hoy or date.today()
+        if not re.fullmatch(r"[\w .\-]{1,40}", str(version or "")):
+            raise ValueError("La versión del acuerdo debe tener de 1 a 40 caracteres (letras, números, espacio, punto o guion).")
+        if not re.fullmatch(r"[\w .,:#()\-]{1,120}", str(referencia or "")):
+            raise ValueError("La referencia del archivo firmado debe tener de 1 a 120 caracteres, sin rutas ni signos raros (por ejemplo su nombre o su huella SHA-256).")
+        if not isinstance(firmado_en, date) or isinstance(firmado_en, datetime) or (vigente_hasta is not None and (not isinstance(vigente_hasta, date) or isinstance(vigente_hasta, datetime))):
+            raise ValueError("Las fechas del acuerdo deben ser fechas (AAAA-MM-DD).")
+        if (firmado_en - hoy).days > 1:
+            raise ValueError("La fecha de firma no puede ser futura.")
+        if vigente_hasta is not None and vigente_hasta < firmado_en:
+            raise ValueError("El acuerdo no puede vencer antes de su firma.")
+        if comercio_id == PLATAFORMA:
+            raise OperacionNoPermitida("La plataforma no es un comercio: no lleva acuerdo de datos.")
+        with self.transaccion() as con:
+            if con.execute("SELECT 1 FROM comercios WHERE id=?", (comercio_id,)).fetchone() is None:
+                raise ComercioInexistente("No existe ese comercio.")
+            cur = con.execute("INSERT INTO acuerdos (comercio_id, version, firmado_en, vigente_hasta, referencia, registrado, registrado_por) VALUES (?,?,?,?,?,?,?)",
+                              (comercio_id, version, firmado_en.isoformat(), vigente_hasta.isoformat() if vigente_hasta else None, referencia, ahora_iso(), por))
+            self.auditar(con, comercio_id, por, "acuerdo_registrado", None, {"version": version, "firmado_en": firmado_en.isoformat(),
+                                                                                "vigente_hasta": vigente_hasta.isoformat() if vigente_hasta else None, "referencia": referencia})
+            return int(cur.lastrowid)
+
+    def historial_acuerdos(self, comercio_id: int, hoy: Optional[date] = None) -> Optional[List[Dict[str, Any]]]:
+        """None si el comercio no existe. Del más reciente al más viejo; el primero es el que vale."""
+        hoy = hoy or date.today()
+        with self.lectura() as con:
+            if comercio_id == PLATAFORMA or con.execute("SELECT 1 FROM comercios WHERE id=?", (comercio_id,)).fetchone() is None:
+                return None
+            filas = con.execute("SELECT * FROM acuerdos WHERE comercio_id=? ORDER BY id DESC", (comercio_id,)).fetchall()
+        return [dict(estado_acuerdo(f, hoy) if i == 0 else {"estado": "reemplazado", "version": f["version"], "firmado_en": f["firmado_en"], "vigente_hasta": f["vigente_hasta"],
+                                                          "dias_para_vencer": None}, referencia=f["referencia"], registrado=f["registrado"]) for i, f in enumerate(filas)]
+
+    def listar_comercios(self, hoy: Optional[date] = None, con_nit: bool = False) -> List[Dict[str, Any]]:
+        """Para el personal. El NIT (que en una persona natural es su cédula) solo sale si `con_nit`."""
+        hoy = hoy or date.today()
+        with self.lectura(instantanea=True) as con:
+            filas = con.execute(
+                "SELECT c.*, (SELECT COUNT(*) FROM claves k WHERE k.comercio_id=c.id AND k.activa=1) AS claves_activas, "
+                "(SELECT MAX(k.ultimo_uso) FROM claves k WHERE k.comercio_id=c.id) AS ultimo_uso, "
+                "(SELECT COUNT(*) FROM evaluaciones e WHERE e.comercio_id=c.id) AS pagos FROM comercios c WHERE c.id != ? ORDER BY c.activo DESC, c.nombre", (PLATAFORMA,)).fetchall()
+            ultimos = {a["comercio_id"]: a for a in con.execute("SELECT * FROM acuerdos a WHERE a.id = (SELECT MAX(id) FROM acuerdos WHERE comercio_id = a.comercio_id)")}
+        return [{"id": f["id"], "nombre": f["nombre"], "razon_social": f["razon_social"], "nit": f["nit"] if con_nit else None,
+                 "estado": "activo" if f["activo"] else "suspendido", "suspendido_en": f["suspendido_en"], "motivo_suspension": f["motivo_suspension"],
+                 "creado": f["creado"], "claves_activas": f["claves_activas"], "ultimo_uso": f["ultimo_uso"], "pagos": f["pagos"],
+                 "acuerdo": estado_acuerdo(ultimos.get(f["id"]), hoy)} for f in filas]
 
     def crear_clave(self, comercio_id: int, rol: str, etiqueta: str = "", creada_por: Optional[int] = None) -> str:
         """Devuelve la clave en claro UNA vez; en la base solo queda su hash."""
