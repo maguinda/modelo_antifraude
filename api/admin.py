@@ -8,14 +8,18 @@ Uso:
     python -m modelo_ia.api.admin listar-claves                                              # quién tiene acceso y cuándo la usó por última vez
     python -m modelo_ia.api.admin rotar-clave --id 3                                         # cambia la clave de una persona (la anterior se apaga)
     python -m modelo_ia.api.admin desactivar-clave --id 3                                    # cuando alguien deja de trabajar con el sistema
+    python -m modelo_ia.api.admin migraciones                                                # qué cambios de la base están aplicados y cuáles faltan (no toca nada)
+    python -m modelo_ia.api.admin migrar                                                     # aplica los que falten (con copia previa); también lo hace el servicio al arrancar
 
 Regla: cada analista y cada administrador tiene SU clave, con su nombre. Así se sabe quién decidió cada revisión y se puede dar de baja a una persona
 sin afectar a las demás. No compartas claves.
 """
 import argparse
+from pathlib import Path
 
 from .ajustes import Ajustes
 from .almacen import Almacen, ComercioInexistente, OperacionNoPermitida
+from .migraciones import BaseMasNueva, CopiaPreviaFallo
 
 
 def main(argv=None) -> None:
@@ -33,16 +37,36 @@ def main(argv=None) -> None:
     k.add_argument("--comercio-id", type=int, default=None); k.add_argument("--etiqueta", default="")
     k.add_argument("--nombre", default=None, help="obligatorio para analista y admin: la persona dueña de la clave")
     sub.add_parser("listar-claves")
+    sub.add_parser("migraciones", help="qué cambios de la base están aplicados y cuáles faltan (no modifica nada)")
+    sub.add_parser("migrar", help="aplica los cambios de la base que falten (guarda una copia antes si la base tiene datos)")
     r = sub.add_parser("rotar-clave"); r.add_argument("--id", type=int, required=True)
     d = sub.add_parser("desactivar-clave"); d.add_argument("--id", type=int, required=True)
     a = ap.parse_args(argv)
 
     ajustes = Ajustes.desde_entorno()
     almacen = Almacen(ajustes.ruta_bd, ajustes.pepper)
-    almacen.inicializar()
     if ajustes.pepper_inseguro:
         print("AVISO: usando el secreto de desarrollo. Define MODELO_IA_PEPPER antes de usar esto de verdad.")
     try:
+        if a.orden == "migraciones":                                  # solo consulta: no aplica nada (ni crea la base si no existe)
+            if not Path(ajustes.ruta_bd).exists():
+                print("La base todavía no existe: se crea al arrancar el servicio o con «migrar».")
+                return
+            for m in almacen.estado_migraciones():
+                marca = "PENDIENTE" if m["aplicada"] is None else "aplicada " + m["aplicada"][:16].replace("T", " ")
+                print(f"{m['id']:>3}  {marca:26} {m['nombre']}" + ("   ← DESCONOCIDA: la base es de una versión más nueva que este programa" if m["desconocida"] else ""))
+            copias = almacen.copias_previas()
+            print(f"Copias previas a migrar: {len(copias)}" + ("".join(f"\n  {c.name}" for c in copias) if copias else "") +
+                  ("\n(tienen los mismos datos que la base: cuídalas igual y bórralas cuando ya no las necesites)" if copias else ""))
+            return
+        hechas = almacen.inicializar()
+        if hechas:
+            copias = almacen.copias_previas()
+            print(f"Base actualizada: migraciones aplicadas {hechas}." + (f" Copia previa guardada: {copias[-1].name}" if copias else ""))
+        if a.orden == "migrar":
+            if not hechas:
+                print("La base ya está al día: no había nada que migrar.")
+            return
         if a.orden == "crear-comercio":
             id_comercio = almacen.crear_comercio(a.nombre, a.razon_social, a.nit)
             print(f"Comercio creado con id {id_comercio}. Ahora crea su clave con: crear-clave --rol comercio --comercio-id {id_comercio}")
@@ -89,7 +113,7 @@ def main(argv=None) -> None:
         else:
             almacen.desactivar_clave(a.id)
             print("Clave desactivada.")
-    except (ValueError, ComercioInexistente, OperacionNoPermitida) as e:
+    except (ValueError, ComercioInexistente, OperacionNoPermitida, BaseMasNueva, CopiaPreviaFallo) as e:
         raise SystemExit(f"ERROR: {e}")
 
 

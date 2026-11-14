@@ -1197,6 +1197,7 @@ def test_una_base_creada_antes_de_esta_columna_se_actualiza_sola(tmp_path):
     con = sqlite3.connect(tmp_path / "x.sqlite3")
     con.executescript("ALTER TABLE evaluaciones RENAME TO tmp; CREATE TABLE evaluaciones AS SELECT id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, "
                       "solicitud_hash, decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, modelo_conjunto, modo, latencia_ms, creada FROM tmp; DROP TABLE tmp;")
+    con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
     con.commit(); con.close()
     (tmp_path / "x.sqlite3").rename(ruta)
     assert "red_origen" not in {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(evaluaciones)")}
@@ -1305,6 +1306,7 @@ def test_una_base_vieja_recibe_las_dos_columnas_nuevas(tmp_path):
     con = sqlite3.connect(ruta)
     con.executescript("ALTER TABLE evaluaciones RENAME TO tmp; CREATE TABLE evaluaciones AS SELECT id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, "
                       "solicitud_hash, decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, modelo_conjunto, modo, latencia_ms, creada FROM tmp; DROP TABLE tmp;")
+    con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
     con.commit(); con.close()
     Almacen(ruta, "p").inicializar()
     columnas = {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(evaluaciones)")}
@@ -1365,6 +1367,7 @@ def test_una_base_vieja_sin_columnas_del_panel_se_rellena_sin_repetir_ids(tmp_pa
         con.execute(f"DROP INDEX {ix}")
     for col in ("id_seguimiento", "ip_codigo", "disp_codigo", "monto_cop", "no_enviados_json"):
         con.execute(f"ALTER TABLE evaluaciones DROP COLUMN {col}")
+    con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
     con.commit(); con.close()
     Almacen(c.bd, "pepper-de-prueba").inicializar()
     despues = sqlite3.connect(c.bd).execute("SELECT id, ip_codigo, disp_codigo, monto_cop, id_seguimiento FROM evaluaciones ORDER BY id").fetchall()

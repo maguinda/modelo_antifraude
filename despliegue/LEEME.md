@@ -109,9 +109,26 @@ Como los archivos están cifrados, el lugar donde queden guardados no ve su cont
 - **HSTS (`HSTS_SEGUNDOS`):** súbelo por escalones (300 → 86400 → 2592000 → 31536000) a medida que confirmas que el HTTPS funciona bien. Un valor alto es difícil de deshacer.
 - **Imagen base:** la primera vez que construyas la imagen, fija `python:3.12-slim` por su «digest» en el `Dockerfile`, y revisa las actualizaciones de seguridad cada mes.
 
+## Actualizar el programa (y la base de datos)
+Los cambios de la base son **migraciones numeradas** (ver `api/migraciones.py`): se aplican una sola vez, cada una en una transacción, y quedan registradas en la tabla `migraciones`. El servicio las aplica solo al arrancar, pero conviene hacerlo a propósito:
+
+1. **Comprueba que el último respaldo cifrado es reciente** (ver «Copia fuera del servidor»). Una migración no se puede deshacer; si algo saliera mal, se vuelve atrás restaurando una copia.
+2. **Mira qué falta** con el programa viejo todavía corriendo (no modifica nada): `docker compose exec api python -m modelo_ia.api.admin migraciones`
+3. **Construye lo nuevo y migra ANTES de atender tráfico:**
+   ```
+   docker compose build api
+   docker compose run --rm --no-deps api python -m modelo_ia.api.admin migrar
+   docker compose up -d
+   ```
+   Si la base ya tiene datos, antes de tocarla se guarda una **copia previa** junto a ella (`api.sqlite3.antes-de-migrar-vN-FECHA.sqlite3`, permisos 600). Si esa copia no se puede guardar (sin espacio, sin permisos), **no se migra nada**: libera espacio (necesitas lo que pesa la base) y reintenta.
+4. Comprueba `/v1/salud` y un pago de antes: responde «repetida».
+5. Cuando todo esté bien, **borra la copia previa** con `rm` desde el volumen de datos. Tiene los mismos datos que la base (personales, aunque seudonimizados), **no entra en el respaldo cifrado** y no se borra sola: no la dejes olvidada.
+
+Si el servicio se niega a arrancar diciendo que la base es de **una versión más nueva**, estás abriendo una base migrada con un programa más viejo: no fuerces nada; usa la imagen nueva o restaura una copia anterior.
+
 ## Si algo sale mal
 
-**El servicio no arranca.** `docker compose logs api`. Si dice «El servicio NO arranca en producción», falta el secreto o es muy corto.
+**El servicio no arranca.** `docker compose logs api`. Si dice «El servicio NO arranca en producción», falta el secreto o es muy corto. Si dice «versión más nueva» o «No se pudo guardar la copia previa», ver «Actualizar el programa».
 
 **La API se cayó.** Si el proceso se cae solo, Docker lo levanta de nuevo (comprobado). Si lo detuvo una persona con `docker stop` o `docker kill`, Docker lo trata como una parada voluntaria y NO lo reinicia: súbelo con `docker compose up -d`.
 
