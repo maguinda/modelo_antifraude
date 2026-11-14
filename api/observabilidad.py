@@ -117,7 +117,9 @@ class ObservabilidadMiddleware:
             await self.app(scope, receive, send)
             return
         entrante = next((v.decode("latin-1") for k, v in scope["headers"] if k == b"x-request-id"), "")
-        rid = entrante if ID_VALIDO.match(entrante) else str(uuid.uuid4())
+        rid = (
+            entrante if ID_VALIDO.fullmatch(entrante) else str(uuid.uuid4())
+        )  # fullmatch: «$» aceptaría un \n al final
         id_peticion.set(rid)
         inicio = time.perf_counter()
         estado = 500

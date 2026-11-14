@@ -391,16 +391,46 @@ def test_los_campos_de_tarjeta_se_rechazan_y_no_se_repiten_en_la_respuesta(ctx, 
     p = pago()
     p[campo] = valor
     r = ctx.evaluar(p)
-    assert r.status_code == 422 and valor not in r.text and "datos de tarjeta" in r.text
+    assert r.status_code == 422 and valor not in sin_request_id(r.text) and "datos de tarjeta" in r.text
 
 
-def test_un_numero_de_tarjeta_escondido_en_un_texto_se_rechaza_sin_repetirlo(ctx):
+def sin_request_id(texto: str) -> str:
+    """El cuerpo sin el `request_id` (un UUID aleatorio): una prueba que busca trozos de texto, como «4111», no debe fallar porque el azar los ponga ahí."""
+    return re.sub(r'"request_id"\s*:\s*"[^"]*"', "", texto)
+
+
+@pytest.mark.parametrize(
+    "campo", ["id_cliente", "ciudad"]
+)  # cada campo es su propia prueba: ninguno se queda sin comprobar
+def test_un_numero_de_tarjeta_escondido_en_un_texto_se_rechaza_sin_repetirlo(ctx, campo):
     pan = "4111 1111 1111 1111"
-    for campo in ("id_cliente", "ciudad"):
-        p = pago()
-        p[campo] = pan.replace(" ", "-") if campo == "id_cliente" else f"Bogotá {pan}"
-        r = ctx.evaluar(p)
-        assert r.status_code == 422 and "4111" not in r.text and "1111" not in r.text, campo
+    p = pago()
+    p[campo] = pan.replace(" ", "-") if campo == "id_cliente" else f"Bogotá {pan}"
+    r = ctx.evaluar(p)
+    texto = sin_request_id(r.text)
+    assert r.status_code == 422 and "4111" not in texto and "1111" not in texto, campo
+
+
+def test_un_request_id_con_digitos_de_tarjeta_no_cuenta_como_repetir_el_numero(ctx):
+    """El `request_id` (aleatorio, o el que manda el cliente) puede contener «4111» o «1111»; las pruebas de tarjeta lo quitan antes de buscar."""
+    r = ctx.cliente.post(
+        "/v1/evaluaciones",
+        json=pago(ciudad="Bogotá 4111 1111 1111 1111"),
+        headers={**ctx.h("A"), "X-Request-ID": "id-4111-1111-prueba"},
+    )
+    assert r.status_code == 422 and "4111" in r.text  # el id está en la respuesta...
+    assert "4111" not in sin_request_id(r.text) and "1111" not in sin_request_id(
+        r.text
+    )  # ...y aun así el número de tarjeta no se repite
+
+
+def test_un_request_id_con_un_cvv_corto_no_cuenta_como_repetir_el_dato(ctx):
+    """Un CVV de 3 dígitos como «987» puede aparecer por azar en un UUID (~0,7 %): se quita el `request_id` antes de buscarlo."""
+    r = ctx.cliente.post(
+        "/v1/evaluaciones", json={**pago(), "cvv": "987"}, headers={**ctx.h("A"), "X-Request-ID": "id-987-prueba-cvv"}
+    )
+    assert r.status_code == 422 and "987" in r.text  # el id está en la respuesta...
+    assert "987" not in sin_request_id(r.text) and "datos de tarjeta" in r.text  # ...y aun así el CVV no se repite
 
 
 def test_pego_numero_tarjeta_es_un_campo_permitido(ctx):
@@ -1114,10 +1144,10 @@ def test_la_tienda_rechaza_datos_de_tarjeta_sin_repetirlos(demo):
     cuerpo = _cuerpo_tienda()
     cuerpo["sdk"]["dispositivo"]["numero_tarjeta"] = "4111111111111111"
     r = c.post("/demo/tienda/pagar", json=cuerpo)
-    assert r.status_code == 422 and "4111" not in r.text
+    assert r.status_code == 422 and "4111" not in sin_request_id(r.text)
     cuerpo2 = _cuerpo_tienda(id_cliente="4111-1111-1111-1111")
     r2 = c.post("/demo/tienda/pagar", json=cuerpo2)
-    assert r2.status_code == 422 and "4111" not in r2.text
+    assert r2.status_code == 422 and "4111" not in sin_request_id(r2.text)
 
 
 def test_los_proveedores_simulados_estan_marcados_y_son_deterministas():

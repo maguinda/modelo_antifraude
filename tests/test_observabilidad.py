@@ -87,6 +87,29 @@ def test_cada_respuesta_trae_x_request_id_y_solo_se_respeta_uno_valido(ctx):
     assert len({ctx.cliente.get("/v1/salud").headers["x-request-id"] for _ in range(5)}) == 5  # uno nuevo por petición
 
 
+def test_un_id_con_salto_de_linea_al_final_se_reemplaza_aunque_la_expresion_use_signo_de_fin():
+    """Un servidor HTTP real no entrega un salto de línea dentro de una cabecera, pero un cliente ASGI directo sí; `$` lo habría aceptado."""
+    import asyncio
+
+    async def app(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    for hostil in (b"abcdefgh\n", b"abcdefgh\r\n", b"\nabcdefgh", b"abcd\nefgh"):
+        mensajes = []
+
+        async def enviar(m):
+            mensajes.append(m)
+
+        async def recibir():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        scope = {"type": "http", "method": "GET", "path": "/x", "headers": [(b"x-request-id", hostil)]}
+        asyncio.run(ob.ObservabilidadMiddleware(app)(scope, recibir, enviar))
+        devuelto = dict(mensajes[0]["headers"])[b"x-request-id"].decode()
+        assert UUID.match(devuelto), (hostil, devuelto)
+
+
 def test_los_errores_llevan_el_mismo_request_id_en_el_cuerpo_y_en_la_cabecera(ctx):
     pedidos = [
         ("get", "/v1/yo", {}, 401),  # sin clave
