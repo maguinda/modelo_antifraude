@@ -227,19 +227,19 @@ registrada en la tabla `migraciones`.
 ### Lo propio de SQLite (lista de trabajo para pasar a PostgreSQL)
 
 Todo el SQL está en `repositorios/` (y las migraciones en `migraciones.py`); una prueba
-(`tests/test_sqlite_confinado.py`) falla si aparece SQL propio de SQLite en otro lugar. Estos son
-los constructos que habría que traducir, con su archivo:
+(`tests/test_sqlite_confinado.py`) falla si aparece SQL propio de SQLite en otro lugar. El cambio 7a
+ya reescribió a SQL portable lo que se podía (`seq` en vez de `rowid`, la tabla `evaluacion_reglas`
+en vez de `json_each`, `minutos_resolucion` en vez de `julianday`, `ON CONFLICT` en vez de
+`INSERT OR REPLACE`, `RETURNING id` en vez de `lastrowid`, `CASE WHEN` en vez de sumar condiciones,
+`NULLS LAST` explícito y cubetas de puntaje con `CASE` en vez de `CAST`). Lo que queda, con su archivo:
 
 | Constructo de SQLite | Dónde | Para qué sirve |
 |---|---|---|
-| `rowid` | `repositorios/evaluaciones.py` | Desempate por orden de llegada en el historial y las marcas del cliente. |
-| `INSERT OR REPLACE` | `repositorios/lista_negra.py` | Agregar a la lista negra sin fallar si ya estaba. |
-| `json_each` · `json_extract` | `repositorios/filtros_sql.py`, `repositorios/consultas.py` | Filtrar y contar por regla activada (las reglas se guardan como JSON en texto). |
-| `julianday` | `repositorios/consultas.py` | Minutos promedio que tarda cada analista en resolver. |
-| `substr(fecha,1,10)` | `repositorios/consultas.py` | Agrupar por día (las fechas son texto ISO). |
-| `AUTOINCREMENT` · `lastrowid` | `repositorios/esquema.py`, `comercios.py`, `claves.py`, `modelos_registro.py` | Identificadores numéricos nuevos. |
+| `rowid` · `julianday` · `json_each` | `repositorios/esquema.py` (solo la migración 4) | Rellenar las columnas nuevas a partir de los datos que ya había; no se usan al atender peticiones. |
+| `substr(fecha,1,10)` | `repositorios/consultas.py` | Agrupar por día (las fechas son texto ISO); PostgreSQL también tiene `substr`. |
+| `AUTOINCREMENT` | `repositorios/esquema.py` | Identificadores numéricos nuevos (en PostgreSQL, `GENERATED ... AS IDENTITY`). |
 | `PRAGMA` · `BEGIN IMMEDIATE` · WAL | `repositorios/base.py`, `esquema.py`, `migraciones.py` | Conexión, un solo escritor y copias de seguridad. |
-| Sumas de condiciones (`SUM(decision='X')`) y `GROUP BY` por alias | `repositorios/consultas.py` | Conteos del resumen: PostgreSQL pide `CASE WHEN` y repetir la expresión. |
+| `RETURNING` | `comercios.py`, `claves.py`, `modelos_registro.py` | Pide SQLite 3.35 o más reciente (PostgreSQL lo trae de siempre). |
 
 Para agregar una ruta: ponla en el router de su tema, agrégala al recorrido de
 `tests/test_permisos_por_ruta.py` (la prueba falla si una operación del contrato no está ahí) y

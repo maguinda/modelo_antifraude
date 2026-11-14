@@ -384,3 +384,17 @@ def test_el_panel_no_tiene_sql_ni_toca_sqlite_para_leer():
         "sqlite3.connect",
     ):
         assert palabra not in fuente, f"consultas.py no debe tener SQL: encontré «{palabra}»"
+
+
+def test_los_minutos_promedio_por_analista_se_redondean_a_un_decimal_en_el_panel_y_un_vacio_sigue_vacio():
+    """El redondeo ya no se hace en el SQL (ROUND no se escribe igual en todos los motores): lo hace el panel."""
+    consultas, panel = montar()
+    consultas.datos_resumen = {
+        "totales": {"pagos": 0, "aprobadas": 0, "en_revision": 0, "rechazadas": 0, "monto": 0, "monto_rechazado": 0, "monto_en_revision": 0,
+                    "degradados": 0, "sin_estado": 0, "latencia_media": None},
+        "p95": None, "por_dia": [], "por_comercio": [], "reglas": [], "histograma": [],
+        "por_analista": [{"analista": "Ana", "resueltas": 2, "minutos_promedio": 17.123456}, {"analista": "Beto", "resueltas": 0, "minutos_promedio": None}],
+        "pendientes": 0,
+    }  # fmt: skip
+    r = panel.resumen(Filtros(ADMIN))
+    assert [x["minutos_promedio"] for x in r["por_analista"]] == [17.1, None]

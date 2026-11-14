@@ -490,7 +490,7 @@ def test_la_migracion_2_agrega_las_columnas_conserva_las_claves_y_hace_una_copia
     columnas = {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(claves)")}
     assert "mfa_secreto" not in columnas
     nuevo = Almacen(ruta, PEPPER)
-    assert nuevo.inicializar() == [2, 3]
+    assert nuevo.inicializar() == [2, 3, 4]
     columnas = {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(claves)")}
     assert {"mfa_secreto", "mfa_confirmada", "mfa_ultimo_paso", "mfa_fallos", "mfa_bloqueo_hasta"} <= columnas
     principal = nuevo.autenticar(clave)  # la clave de antes sigue funcionando
@@ -505,7 +505,7 @@ def test_la_migracion_2_agrega_las_columnas_conserva_las_claves_y_hace_una_copia
 
 def test_la_migracion_2_se_puede_correr_dos_veces_sin_fallar_y_una_base_nueva_ya_trae_las_columnas(tmp_path):
     nuevo = Almacen(tmp_path / "n.sqlite3", PEPPER)
-    assert nuevo.inicializar() == [1, 2, 3]
+    assert nuevo.inicializar() == [1, 2, 3, 4]
     con = nuevo.base.abrir()
     try:
         nuevo.esquema.m2_mfa_admin(con)  # las columnas ya existen: no debe fallar

@@ -35,12 +35,12 @@ class EvaluacionesRepositorio:
     ) -> Tuple[int, int]:
         """Último pago guardado del cliente y de la huella: si cambian entre calcular y guardar, el historial cambió."""
         cliente = con.execute(
-            "SELECT COALESCE(MAX(rowid), 0) FROM evaluaciones WHERE comercio_id=? AND id_cliente=?",
+            "SELECT COALESCE(MAX(seq), 0) FROM evaluaciones WHERE comercio_id=? AND id_cliente=?",
             (comercio_id, id_cliente),
         ).fetchone()[0]
         ultimo = (
             con.execute(
-                "SELECT COALESCE(MAX(rowid), 0) FROM evaluaciones WHERE comercio_id=? AND huella=?",
+                "SELECT COALESCE(MAX(seq), 0) FROM evaluaciones WHERE comercio_id=? AND huella=?",
                 (comercio_id, huella),
             ).fetchone()[0]
             if huella
@@ -55,7 +55,7 @@ class EvaluacionesRepositorio:
         return self._previos(
             con,
             "SELECT fila_json FROM evaluaciones WHERE comercio_id=? AND id_cliente=? AND fecha<=? "
-            "ORDER BY fecha DESC, rowid DESC LIMIT ?",
+            "ORDER BY fecha DESC, seq DESC LIMIT ?",
             (comercio_id, id_cliente, fecha, limite),
         )
 
@@ -66,7 +66,7 @@ class EvaluacionesRepositorio:
         return self._previos(
             con,
             "SELECT fila_json FROM evaluaciones WHERE comercio_id=? AND huella=? AND id_cliente<>? AND fecha<=? "
-            "ORDER BY fecha DESC, rowid DESC LIMIT ?",
+            "ORDER BY fecha DESC, seq DESC LIMIT ?",
             (comercio_id, huella, id_cliente, fecha, limite),
         )
 
@@ -110,8 +110,8 @@ class EvaluacionesRepositorio:
         con.execute(
             "INSERT INTO evaluaciones (id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, solicitud_hash, "
             "decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, "
-            "modelo_conjunto, modo, latencia_ms, creada, red_origen, estado_origen, id_seguimiento, ip_codigo, disp_codigo, monto_cop, no_enviados_json, senales_json) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "modelo_conjunto, modo, latencia_ms, creada, red_origen, estado_origen, id_seguimiento, ip_codigo, disp_codigo, monto_cop, no_enviados_json, senales_json, seq) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, (SELECT COALESCE(MAX(seq), 0) + 1 FROM evaluaciones))",
             (
                 id,
                 comercio_id,
@@ -142,3 +142,10 @@ class EvaluacionesRepositorio:
                 senales_json,
             ),
         )
+        for posicion, regla in enumerate(
+            json.loads(reglas_json or "[]")
+        ):  # una fila por regla activada (consultas y filtros por regla, sin leer el JSON)
+            con.execute(
+                "INSERT INTO evaluacion_reglas (id_evaluacion, posicion, regla) VALUES (?,?,?)",
+                (id, posicion, str(regla.get("regla", "?")) if isinstance(regla, dict) else "?"),
+            )

@@ -1,6 +1,7 @@
 """Revisiones manuales: la cola de pagos que espera a un analista y su resolución. Cada método recibe la conexión de quien llama (ver evaluaciones.py)."""
 
 import sqlite3
+from datetime import datetime
 from typing import Any, List, Optional, Tuple
 
 from .filtros_sql import condiciones_de
@@ -10,8 +11,8 @@ class RevisionesRepositorio:
     ORDEN = {
         "antiguos": "r.creada, e.id",
         "recientes": "r.creada DESC, e.id",
-        "riesgo_desc": "e.probabilidad DESC, r.creada",
-        "monto_desc": "e.monto_cop DESC, r.creada",
+        "riesgo_desc": "e.probabilidad DESC NULLS LAST, r.creada",
+        "monto_desc": "e.monto_cop DESC NULLS LAST, r.creada",
     }
 
     def por_evaluacion(self, con: sqlite3.Connection, id_evaluacion: str) -> Optional[sqlite3.Row]:
@@ -36,10 +37,23 @@ class RevisionesRepositorio:
         resuelta: str,
     ) -> int:
         """Resuelve una revisión que siga pendiente. Devuelve cuántas filas cambió: 0 si ya la había resuelto alguien (así se detecta la doble resolución)."""
+        previa = con.execute(
+            "SELECT creada FROM revisiones WHERE id_evaluacion=? AND estado='pendiente'", (id_evaluacion,)
+        ).fetchone()
+        minutos = None
+        if (
+            previa is not None
+        ):  # los minutos se calculan aquí (antes, julianday en SQL): la resta de fechas no se escribe igual en todos los motores
+            try:
+                minutos = (
+                    datetime.fromisoformat(resuelta) - datetime.fromisoformat(previa["creada"])
+                ).total_seconds() / 60
+            except ValueError:
+                minutos = None
         cur = con.execute(
-            "UPDATE revisiones SET estado='resuelta', decision_analista=?, nota=?, clave_analista=?, resuelta=? "
+            "UPDATE revisiones SET estado='resuelta', decision_analista=?, nota=?, clave_analista=?, resuelta=?, minutos_resolucion=? "
             "WHERE id_evaluacion=? AND estado='pendiente'",
-            (decision, nota, clave_analista, resuelta, id_evaluacion),
+            (decision, nota, clave_analista, resuelta, minutos, id_evaluacion),
         )
         return cur.rowcount
 

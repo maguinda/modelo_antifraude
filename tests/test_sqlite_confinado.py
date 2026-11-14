@@ -9,7 +9,7 @@ from pathlib import Path
 API = Path(__file__).resolve().parent.parent / "api"
 PERMITIDOS = ("repositorios", "migraciones.py")
 PROPIO_DE_SQLITE = re.compile(
-    r"\browid\b|INSERT OR REPLACE|julianday|json_each|json_extract|\bsubstr\(|PRAGMA|AUTOINCREMENT|lastrowid|\.execute\(|sqlite3\.connect"
+    r"\browid\b|INSERT OR REPLACE|julianday|json_each|json_extract|\bsubstr\(|PRAGMA|AUTOINCREMENT|lastrowid|RETURNING|\.execute\(|sqlite3\.connect"
 )
 
 
@@ -28,7 +28,7 @@ def test_ningun_archivo_fuera_de_repositorios_y_migraciones_tiene_sql_de_sqlite(
 def test_la_lista_del_readme_menciona_cada_constructo_y_su_archivo():
     readme = (API.parent / "README.md").read_text(encoding="utf-8")
     seccion = readme.split("### Lo propio de SQLite", 1)[1].split("\n## ", 1)[0].split("\nPara agregar una ruta", 1)[0]
-    for constructo in ("rowid", "INSERT OR REPLACE", "json_each", "julianday", "substr", "AUTOINCREMENT", "PRAGMA"):
+    for constructo in ("rowid", "json_each", "julianday", "substr", "AUTOINCREMENT", "PRAGMA"):
         assert constructo in seccion, constructo
         archivos = [p for p in API.rglob("*.py") if constructo in sin_comentarios(p.read_text(encoding="utf-8"))]
         assert archivos, constructo

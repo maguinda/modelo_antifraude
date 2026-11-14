@@ -38,7 +38,7 @@ def condiciones_de(f: Any) -> Tuple[List[str], tuple]:
     if f.id_seguimiento:
         agregar("e.id_seguimiento = ?", f.id_seguimiento.upper())
     if f.regla:
-        agregar("EXISTS (SELECT 1 FROM json_each(e.reglas_json) j WHERE json_extract(j.value, '$.regla') = ?)", f.regla)
+        agregar("EXISTS (SELECT 1 FROM evaluacion_reglas er WHERE er.id_evaluacion = e.id AND er.regla = ?)", f.regla)
     if f.riesgo_min is not None:
         agregar(
             "e.probabilidad >= ?", f.riesgo_min

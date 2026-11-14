@@ -7,11 +7,19 @@ from pathlib import Path
 from typing import Iterator
 
 
+VERSION_MINIMA_SQLITE = (3, 35, 0)  # primera versión con `RETURNING`
+
+
 class Base:
     def __init__(self, ruta: Path, durabilidad: str = "NORMAL"):
         """durabilidad: NORMAL (rápida; si se va la luz puede perderse lo último) o FULL (cada guardado se fuerza a disco)."""
         if durabilidad not in ("NORMAL", "FULL"):
             raise ValueError("durabilidad debe ser NORMAL o FULL")
+        if sqlite3.sqlite_version_info < VERSION_MINIMA_SQLITE:  # `INSERT ... RETURNING` (cambio 7a) lo pide
+            raise RuntimeError(
+                f"Este programa necesita SQLite {'.'.join(map(str, VERSION_MINIMA_SQLITE))} o más reciente y esta computadora trae {sqlite3.sqlite_version}. "
+                "Actualiza Python o SQLite."
+            )
         self.ruta, self.durabilidad = Path(ruta), durabilidad
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
         self._turno = (

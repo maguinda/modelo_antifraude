@@ -48,7 +48,7 @@ class ModelosRegistroRepositorio:
             if ya is not None:
                 raise ValueError(f"Ese modelo ya está registrado para el rol «{rol}» (número {ya['id']}).")
             cur = con.execute(
-                "INSERT INTO modelos_registro (archivo, sha256, nombre, version, conjunto, rol, estado, referencia_json, registrado) VALUES (?,?,?,?,?,?, 'candidato', ?, ?)",
+                "INSERT INTO modelos_registro (archivo, sha256, nombre, version, conjunto, rol, estado, referencia_json, registrado) VALUES (?,?,?,?,?,?, 'candidato', ?, ?) RETURNING id",
                 (
                     archivo,
                     sha256,
@@ -60,7 +60,7 @@ class ModelosRegistroRepositorio:
                     ahora_iso(),
                 ),
             )
-            id_ = int(cur.lastrowid or 0)
+            id_ = int(cur.fetchone()[0])
             auditar(
                 con,
                 None,
