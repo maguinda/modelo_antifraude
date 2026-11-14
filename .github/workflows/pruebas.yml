@@ -16,7 +16,7 @@ permissions:
 jobs:
   pruebas:
     name: Pruebas (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04              # fijo, no «latest»: en ubuntu-latest (26.04) ya no existe Python 3.9, y así la CI no cambia de sistema sin avisar
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -39,7 +39,7 @@ jobs:
 
   calidad:
     name: Calidad (ruff, tipos y archivos pesados)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04              # fijo, no «latest»: en ubuntu-latest (26.04) ya no existe Python 3.9, y así la CI no cambia de sistema sin avisar
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
