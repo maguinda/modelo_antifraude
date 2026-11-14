@@ -261,6 +261,18 @@
       },
       "FilaRevision": {
         "properties": {
+          "comercio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nombre del comercio.",
+            "title": "Comercio"
+          },
           "comercio_id": {
             "title": "Comercio Id",
             "type": "integer"
@@ -484,6 +496,12 @@
       },
       "ListaRevisiones": {
         "properties": {
+          "monto_total_cop": {
+            "default": 0,
+            "description": "Suma de los montos de esas revisiones.",
+            "title": "Monto Total Cop",
+            "type": "number"
+          },
           "revisiones": {
             "items": {
               "$ref": "#/components/schemas/FilaRevision"
@@ -492,6 +510,7 @@
             "type": "array"
           },
           "total": {
+            "description": "Cuántas revisiones cumplen los filtros.",
             "title": "Total",
             "type": "integer"
           }
@@ -2772,6 +2791,65 @@
               "description": "Código corto de dispositivo (8 caracteres).",
               "title": "Dispositivo"
             }
+          },
+          {
+            "description": "Probabilidad de fraude mínima (0 a 1). Los pagos sin puntaje no entran.",
+            "in": "query",
+            "name": "riesgo_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Probabilidad de fraude mínima (0 a 1). Los pagos sin puntaje no entran.",
+              "title": "Riesgo Min"
+            }
+          },
+          {
+            "description": "Probabilidad de fraude máxima (0 a 1).",
+            "in": "query",
+            "name": "riesgo_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Probabilidad de fraude máxima (0 a 1).",
+              "title": "Riesgo Max"
+            }
+          },
+          {
+            "description": "Búsqueda exacta por ID de seguimiento, ID del comercio o cliente.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda exacta por ID de seguimiento, ID del comercio o cliente.",
+              "title": "Q"
+            }
           }
         ],
         "responses": {
@@ -3124,6 +3202,65 @@
               ],
               "description": "Código corto de dispositivo (8 caracteres).",
               "title": "Dispositivo"
+            }
+          },
+          {
+            "description": "Probabilidad de fraude mínima (0 a 1). Los pagos sin puntaje no entran.",
+            "in": "query",
+            "name": "riesgo_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Probabilidad de fraude mínima (0 a 1). Los pagos sin puntaje no entran.",
+              "title": "Riesgo Min"
+            }
+          },
+          {
+            "description": "Probabilidad de fraude máxima (0 a 1).",
+            "in": "query",
+            "name": "riesgo_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Probabilidad de fraude máxima (0 a 1).",
+              "title": "Riesgo Max"
+            }
+          },
+          {
+            "description": "Búsqueda exacta por ID de seguimiento, ID del comercio o cliente.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda exacta por ID de seguimiento, ID del comercio o cliente.",
+              "title": "Q"
             }
           }
         ],
@@ -3546,6 +3683,65 @@
               "description": "Código corto de dispositivo (8 caracteres).",
               "title": "Dispositivo"
             }
+          },
+          {
+            "description": "Probabilidad de fraude mínima (0 a 1). Los pagos sin puntaje no entran.",
+            "in": "query",
+            "name": "riesgo_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Probabilidad de fraude mínima (0 a 1). Los pagos sin puntaje no entran.",
+              "title": "Riesgo Min"
+            }
+          },
+          {
+            "description": "Probabilidad de fraude máxima (0 a 1).",
+            "in": "query",
+            "name": "riesgo_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Probabilidad de fraude máxima (0 a 1).",
+              "title": "Riesgo Max"
+            }
+          },
+          {
+            "description": "Búsqueda exacta por ID de seguimiento, ID del comercio o cliente.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda exacta por ID de seguimiento, ID del comercio o cliente.",
+              "title": "Q"
+            }
           }
         ],
         "responses": {
@@ -3625,7 +3821,7 @@
     },
     "/v1/revisiones": {
       "get": {
-        "description": "Pagos que esperan a un analista, del más antiguo al más reciente. Solo analistas y administradores.",
+        "description": "Pagos que esperan a un analista (por defecto, del más antiguo al más reciente). Acepta los mismos filtros del panel de control: comercio, fechas, decisión, monto, riesgo, regla, cliente y búsqueda por ID. Solo analistas y administradores.",
         "operationId": "listar_revisiones",
         "parameters": [
           {
@@ -3660,6 +3856,315 @@
               "minimum": 0,
               "title": "Desplazamiento",
               "type": "integer"
+            }
+          },
+          {
+            "description": "antiguos (los que más esperan primero), recientes, riesgo_desc o monto_desc.",
+            "in": "query",
+            "name": "orden",
+            "required": false,
+            "schema": {
+              "default": "antiguos",
+              "description": "antiguos (los que más esperan primero), recientes, riesgo_desc o monto_desc.",
+              "pattern": "^(antiguos|recientes|riesgo_desc|monto_desc)$",
+              "title": "Orden",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Solo analistas y administradores; un comercio solo ve lo suyo.",
+            "in": "query",
+            "name": "comercio_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo analistas y administradores; un comercio solo ve lo suyo.",
+              "title": "Comercio Id"
+            }
+          },
+          {
+            "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+            "in": "query",
+            "name": "desde",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+              "title": "Desde"
+            }
+          },
+          {
+            "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+            "in": "query",
+            "name": "hasta",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha del pago, AAAA-MM-DD (incluida).",
+              "title": "Hasta"
+            }
+          },
+          {
+            "description": "APROBADA, RECHAZADA o EN_REVISION (la decisión inicial).",
+            "in": "query",
+            "name": "decision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "APROBADA, RECHAZADA o EN_REVISION (la decisión inicial).",
+              "title": "Decision"
+            }
+          },
+          {
+            "description": "normal o degradado.",
+            "in": "query",
+            "name": "modo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "normal o degradado.",
+              "title": "Modo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "monto_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Monto Min"
+            }
+          },
+          {
+            "in": "query",
+            "name": "monto_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Monto Max"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id_cliente",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Id Cliente"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id_transaccion",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Id Transaccion"
+            }
+          },
+          {
+            "description": "Identificador de seguimiento (AF-XXXX-XXXX).",
+            "in": "query",
+            "name": "id_seguimiento",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Identificador de seguimiento (AF-XXXX-XXXX).",
+              "title": "Id Seguimiento"
+            }
+          },
+          {
+            "description": "Nombre exacto de una regla que se activó.",
+            "in": "query",
+            "name": "regla",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Nombre exacto de una regla que se activó.",
+              "title": "Regla"
+            }
+          },
+          {
+            "description": "Código corto de IP (8 caracteres) como el que muestra el panel.",
+            "in": "query",
+            "name": "ip",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código corto de IP (8 caracteres) como el que muestra el panel.",
+              "title": "Ip"
+            }
+          },
+          {
+            "description": "Código corto de dispositivo (8 caracteres).",
+            "in": "query",
+            "name": "dispositivo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código corto de dispositivo (8 caracteres).",
+              "title": "Dispositivo"
+            }
+          },
+          {
+            "description": "Probabilidad de fraude mínima (0 a 1). Los pagos sin puntaje no entran.",
+            "in": "query",
+            "name": "riesgo_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Probabilidad de fraude mínima (0 a 1). Los pagos sin puntaje no entran.",
+              "title": "Riesgo Min"
+            }
+          },
+          {
+            "description": "Probabilidad de fraude máxima (0 a 1).",
+            "in": "query",
+            "name": "riesgo_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Probabilidad de fraude máxima (0 a 1).",
+              "title": "Riesgo Max"
+            }
+          },
+          {
+            "description": "Búsqueda exacta por ID de seguimiento, ID del comercio o cliente.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda exacta por ID de seguimiento, ID del comercio o cliente.",
+              "title": "Q"
             }
           }
         ],

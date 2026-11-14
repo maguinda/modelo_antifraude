@@ -235,25 +235,7 @@ def crear_app(ajustes: Optional[Ajustes] = None, artefacto: Optional[Dict] = Non
                            p: Principal = Depends(exigir("comercio"))):
         return servicio.registrar_resultado(p, id_evaluacion, solicitud)
 
-    # ------------------------------------------------------------- revisiones
-    @app.get("/v1/revisiones", tags=["Revisiones"], response_model=es.ListaRevisiones, summary="Cola de revisión manual",
-             operation_id="listar_revisiones", description="Pagos que esperan a un analista, del más antiguo al más reciente. Solo analistas y administradores.",
-             responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 422, 429)})
-    def listar_revisiones(estado: str = Query("pendiente", pattern="^(pendiente|resuelta)$"),
-                          limite: int = Query(50, ge=1, le=200), desplazamiento: int = Query(0, ge=0),
-                          p: Principal = Depends(exigir("analista", "admin"))):
-        return servicio.listar_revisiones(estado, limite, desplazamiento)
-
-    @app.post("/v1/revisiones/{id_evaluacion}/resolver", tags=["Revisiones"], response_model=es.RespuestaEvaluacion,
-              summary="Resolver una revisión", operation_id="resolver_revision",
-              description="El analista decide APROBADA o RECHAZADA. Solo se puede resolver una vez; la segunda responde `409`.",
-              responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 404, 409, 422, 429)})
-    def resolver(solicitud: es.SolicitudResolverRevision, id_evaluacion: str = Path(pattern=PATRON_UUID),
-                 p: Principal = Depends(exigir("analista", "admin"))):
-        return servicio.resolver_revision(p, id_evaluacion, solicitud)
-
-    # ------------------------------------------------------------- lista negra
-    # ------------------------------------------------------------- panel de control (solo lectura)
+    # ------------------------------------------------------------- filtros comunes (panel de control y cola de revisión)
     def filtros_panel(comercio_id: Optional[int] = Query(None, ge=1, description="Solo analistas y administradores; un comercio solo ve lo suyo."),
                       desde: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="Fecha del pago, AAAA-MM-DD (incluida)."),
                       hasta: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="Fecha del pago, AAAA-MM-DD (incluida)."),
@@ -265,9 +247,33 @@ def crear_app(ajustes: Optional[Ajustes] = None, artefacto: Optional[Dict] = Non
                       regla: Optional[str] = Query(None, max_length=64, description="Nombre exacto de una regla que se activó."),
                       ip: Optional[str] = Query(None, max_length=8, description="Código corto de IP (8 caracteres) como el que muestra el panel."),
                       dispositivo: Optional[str] = Query(None, max_length=8, description="Código corto de dispositivo (8 caracteres)."),
+                      riesgo_min: Optional[float] = Query(None, ge=0, le=1, description="Probabilidad de fraude mínima (0 a 1). Los pagos sin puntaje no entran."),
+                      riesgo_max: Optional[float] = Query(None, ge=0, le=1, description="Probabilidad de fraude máxima (0 a 1)."),
+                      q: Optional[str] = Query(None, max_length=64, description="Búsqueda exacta por ID de seguimiento, ID del comercio o cliente."),
                       p: Principal = Depends(exigir("comercio", "analista", "admin"))) -> Filtros:
-        return Filtros(p, comercio_id, desde, hasta, decision, modo, monto_min, monto_max, id_cliente, id_transaccion, id_seguimiento, regla, ip, dispositivo)
+        return Filtros(p, comercio_id, desde, hasta, decision, modo, monto_min, monto_max, id_cliente, id_transaccion, id_seguimiento, regla, ip, dispositivo,
+                       riesgo_min, riesgo_max, q)
 
+    # ------------------------------------------------------------- revisiones
+    @app.get("/v1/revisiones", tags=["Revisiones"], response_model=es.ListaRevisiones, summary="Cola de revisión manual",
+             operation_id="listar_revisiones", description="Pagos que esperan a un analista (por defecto, del más antiguo al más reciente). Acepta los mismos filtros del panel de control: comercio, fechas, decisión, monto, riesgo, regla, cliente y búsqueda por ID. Solo analistas y administradores.",
+             responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 422, 429)})
+    def listar_revisiones(estado: str = Query("pendiente", pattern="^(pendiente|resuelta)$"),
+                          limite: int = Query(50, ge=1, le=200), desplazamiento: int = Query(0, ge=0),
+                          orden: str = Query("antiguos", pattern="^(antiguos|recientes|riesgo_desc|monto_desc)$", description="antiguos (los que más esperan primero), recientes, riesgo_desc o monto_desc."),
+                          f: Filtros = Depends(filtros_panel), p: Principal = Depends(exigir("analista", "admin"))):
+        return servicio.listar_revisiones(estado, limite, desplazamiento, f.condiciones, f.parametros, orden)
+
+    @app.post("/v1/revisiones/{id_evaluacion}/resolver", tags=["Revisiones"], response_model=es.RespuestaEvaluacion,
+              summary="Resolver una revisión", operation_id="resolver_revision",
+              description="El analista decide APROBADA o RECHAZADA. Solo se puede resolver una vez; la segunda responde `409`.",
+              responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 404, 409, 422, 429)})
+    def resolver(solicitud: es.SolicitudResolverRevision, id_evaluacion: str = Path(pattern=PATRON_UUID),
+                 p: Principal = Depends(exigir("analista", "admin"))):
+        return servicio.resolver_revision(p, id_evaluacion, solicitud)
+
+    # ------------------------------------------------------------- lista negra
+    # ------------------------------------------------------------- panel de control (solo lectura)
     _err_panel = {k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 404, 422, 429)}
 
     @app.get("/v1/panel/transacciones", tags=["Panel de control"], summary="Pagos con filtros (solo lectura)", operation_id="panel_transacciones",

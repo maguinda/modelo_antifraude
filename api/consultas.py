@@ -46,7 +46,8 @@ class Filtros:
     def __init__(self, principal: Principal, comercio_id: Optional[int] = None, desde: Optional[str] = None, hasta: Optional[str] = None,
                  decision: Optional[str] = None, modo: Optional[str] = None, monto_min: Optional[float] = None, monto_max: Optional[float] = None,
                  id_cliente: Optional[str] = None, id_transaccion: Optional[str] = None, id_seguimiento: Optional[str] = None,
-                 regla: Optional[str] = None, ip: Optional[str] = None, dispositivo: Optional[str] = None):
+                 regla: Optional[str] = None, ip: Optional[str] = None, dispositivo: Optional[str] = None,
+                 riesgo_min: Optional[float] = None, riesgo_max: Optional[float] = None, q: Optional[str] = None):
         if principal.rol == "comercio":
             if comercio_id is not None and comercio_id != principal.comercio_id:
                 raise ErrorAPI(404, "No encontrado", "No existe ese comercio.")               # 404 también si es de otro comercio
@@ -89,10 +90,19 @@ class Filtros:
             agregar("e.id_seguimiento = ?", id_seguimiento.upper())
         if regla:
             agregar("EXISTS (SELECT 1 FROM json_each(e.reglas_json) j WHERE json_extract(j.value, '$.regla') = ?)", regla)
+        if riesgo_min is not None and riesgo_max is not None and riesgo_min > riesgo_max:
+            raise ErrorAPI(422, "Rango de riesgo no válido", "`riesgo_min` no puede superar a `riesgo_max`.")
+        if riesgo_min is not None:
+            agregar("e.probabilidad >= ?", riesgo_min)               # los pagos sin puntaje (modo degradado) no entran en un filtro de riesgo
+        if riesgo_max is not None:
+            agregar("e.probabilidad <= ?", riesgo_max)
+        if q:
+            agregar("(e.id_seguimiento = ? OR e.id_transaccion = ? OR e.id_cliente = ?)", q.upper(), q, q)
         if ip:
             agregar("e.ip_codigo = ?", ip.upper())
         if dispositivo:
             agregar("e.disp_codigo = ?", dispositivo.upper())
+        self.condiciones = cond
         self.donde = ("WHERE " + " AND ".join(cond)) if cond else ""
         self.parametros = tuple(par)
         self.comercio_id = comercio_id

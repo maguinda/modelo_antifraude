@@ -267,6 +267,7 @@ class RespuestaEvaluacion(BaseModel):
 class FilaRevision(BaseModel):
     id_evaluacion: str
     id_seguimiento: Optional[str] = None
+    comercio: Optional[str] = Field(None, description="Nombre del comercio.")
     comercio_id: int
     id_transaccion: str
     puntaje_riesgo: Optional[float]
@@ -278,7 +279,8 @@ class FilaRevision(BaseModel):
 
 
 class ListaRevisiones(BaseModel):
-    total: int
+    total: int = Field(description="Cuántas revisiones cumplen los filtros.")
+    monto_total_cop: float = Field(0, description="Suma de los montos de esas revisiones.")
     revisiones: List[FilaRevision]
 
 

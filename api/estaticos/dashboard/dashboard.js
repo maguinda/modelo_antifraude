@@ -69,12 +69,15 @@
     comercio_id: { et: "Comercio", tipo: "comercio" }, desde: { et: "Desde", tipo: "date" }, hasta: { et: "Hasta", tipo: "date" },
     decision: { et: "Decisión", tipo: "select", op: [["", "Todas"], ["APROBADA", "Aprobada"], ["EN_REVISION", "En revisión"], ["RECHAZADA", "Rechazada"]] },
     modo: { et: "Modo", tipo: "select", op: [["", "Todos"], ["normal", "Normal"], ["degradado", "Degradado"]] },
+    riesgo: { et: "Riesgo", tipo: "select", op: [["", "Todos"], ["alto", "Alto (60 % o más)"], ["medio", "Medio (35 % a 59 %)"], ["bajo", "Bajo (menos de 35 %)"]] },
     monto_min: { et: "Monto mínimo", tipo: "number" }, monto_max: { et: "Monto máximo", tipo: "number" },
     id_cliente: { et: "Cliente", tipo: "text", max: 64 }, id_seguimiento: { et: "ID de seguimiento", tipo: "text", max: 16, marca: "AF-XXXX-XXXX" },
     id_transaccion: { et: "ID del comercio", tipo: "text", max: 64 }, regla: { et: "Regla activada", tipo: "text", max: 64 },
     ip: { et: "IP (código)", tipo: "text", max: 8, marca: "8 caracteres" }, dispositivo: { et: "Dispositivo (código)", tipo: "text", max: 8, marca: "8 caracteres" },
     minimo: { et: "Mínimo para listar", tipo: "select", op: [["3", "3"], ["5", "5"], ["10", "10"], ["20", "20"]] }
   };
+  function riesgoParams(r) { return r === "alto" ? { riesgo_min: 0.6 } : r === "medio" ? { riesgo_min: 0.35, riesgo_max: 0.5999 } : r === "bajo" ? { riesgo_max: 0.3499 } : {}; }
+  function riesgoNivel(p) { return p.riesgo_min === "0.6" ? "alto" : p.riesgo_min === "0.35" ? "medio" : p.riesgo_max === "0.3499" ? "bajo" : ""; }
   function validar(v) {
     var e = {}, hex = /^[0-9A-Fa-f]{8}$/;
     if (v.desde && v.hasta && v.desde > v.hasta) e.desde = "«Desde» no puede ser posterior a «Hasta».";
@@ -140,6 +143,7 @@
         campos[primero].ctl.focus();
         return;
       }
+      if (v.riesgo !== undefined) { Object.assign(v, riesgoParams(v.riesgo)); delete v.riesgo; }
       Object.keys(fijos || {}).forEach(function (k) { if (v[k] === undefined) v[k] = fijos[k]; });
       if (v.ip) v.ip = v.ip.toUpperCase();
       if (v.dispositivo) v.dispositivo = v.dispositivo.toUpperCase();
@@ -274,13 +278,13 @@
   }
 
   function vistaTransacciones(p) {
-    var nombres = ["comercio_id", "desde", "hasta", "decision", "modo", "monto_min", "monto_max", "id_cliente", "id_seguimiento", "id_transaccion", "regla", "ip", "dispositivo"];
-    var filtros = soloFiltros(p, nombres), limite = 25, desp = Math.max(0, parseInt(p.d || "0", 10) || 0), orden = p.orden || "fecha_desc";
+    var nombres = ["comercio_id", "desde", "hasta", "decision", "modo", "riesgo", "monto_min", "monto_max", "id_cliente", "id_seguimiento", "id_transaccion", "regla", "ip", "dispositivo"];
+    var filtros = soloFiltros(p, nombres.concat(["riesgo_min", "riesgo_max"])), limite = 25, desp = Math.max(0, parseInt(p.d || "0", 10) || 0), orden = p.orden || "fecha_desc";
     var params = Object.assign({}, filtros, { orden: orden, limite: limite, desplazamiento: desp });
     return api("/v1/panel/transacciones", params).then(function (r) {
       var c = el("div");
       add(c, hero("Transacciones", "Cada pago,", "rastreable", "Filtra por comercio, fechas, decisión, cliente o regla. Toca un pago para ver cómo se decidió."));
-      var f = formularioFiltros(nombres, filtros, "transacciones");
+      var f = formularioFiltros(nombres, Object.assign({}, filtros, { riesgo: riesgoNivel(p) }), "transacciones");
       c.appendChild(f);
       var caja = tarjeta(null);
       caja.classList.add("pila");

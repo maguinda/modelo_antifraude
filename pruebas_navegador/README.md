@@ -20,3 +20,8 @@ No pruebas un celular real ni Android real.
 
 ## dashboard.py
 Recorre `/dashboard` (resumen, transacciones con filtro, validación de fechas y paginación, detalle de un pago, pago inexistente, vínculos y el salto de un vínculo a sus pagos) en Chromium y WebKit: escritorio, 320 px, iPhone 13 y Pixel 5. Levanta un servidor de prueba (puerto 8773) con una base desechable y le carga ~400 pagos por la API real. Mide desborde horizontal, controles táctiles menores de 44 px (solo móvil), errores de consola y peticiones externas, y **bloquea y cuenta cualquier petición que no sea GET**: el dashboard no puede escribir. Las capturas quedan en una carpeta temporal.
+
+
+## Cambios por el rediseño
+- **panel.py** ahora también prueba los filtros de la cola (riesgo, búsqueda por ID, validación de fechas, limpiar y orden por riesgo); siembra dos pagos con puntaje para poder filtrarlos.
+- **tienda.py** prueba el checkout: la compra normal va en modo automático; la sospechosa activa el interruptor «probar otro escenario»; verifica que ni la tarjeta, ni el nombre, ni el vencimiento ni el CVV salgan, y que el número de seguimiento y el enlace al dashboard existan.
