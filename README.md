@@ -155,8 +155,8 @@ python -m pytest modelo_ia/tests -q                    # las pruebas
 ```
 Las pruebas que necesitan las bases de IP de 133 MB (`datos_ip/`) se saltan solas en la CI.
 
-**Formato de las pantallas (HTML, CSS y JS propios en `api/estaticos/`).** No hay un paso en la CI: se formatean a mano con
-`npx prettier@3.3.3 --print-width 120 --write api/estaticos/<carpeta>/<archivo>` (no incluye las librerías de terceros: Swagger y ReDoc).
+**Formato de las pantallas (HTML, CSS y JS propios en `frontend/`, ver `frontend/README.md`).** No hay un paso en la CI: se formatean a mano con
+`npx prettier@3.3.3 --print-width 120 --write frontend/<carpeta>/<archivo>` (no incluye las librerías de terceros: Swagger y ReDoc).
 Los documentos `.md` van con líneas de unos 100 caracteres y las tablas con celdas muy largas se escriben como listas.
 
 ## Migraciones de la base de datos
@@ -470,7 +470,7 @@ pide una **segunda confirmación** y admite una nota. Si otra persona resuelve p
 actualiza. Todo texto que viene de los comercios se muestra como texto, nunca como HTML (hay una
 prueba que lo impide y una prueba de ataque en navegador).
 
-**El SDK y la tienda de prueba:** `estaticos/sdk/antifraude.js` corre en el navegador del comprador
+**El SDK y la tienda de prueba:** `frontend/sdk/antifraude.js` corre en el navegador del comprador
 y arma la huella del dispositivo, el sistema, el navegador y el comportamiento al llenar el
 formulario (tiempo, velocidad de tecleo, si se pegó la tarjeta, movimiento del mouse). **Nunca lee
 lo que el comprador escribe** (una prueba lo vigila) y no envía nada por su cuenta. La tienda
@@ -550,7 +550,7 @@ movilidad, historial por comercio):
   de auditoría que no se puede editar ni borrar, cabeceras de seguridad y errores en formato
   estándar `application/problem+json`.
 - **Swagger y ReDoc se sirven desde el propio servidor** (sin CDN), con la huella de cada archivo de
-  terceros en `estaticos/MANIFIESTO.txt` (una prueba avisa si alguno cambia). Se probó que no pidan
+  terceros en `api/estaticos/MANIFIESTO.txt` (una prueba avisa si alguno cambia). Se probó que no pidan
   nada a internet y que no se desborden a 320 px.
 
 **Servidor local con HTTPS y varios procesos:**
@@ -563,7 +563,7 @@ python -m modelo_ia.api.servidor --workers 4     # varios procesos
 HSTS queda **apagado por defecto** (`MODELO_IA_HSTS`), porque en `localhost` el navegador lo
 recordaría durante meses. La política de contenido de las páginas (`/docs`, `/panel`, `/tienda`)
 está en modo **«solo observar»**: con unos días de uso sin avisos en la consola de Chromium, se pasa
-a bloquear con `MODELO_IA_CSP=enforce`. `MODELO_IA_DURABILIDAD=FULL` fuerza cada guardado a disco
+a bloquear con `MODELO_IA_CSP=enforce`. `MODELO_IA_PANTALLAS=0` hace que la API no entregue las pantallas (las entrega otro servidor web; ver `frontend/README.md`) y `MODELO_IA_FRONTEND` cambia la carpeta de donde las lee. `MODELO_IA_DURABILIDAD=FULL` fuerza cada guardado a disco
 (más lenta).
 
 **Medido** en un computador, con el modelo en uso y pagos de ejemplo (`python -m
@@ -696,7 +696,7 @@ radios y espacios viven como variables en `dashboard.css`. Recorrido de navegado
 modelo_ia/pruebas_navegador/dashboard.py`.
 
 **Diseño compartido y filtros.** Las tres pantallas (dashboard, revisión manual y tienda) usan una
-sola hoja, `estaticos/comun/diseno.css`, con colores, radios, espacios y piezas repetidas como
+sola hoja, `frontend/comun/diseno.css`, con colores, radios, espacios y piezas repetidas como
 variables, en modo claro y oscuro: antes de escribir un estilo nuevo se busca ahí. La **revisión
 manual** (`/panel`) se rehízo con indicadores arriba (por revisar, monto en la cola, riesgo alto, la
 que más espera), **filtros** (buscar por ID o cliente, comercio, riesgo, monto mínimo, fechas,

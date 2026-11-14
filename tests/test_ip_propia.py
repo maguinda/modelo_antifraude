@@ -307,12 +307,12 @@ def test_la_antiguedad_de_las_bases_genera_un_aviso(tmp_path, artefacto):  # noq
 def test_el_credito_de_db_ip_esta_en_las_pantallas_que_muestran_la_ubicacion_y_en_la_documentacion():
     from modelo_ia.api import documentacion
 
-    base = documentacion.ESTATICOS
+    base = documentacion.FRONTEND
     for pantalla in ("panel", "dashboard"):
         html = (base / pantalla / "index.html").read_text(encoding="utf-8")
         assert 'href="https://db-ip.com"' in html and "IP Geolocation by DB-IP" in html and "pie-creditos" in html
     assert ".pie-creditos" in (base / "comun" / "diseno.css").read_text(encoding="utf-8")
-    raiz = base.parents[1]
+    raiz = base.parent  # modelo_ia/
     assert (
         "db-ip.com" in (raiz / "README.md").read_text(encoding="utf-8")
         and "CC BY 4.0"
@@ -344,7 +344,7 @@ def test_la_unica_direccion_externa_permitida_en_las_pantallas_es_el_credito_de_
     from modelo_ia.api import documentacion
 
     for pantalla in ("panel", "dashboard"):
-        html = (documentacion.ESTATICOS / pantalla / "index.html").read_text(encoding="utf-8")
+        html = (documentacion.FRONTEND / pantalla / "index.html").read_text(encoding="utf-8")
         assert CREDITO_DB_IP in compacto(html) and "https://" not in sin_credito(html)
         otro = html.replace("</body>", '<a href="https://otro.example">x</a></body>')
         assert "https://" in sin_credito(otro)  # un segundo enlace externo NO queda cubierto por la excepción

@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 
 from . import esquemas as es
-from .documentacion import ESTATICOS
+from .documentacion import FRONTEND
 from .panel import cabecera_panel
 
 # Conexiones de prueba que el comprador puede «tener» (IPs reservadas para documentación: las reconoce el proveedor de IP simulado)
@@ -127,7 +127,7 @@ def armar_solicitud(c: Dict[str, Any], ip: str) -> Dict[str, Any]:
 
 
 def registrar_tienda(app: FastAPI, servicio, principal, modo_csp: str = "report-only") -> None:
-    html = (ESTATICOS / "tienda" / "index.html").read_text(encoding="utf-8")
+    html = (FRONTEND / "tienda" / "index.html").read_text(encoding="utf-8")
     cabeceras = cabecera_panel(modo_csp)
     app.add_api_route(
         "/tienda",

@@ -43,6 +43,7 @@ class Ajustes:
     proveedor_ip: str = (
         "simulado"  # quién ubica y evalúa las IP (ver proveedores_ip.py); el simulado es solo de demostración
     )
+    servir_pantallas: bool = True  # si es True, esta API también entrega las pantallas de la carpeta frontend/ (MODELO_IA_PANTALLAS=0 las deja a otro servidor web)
     csp_modo: str = "report-only"  # política de contenido de /docs: 'report-only' (observa) o 'enforce' (bloquea)
     exigir_mfa: bool = (
         False  # si es True, las acciones de administrador que cambian algo piden el código TOTP (MODELO_IA_EXIGIR_MFA)
@@ -70,6 +71,8 @@ class Ajustes:
             a.ruta_modelo = Path(os.environ["MODELO_IA_MODELO"])
         a.limite_peticiones_por_minuto = int(os.environ.get("MODELO_IA_LIMITE", a.limite_peticiones_por_minuto))
         a.csp_modo = os.environ.get("MODELO_IA_CSP", a.csp_modo)
+        if os.environ.get("MODELO_IA_PANTALLAS", "").strip().lower() in ("0", "false", "no", "off"):
+            a.servir_pantallas = False
         a.log_formato = os.environ.get("MODELO_IA_LOG_FORMATO", a.log_formato).strip().lower()
         a.exigir_registro_modelos = os.environ.get("MODELO_IA_EXIGIR_REGISTRO", "").strip().lower() in (
             "1",

@@ -81,6 +81,7 @@ def preparar(reiniciar: bool = False) -> Tuple[Ajustes, Dict[str, str]]:
 
 def crear_app_demo(reiniciar: bool = False):
     ajustes, claves = preparar(reiniciar)
+    ajustes.servir_pantallas = True  # la demo es UN solo servidor: entrega también sus pantallas
     app = crear_app(ajustes, docs=False)
     registrar_documentacion(app, ajustes.csp_modo, claves)
     registrar_panel(app, ajustes.csp_modo, claves["analista"])

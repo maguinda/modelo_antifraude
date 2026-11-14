@@ -1032,14 +1032,14 @@ def test_el_panel_se_sirve_con_politica_de_contenido_y_sin_cache(ctx):
 
 
 def test_el_panel_no_tiene_scripts_ni_estilos_en_linea():
-    html = (documentacion.ESTATICOS / "panel" / "index.html").read_text(encoding="utf-8")
+    html = (documentacion.FRONTEND / "panel" / "index.html").read_text(encoding="utf-8")
     assert not re.findall(r"<script(?![^>]*\bsrc=)", html) and "style=" not in html and "onclick" not in html.lower()
     assert "http://" not in sin_credito(html) and "https://" not in sin_credito(html)
 
 
 def test_el_script_del_panel_nunca_inserta_datos_como_html():
     """Los textos (ciudad, motivos...) vienen de comercios: solo se pueden mostrar como texto."""
-    js = (documentacion.ESTATICOS / "panel" / "panel.js").read_text(encoding="utf-8")
+    js = (documentacion.FRONTEND / "panel" / "panel.js").read_text(encoding="utf-8")
     for peligroso in (
         "innerHTML",
         "outerHTML",
@@ -1154,11 +1154,11 @@ def test_los_proveedores_simulados_estan_marcados_y_son_deterministas():
     assert tienda_mod.proveedores_simulados({"autenticacion_2fa": "EXIGIDA_FALLIDA"}) == {"intentos_fallidos_24h": 2}
     assert tienda_mod.proveedores_simulados({"autenticacion_2fa": "NO_EXIGIDA"}) == {"intentos_fallidos_24h": 0}
     assert "SIMULADO" in tienda_mod.proveedores_simulados.__doc__
-    assert "simulado" in (documentacion.ESTATICOS / "tienda" / "index.html").read_text(encoding="utf-8").lower()
+    assert "simulado" in (documentacion.FRONTEND / "tienda" / "index.html").read_text(encoding="utf-8").lower()
 
 
 def test_el_sdk_no_lee_lo_que_escribe_el_comprador_ni_envia_nada_por_su_cuenta():
-    sdk = (documentacion.ESTATICOS / "sdk" / "antifraude.js").read_text(encoding="utf-8")
+    sdk = (documentacion.FRONTEND / "sdk" / "antifraude.js").read_text(encoding="utf-8")
     comentarios_fuera = re.sub(r"/\*.*?\*/", "", sdk, flags=re.S)
     for prohibido in (
         ".value",
@@ -1177,14 +1177,14 @@ def test_el_sdk_no_lee_lo_que_escribe_el_comprador_ni_envia_nada_por_su_cuenta()
 
 
 def test_la_tienda_nunca_lee_el_campo_de_la_tarjeta_y_no_inserta_html():
-    js = (documentacion.ESTATICOS / "tienda" / "tienda.js").read_text(encoding="utf-8")
+    js = (documentacion.FRONTEND / "tienda" / "tienda.js").read_text(encoding="utf-8")
     assert (
         not re.search(r'\$\("tarjeta"\)\.(value|textContent|innerText)', js) and 'getElementById("tarjeta")' not in js
     )
     assert js.count('"tarjeta"') == 1  # solo se le entrega al SDK para detectar si se pegó
     for peligroso in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "localStorage"):
         assert peligroso not in js, peligroso
-    html = (documentacion.ESTATICOS / "tienda" / "index.html").read_text(encoding="utf-8")
+    html = (documentacion.FRONTEND / "tienda" / "index.html").read_text(encoding="utf-8")
     assert not re.findall(r"<script(?![^>]*\bsrc=)", html) and "style=" not in html
 
 
@@ -2011,7 +2011,7 @@ def test_el_panel_exige_clave_y_los_comercios_solo_son_para_analistas(ctx):
 
 
 # ------------------------------------------------------------------ pantalla del panel de control (/dashboard)
-DASH = documentacion.ESTATICOS / "dashboard"
+DASH = documentacion.FRONTEND / "dashboard"
 
 
 def test_el_dashboard_se_sirve_con_politica_de_contenido_y_sin_cache(ctx):
@@ -2153,7 +2153,7 @@ def test_la_cola_resuelta_tambien_se_filtra(ctx):
 
 
 # ------------------------------------------------------------------ diseño compartido (comun/diseno.css) y las tres pantallas que lo usan
-COMUN = documentacion.ESTATICOS / "comun"
+COMUN = documentacion.FRONTEND / "comun"
 PANTALLAS = {
     "panel": ("panel/index.html", "/panel"),
     "tienda": ("tienda/index.html", "/tienda"),
@@ -2164,7 +2164,7 @@ PANTALLAS = {
 def test_todas_las_pantallas_usan_el_diseno_compartido_y_se_sirve(ctx):
     assert ctx.cliente.get("/estaticos/comun/diseno.css").status_code == 200
     for nombre, (archivo, ruta) in PANTALLAS.items():
-        html = (documentacion.ESTATICOS / archivo).read_text(encoding="utf-8")
+        html = (documentacion.FRONTEND / archivo).read_text(encoding="utf-8")
         assert "/estaticos/comun/diseno.css" in html, nombre
         assert html.index("/estaticos/comun/diseno.css") < html.index(f"/estaticos/{nombre}/{nombre}.css"), (
             nombre
@@ -2179,7 +2179,7 @@ def test_el_diseno_compartido_tiene_modo_oscuro_y_nada_externo_ni_colores_suelto
     assert "prefers-color-scheme: dark" in comun and "--azul:" in comun and "--r-lg:" in comun
     assert "@import" not in comun and "url(" not in comun and not re.findall(r"https?://", comun)
     for nombre in ("panel", "tienda", "dashboard"):
-        css = (documentacion.ESTATICOS / nombre / f"{nombre}.css").read_text(encoding="utf-8")
+        css = (documentacion.FRONTEND / nombre / f"{nombre}.css").read_text(encoding="utf-8")
         assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", css), (
             nombre,
             re.findall(r"#[0-9a-fA-F]{3,8}\b", css)[:3],
@@ -2202,8 +2202,8 @@ def sin_credito(html: str) -> str:
 
 def test_la_tienda_y_el_panel_no_tienen_nada_en_linea_ni_externo_ni_html_inyectado():
     for nombre in ("tienda", "panel"):
-        html = (documentacion.ESTATICOS / nombre / "index.html").read_text(encoding="utf-8")
-        js = (documentacion.ESTATICOS / nombre / f"{nombre}.js").read_text(encoding="utf-8")
+        html = (documentacion.FRONTEND / nombre / "index.html").read_text(encoding="utf-8")
+        js = (documentacion.FRONTEND / nombre / f"{nombre}.js").read_text(encoding="utf-8")
         assert (
             not re.findall(r"<script(?![^>]*\bsrc=)", html)
             and "style=" not in html
@@ -2224,7 +2224,7 @@ def test_la_tienda_y_el_panel_no_tienen_nada_en_linea_ni_externo_ni_html_inyecta
 
 
 def test_la_tienda_nunca_lee_los_campos_de_tarjeta_nombre_vencimiento_ni_cvv():
-    js = (documentacion.ESTATICOS / "tienda" / "tienda.js").read_text(encoding="utf-8")
+    js = (documentacion.FRONTEND / "tienda" / "tienda.js").read_text(encoding="utf-8")
     for campo in ("tarjeta", "nombre", "vence", "cvv"):
         assert f'$("{campo}").value' not in js and f'getElementById("{campo}").value' not in js, campo
     assert 'AntifraudeSDK.observar($("pago"), $("tarjeta"))' in js  # el SDK solo se entera de si se PEGÓ el número
@@ -2462,3 +2462,63 @@ def test_una_clave_sin_nombre_se_muestra_como_clave_numero(ctx):
         f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "analista"
     )  # la clave del contexto no tiene nombre
     assert cola(ctx, "admin", estado="resuelta").json()["revisiones"][0]["resuelta_por"].startswith("clave #")
+
+
+# ------------------------------------------------------------------ frontend separado del backend (cambio: carpeta frontend/)
+def test_sin_pantallas_la_api_responde_datos_y_documentacion_pero_no_entrega_el_frontend(tmp_path, artefacto):
+    """MODELO_IA_PANTALLAS=0: producción con otro servidor web delante de las pantallas. La API no debe entregar HTML ni JS del frontend."""
+    ctx = construir_contexto(tmp_path, artefacto, servir_pantallas=False)
+    for ruta in (
+        "/panel",
+        "/dashboard",
+        "/estaticos/panel/panel.js",
+        "/estaticos/dashboard/dashboard.js",
+        "/estaticos/comun/diseno.css",
+        "/estaticos/sdk/antifraude.js",
+    ):
+        assert ctx.cliente.get(ruta).status_code == 404, ruta
+    config = ctx.cliente.get(
+        "/init/panel-config.js"
+    )  # lo pide el HTML que entrega el otro servidor web: sigue siendo de la API
+    assert config.status_code == 200 and config.text == "window.PANEL_CONFIG = {};"
+    assert ctx.cliente.get("/v1/salud").status_code == 200
+    assert ctx.cliente.get("/v1/yo", headers=ctx.h("A")).status_code == 200
+    assert ctx.cliente.get("/docs").status_code == 200  # la documentación del contrato sigue siendo del backend
+    assert ctx.cliente.get("/estaticos/swagger-ui-bundle.js").status_code == 200
+
+
+def test_con_pantallas_el_frontend_sale_de_la_carpeta_frontend_y_la_variable_de_entorno_las_apaga(ctx, monkeypatch):
+    assert (
+        ctx.cliente.get("/panel").status_code == 200 and ctx.cliente.get("/estaticos/panel/panel.js").status_code == 200
+    )
+    assert ctx.app.state.ajustes.servir_pantallas is True
+    for valor, esperado in (("0", False), ("false", False), ("OFF", False), ("1", True), ("", True)):
+        monkeypatch.setenv("MODELO_IA_PANTALLAS", valor)
+        assert Ajustes.desde_entorno().servir_pantallas is esperado, valor
+
+
+def test_cada_ruta_de_la_api_que_usa_el_frontend_existe_en_el_contrato(ctx):
+    """Frontend y backend se separan, pero siguen hablando por un contrato: un JS que llame a una ruta /v1 (escrita tal cual en el código) que ya no existe se detecta aquí."""
+    import re
+
+    contrato = set(ctx.app.openapi()["paths"])
+    plantillas = [re.compile("^" + re.sub(r"\{[^}]+\}", "[^/]+", ruta) + "$") for ruta in contrato]
+    usadas = set()
+    for js in (documentacion.FRONTEND).rglob("*.js"):
+        usadas |= set(re.findall(r"""["'`](/v1/[A-Za-z0-9_/.-]*)""", js.read_text(encoding="utf-8")))
+    assert usadas, "el frontend ya no llama a la API: ¿cambió la forma de pedir los datos?"
+    for ruta in usadas:
+        base = ruta.rstrip("/")  # el JS arma «/v1/revisiones/» + id: se acepta como prefijo de una ruta con parámetro
+        assert any(p.match(base) for p in plantillas) or any(c.startswith(base + "/") for c in contrato), ruta
+
+
+def test_los_limites_entre_carpetas_se_respetan(ctx):
+    """Backend: api/ no guarda pantallas (solo la documentación del contrato). Frontend: no importa nada del backend ni llama a su disco."""
+    estaticos = {p.name for p in documentacion.ESTATICOS.iterdir()}
+    assert not (estaticos & set(documentacion.SECCIONES_FRONTEND)), estaticos
+    assert {"swagger-ui-bundle.js", "redoc.standalone.js", "MANIFIESTO.txt"} <= estaticos
+    assert {p.name for p in documentacion.FRONTEND.iterdir() if p.is_dir()} >= set(documentacion.SECCIONES_FRONTEND)
+    for archivo in documentacion.FRONTEND.rglob("*"):
+        if archivo.suffix in (".js", ".html", ".css"):
+            texto = archivo.read_text(encoding="utf-8")
+            assert "../api/" not in texto and "modelo_ia.api" not in texto, archivo.name

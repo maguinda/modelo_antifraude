@@ -9,14 +9,13 @@ import os
 from typing import Dict, Optional
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 
 from . import registro_modelos
 from .ajustes import Ajustes
 from .almacen import Almacen
 from .consultas import ConsultasPanel
 from .contrato import instalar_contrato
-from .documentacion import ESTATICOS, registrar_documentacion
+from .documentacion import montar_estaticos, registrar_documentacion
 from .manejo import registrar_manejo
 from .metadatos import DESCRIPCION, ETIQUETAS, VERSION_API
 from .observabilidad import ObservabilidadMiddleware, configurar_logs
@@ -74,10 +73,10 @@ def crear_app(
         docs_url=None,
         redoc_url=None,
     )
-    app.mount("/estaticos", StaticFiles(directory=str(ESTATICOS)), name="estaticos")
+    montar_estaticos(app, ajustes.servir_pantallas)
     if docs:
         registrar_documentacion(app, ajustes.csp_modo)
-        registrar_panel(app, ajustes.csp_modo)
+        registrar_panel(app, ajustes.csp_modo, pantallas=ajustes.servir_pantallas)
     app.state.almacen, app.state.servicio, app.state.ajustes, app.state.consultas = (
         almacen,
         servicio,
