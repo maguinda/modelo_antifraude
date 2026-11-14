@@ -13,6 +13,7 @@ api/datos_api.sqlite3*
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm
+*.migrar.lock
 
 # Demo local: base y claves de demostración
 api/demo/

@@ -3,7 +3,8 @@
 Qué garantiza (y qué no):
   - Cada migración corre en UNA transacción: si falla a la mitad, no queda nada a medias, y no se registra como aplicada.
   - Dos procesos arrancando a la vez (uvicorn --workers) no aplican la misma migración dos veces: se toma el bloqueo de escritura y el estado
-    se RELEE dentro de él.
+    se RELEE dentro de él. Además, un candado de archivo cubre TODA la actualización: el segundo proceso espera a que el primero termine y no repite
+    ni la copia previa (antes, uno que llegaba entre dos migraciones del primero hacía una copia de más).
   - Antes de aplicar el primer cambio pendiente a una base que ya tiene datos, se guarda una COPIA (UNA por actualización, aunque se apliquen varios
     cambios o arranquen varios procesos a la vez) con la API de respaldo de SQLite. Si la copia
     no se puede hacer, NO se migra (fallar cerrado es mejor que migrar sin red de seguridad). Las copias no se borran solas.
@@ -14,12 +15,18 @@ Para agregar un cambio de esquema: una función nueva `(conexion) -> None` y un 
 `Almacen._migraciones`. Nunca se edita ni se renumera una migración ya publicada.
 """
 
+import contextlib
 import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, List, Sequence
+from typing import Callable, Dict, Iterator, List, Sequence
+
+try:
+    import fcntl  # candado de archivo entre procesos (Linux y macOS)
+except ImportError:  # Windows: no hay; cada migración sigue siendo atómica y exclusiva por el bloqueo de SQLite
+    fcntl = None  # type: ignore[assignment]
 
 TABLA = "CREATE TABLE IF NOT EXISTS migraciones (id INTEGER PRIMARY KEY, nombre TEXT NOT NULL, aplicada TEXT NOT NULL)"
 SEPARADOR_COPIA = ".antes-de-migrar-"
@@ -141,7 +148,45 @@ def _quitar(archivo: Path) -> None:
         pass
 
 
+@contextlib.contextmanager
+def candado_de_actualizacion(ruta: Path) -> Iterator[None]:
+    """Un candado de ARCHIVO (`<base>.migrar.lock`) que se toma durante TODA la actualización, no solo durante cada migración.
+
+    Sin él, un segundo proceso podía entrar entre dos migraciones del primero y verlas como «las primeras pendientes»: hacía su propia copia previa (una
+    de más) y se repartían las migraciones. Con él, el segundo espera a que el primero termine y entonces ve que no queda nada. El sistema operativo lo
+    suelta solo si el proceso muere. Si el archivo no se puede crear (carpeta de solo lectura) se sigue sin él: es una protección extra, no la base."""
+    archivo = None
+    if fcntl is not None:
+        try:
+            archivo = open(f"{ruta}.migrar.lock", "a")
+        except OSError:
+            archivo = None
+    try:
+        if archivo is not None:
+            fcntl.flock(archivo, fcntl.LOCK_EX)
+        yield
+    finally:
+        if archivo is not None:
+            try:
+                fcntl.flock(archivo, fcntl.LOCK_UN)
+            finally:
+                archivo.close()
+
+
 def aplicar(
+    ruta: Path,
+    abrir: Callable[[], sqlite3.Connection],
+    migraciones: Sequence[Migracion],
+    hay_datos: Callable[[sqlite3.Connection], bool],
+    ahora_iso: Callable[[], str],
+) -> List[int]:
+    """Aplica en orden las migraciones que falten, con el candado de toda la actualización (ver `candado_de_actualizacion`)."""
+    validar(migraciones)
+    with candado_de_actualizacion(Path(ruta)):
+        return _aplicar(ruta, abrir, migraciones, hay_datos, ahora_iso)
+
+
+def _aplicar(
     ruta: Path,
     abrir: Callable[[], sqlite3.Connection],
     migraciones: Sequence[Migracion],
