@@ -111,6 +111,17 @@ dl.datos dd { margin: 0; font-weight: 600; text-align: right; }
   a.seg, a.codigo, button.codigo { display: inline-flex; align-items: center; min-height: var(--toque); }
 }
 
+/* ---- «señales que más pesaron» (las usan la revisión manual y el dashboard) */
+.senales { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e3); }
+.senal { display: grid; gap: var(--e1); }
+.texto-senal { display: flex; justify-content: space-between; align-items: baseline; gap: var(--e3); }
+.peso-senal { flex: 0 0 auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.senal.sube .peso-senal { color: var(--rojo); } .senal.baja .peso-senal { color: var(--verde); }
+.pista-senal { height: 6px; background: var(--crema); border-radius: var(--r-pildora); overflow: hidden; }
+.barra-senal { display: block; height: 100%; width: var(--ancho, 0); border-radius: var(--r-pildora); }
+.senal.sube .barra-senal { background: var(--rojo); } .senal.baja .barra-senal { background: var(--verde); }
+.aclaracion { font-size: 13px; }
+
 /* ---- rejillas, indicadores (KPI) y formularios de filtros (los usan el dashboard y la revisión manual) */
 /* ---- tarjetas y rejillas */
 .rejilla { display: grid; gap: var(--e4); }

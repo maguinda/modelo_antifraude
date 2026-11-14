@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 
-from .. import config, predecir, variables
+from .. import config, explicacion_local, predecir, variables
 from ..entrenar import ESTADO_RELLENO
 from ..reglas import SEVERIDAD, MotorReglas
 from ..reglas.seguridad import construir_reglas_seguridad
@@ -217,8 +217,8 @@ class ServicioEvaluacion:
         con.execute(
             "INSERT INTO evaluaciones (id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, solicitud_hash, "
             "decision, decision_modelo, probabilidad, motivos_json, reglas_json, modelo_nombre, modelo_version, "
-            "modelo_conjunto, modo, latencia_ms, creada, red_origen, estado_origen, id_seguimiento, ip_codigo, disp_codigo, monto_cop, no_enviados_json) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "modelo_conjunto, modo, latencia_ms, creada, red_origen, estado_origen, id_seguimiento, ip_codigo, disp_codigo, monto_cop, no_enviados_json, senales_json) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (id_eval, principal.comercio_id, solicitud.id_transaccion, solicitud.id_cliente, fila["fecha"],
              guardada["huella_dispositivo"], json.dumps(guardada, ensure_ascii=False, default=str), huella_solicitud,
              resultado["decision"], resultado["decision_modelo"], resultado["probabilidad"],
@@ -226,7 +226,8 @@ class ServicioEvaluacion:
              self.meta["modelo"], self.meta["version"], self.meta["conjunto"], resultado["modo"], latencia, ahora_iso(), red_origen, resultado["estado_origen"],
              id_seguimiento, self.alm.codigo_ip(fila_con_24h.get("ip_huella")),
              None if fila.get("huella_dispositivo") is None else self.alm.codigo_dispositivo(fila["huella_dispositivo"]),
-             fila.get("monto_cop"), json.dumps(no_enviados)))
+             fila.get("monto_cop"), json.dumps(no_enviados),
+             json.dumps(resultado["senales"], ensure_ascii=False) if (resultado["senales"]["suben"] or resultado["senales"]["bajan"]) else None))
         if resultado["decision"] == "EN_REVISION":
             con.execute("INSERT INTO revisiones (id_evaluacion, comercio_id, estado, creada) VALUES (?,?,'pendiente',?)",
                         (id_eval, principal.comercio_id, ahora_iso()))
@@ -302,8 +303,10 @@ class ServicioEvaluacion:
                 raise DatosInsuficientes(faltan)
             pago, fila_24h = self._variables(con, comercio_id, fila, id_eval)
             r = predecir.analizar_transaccion(pago, modelo, lista_negra=negra)
-            return {"decision": traduccion.DECISION_API[r["decision"]], "decision_modelo": traduccion.DECISION_API[r["decision_modelo"]],
-                    "probabilidad": r["probabilidad_fraude"], "motivos": r["motivos"], "reglas": r["reglas_activadas"],
+            decision = traduccion.DECISION_API[r["decision"]]
+            senales = explicacion_local.explicar(modelo["pipeline"], pago, modelo["meta"]) if decision != "APROBADA" else {"suben": [], "bajan": [], "puntaje_tipico": None}   # solo a lo que no se aprueba
+            return {"decision": decision, "decision_modelo": traduccion.DECISION_API[r["decision_modelo"]],
+                    "probabilidad": r["probabilidad_fraude"], "motivos": r["motivos"], "reglas": r["reglas_activadas"], "senales": senales,
                     "modo": "normal", "estado_origen": estado_origen}, fila_24h
         except DatosInsuficientes as e:
             razon = "Modo degradado: faltan datos que el modelo necesita (" + ", ".join(NOMBRES_LEGIBLES.get(c, c) for c in e.faltan) + ")."
@@ -318,7 +321,7 @@ class ServicioEvaluacion:
         rechaza = SEVERIDAD[reglas["decision"]] >= SEVERIDAD["BLOQUEAR"]
         decision = "RECHAZADA" if rechaza else "EN_REVISION"
         return {"decision": decision, "decision_modelo": None, "probabilidad": None, "motivos": [razon],
-                "reglas": reglas["reglas_activadas"], "modo": "degradado", "estado_origen": estado_origen}, fila_24h
+                "reglas": reglas["reglas_activadas"], "senales": {"suben": [], "bajan": [], "puntaje_tipico": None}, "modo": "degradado", "estado_origen": estado_origen}, fila_24h
 
     # ----------------------------------------------------------- respuestas
     def _respuesta(self, con: sqlite3.Connection, e: sqlite3.Row, repetida: bool) -> Dict:
@@ -383,6 +386,7 @@ class ServicioEvaluacion:
              "puntaje_riesgo": f["probabilidad"], "motivos": json.loads(f["motivos_json"]),
              "reglas_activadas": json.loads(f["reglas_json"]), "creada_en": f["rev_creada"], "estado": f["rev_estado"],
              "resuelta_en": f["rev_resuelta"], "resuelta_por": f["rev_por"] if f["rev_estado"] == "resuelta" else None,
+             "senales": json.loads(f["senales_json"]) if f["senales_json"] else {"suben": [], "bajan": []},
              "resumen_pago": _resumen(json.loads(f["fila_json"]))} for f in filas]}
 
     def resolver_revision(self, principal: Principal, id_eval: str, sol) -> Dict:

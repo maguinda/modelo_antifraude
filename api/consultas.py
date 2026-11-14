@@ -167,7 +167,8 @@ class ConsultasPanel:
             "fechas": {"fecha_pago": e["fecha"], "evaluada_en": e["creada"], "latencia_ms": e["latencia_ms"]},
             "decision": {"inicial": e["decision"], "del_modelo": e["decision_modelo"], "final": final, "decidio": quien},
             "puntaje_riesgo": e["probabilidad"], "umbrales": umbrales, "motivos": motivos, "reglas_activadas": reglas,
-            "como_se_decidio": self._pasos(e, fila, no_enviados, reglas, motivos, umbrales, rev, res),
+            "senales": (json.loads(e["senales_json"]) if e["senales_json"] else {"suben": [], "bajan": []}) if personal else None,       # solo para el personal
+            "como_se_decidio": self._con_senales(self._pasos(e, fila, no_enviados, reglas, motivos, umbrales, rev, res), e, personal),
             "modelo": {"nombre": e["modelo_nombre"], "version": e["modelo_version"], "conjunto_variables": e["modelo_conjunto"], "modo": e["modo"],
                        "estado_origen": e["estado_origen"], "red_origen": e["red_origen"]},
             "datos_recibidos": self._datos(fila, no_enviados, e),
@@ -204,6 +205,18 @@ class ConsultasPanel:
         salida["dispositivo"]["codigo"] = {"valor": e["disp_codigo"], "enviado": e["disp_codigo"] is not None}
         salida["red"]["codigo"] = {"valor": e["ip_codigo"], "enviado": e["ip_codigo"] is not None}
         return salida
+
+    @staticmethod
+    def _con_senales(pasos: List[Dict[str, str]], e: sqlite3.Row, personal: bool) -> List[Dict[str, str]]:
+        """Para el personal, agrega a la cadena de decisión lo que más empujó el riesgo, justo después del paso del modelo."""
+        s = json.loads(e["senales_json"]) if (personal and e["senales_json"]) else None
+        if not s or not s["suben"]:
+            return pasos
+        texto = "Lo que más empujó el riesgo: " + "; ".join(f"{x['texto']} (+{x['puntos']:.0f} puntos)" for x in s["suben"]) + "."
+        if s["bajan"]:
+            texto += " A favor: " + "; ".join(f"{x['texto']} ({x['puntos']:.0f} puntos)" for x in s["bajan"]) + "."
+        i = next((k for k, p in enumerate(pasos) if p["paso"] == "Modelo"), len(pasos) - 1) + 1
+        return pasos[:i] + [{"paso": "Señales que más pesaron", "detalle": texto}] + pasos[i:]
 
     def _pasos(self, e, fila, no_enviados, reglas, motivos, umbrales, rev, res) -> List[Dict[str, str]]:
         pasos = [{"paso": "Datos recibidos", "detalle": f"Llegaron {len(fila) - len(no_enviados)} datos del pago." + (

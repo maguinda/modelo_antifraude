@@ -360,6 +360,14 @@
             "description": "Datos del pago que el analista necesita para decidir (sin datos de tarjeta ni huella).",
             "title": "Resumen Pago",
             "type": "object"
+          },
+          "senales": {
+            "$ref": "#/components/schemas/Senales",
+            "default": {
+              "bajan": [],
+              "suben": []
+            },
+            "description": "Las señales que más pesaron en el puntaje (solo para pagos que no se aprobaron). Explican al modelo, no prueban fraude."
           }
         },
         "required": [
@@ -979,6 +987,67 @@
         ],
         "title": "ResultadoPago",
         "type": "string"
+      },
+      "Senal": {
+        "properties": {
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "puntos": {
+            "description": "Cuántos puntos de probabilidad de fraude movió esa señal (positivo: empujó hacia fraude; negativo: a favor).",
+            "title": "Puntos",
+            "type": "number"
+          },
+          "texto": {
+            "description": "La señal en palabras, por ejemplo «El monto ($ 800.000) es 4,2 veces el promedio de este cliente».",
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "texto",
+          "puntos"
+        ],
+        "title": "Senal",
+        "type": "object"
+      },
+      "Senales": {
+        "properties": {
+          "bajan": {
+            "default": [],
+            "description": "Las señales que más lo bajaron (a favor del pago).",
+            "items": {
+              "$ref": "#/components/schemas/Senal"
+            },
+            "title": "Bajan",
+            "type": "array"
+          },
+          "puntaje_tipico": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La probabilidad de fraude que tendría un pago típico (la referencia contra la que se mide).",
+            "title": "Puntaje Tipico"
+          },
+          "suben": {
+            "default": [],
+            "description": "Las señales que más empujaron el riesgo hacia arriba.",
+            "items": {
+              "$ref": "#/components/schemas/Senal"
+            },
+            "title": "Suben",
+            "type": "array"
+          }
+        },
+        "title": "Senales",
+        "type": "object"
       },
       "SolicitudComercio": {
         "additionalProperties": false,

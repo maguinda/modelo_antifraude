@@ -264,6 +264,18 @@ class RespuestaEvaluacion(BaseModel):
     repetida: bool = Field(False, description="True si es la respuesta guardada de una solicitud repetida (mismo `id_transaccion`).")
 
 
+class Senal(BaseModel):
+    clave: str
+    texto: str = Field(description="La señal en palabras, por ejemplo «El monto ($ 800.000) es 4,2 veces el promedio de este cliente».")
+    puntos: float = Field(description="Cuántos puntos de probabilidad de fraude movió esa señal (positivo: empujó hacia fraude; negativo: a favor).")
+
+
+class Senales(BaseModel):
+    suben: List[Senal] = Field([], description="Las señales que más empujaron el riesgo hacia arriba.")
+    bajan: List[Senal] = Field([], description="Las señales que más lo bajaron (a favor del pago).")
+    puntaje_tipico: Optional[float] = Field(None, description="La probabilidad de fraude que tendría un pago típico (la referencia contra la que se mide).")
+
+
 class FilaRevision(BaseModel):
     id_evaluacion: str
     id_seguimiento: Optional[str] = None
@@ -277,6 +289,7 @@ class FilaRevision(BaseModel):
     estado: str
     resuelta_en: Optional[datetime] = None
     resuelta_por: Optional[str] = Field(None, description="Quién resolvió la revisión (nombre de la persona). Solo lo ven analistas y administradores.")
+    senales: Senales = Field(Senales(), description="Las señales que más pesaron en el puntaje (solo para pagos que no se aprobaron). Explican al modelo, no prueban fraude.")
     resumen_pago: Dict[str, Any] = Field({}, description="Datos del pago que el analista necesita para decidir (sin datos de tarjeta ni huella).")
 
 

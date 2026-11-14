@@ -17,7 +17,7 @@ import joblib
 import pandas as pd
 import sklearn
 
-from . import config, datos, etiquetas, evaluacion, experimentos, modelos, particion, variables
+from . import config, datos, etiquetas, evaluacion, experimentos, explicacion_local, modelos, particion, variables
 
 
 def preparar_datos(ruta: Optional[Path], conjunto: str, alcance: Optional[str] = None) -> Tuple[pd.DataFrame, Dict[str, pd.Series]]:
@@ -53,6 +53,7 @@ def ajustar_y_evaluar(df: pd.DataFrame, mascaras: Dict[str, pd.Series],
     if etiquetas_conocidas:
         corte = pd.Timestamp(config.FIN_ENTRENAMIENTO) + pd.Timedelta(days=1)
         y_entreno = etiquetas.etiqueta_conocida(df.loc[mascaras["entrenamiento"]], corte)
+    referencia = explicacion_local.calcular_referencia(df, mascaras["entrenamiento"], config.COLUMNA_OBJETIVO, numericas, categoricas)   # el pago «típico», para explicar
     pipeline = modelos.crear_modelo(modelo, numericas, categoricas)
     inicio = time.time()
     pipeline.fit(df.loc[mascaras["entrenamiento"], columnas], y_entreno)
@@ -67,7 +68,7 @@ def ajustar_y_evaluar(df: pd.DataFrame, mascaras: Dict[str, pd.Series],
     umbral, _ = evaluacion.elegir_umbral(p_valid, y_v, montos_v)     # elegido SIN mirar la prueba
     umbral_revisar, umbral_bloquear = definir_umbrales(umbral)
     return {
-        "pipeline": pipeline, "modelo": modelo, "conjunto": conjunto,
+        "pipeline": pipeline, "modelo": modelo, "conjunto": conjunto, "referencia": referencia,
         "etiquetas_conocidas": etiquetas_conocidas, "positivos_entrenamiento": int(y_entreno.sum()), "sin_estado": sin_estado,
         "numericas": numericas, "categoricas": categoricas,
         "umbral_revisar": umbral_revisar, "umbral_bloquear": umbral_bloquear,
@@ -105,7 +106,7 @@ def guardar(resultado: Dict, ruta_datos: Path, como_actual: bool = False, como_a
         "scikit_learn": sklearn.__version__, "datos_sinteticos": True,
         "etiquetas_conocidas": resultado["etiquetas_conocidas"], "sin_estado": bool(resultado.get("sin_estado")), "alcance_historial": resultado.get("alcance_historial", "plataforma"),
         "metricas_validacion": resultado["metricas_validacion"],
-        "metricas_prueba": resultado["metricas_prueba"],
+        "metricas_prueba": resultado["metricas_prueba"], "referencia": resultado.get("referencia"),
     }
     joblib.dump({"pipeline": resultado["pipeline"], "meta": meta}, ruta_modelo)
     ruta_modelo.with_suffix(".json").write_text(json.dumps(meta, indent=2, ensure_ascii=False),
