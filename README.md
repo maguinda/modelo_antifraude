@@ -746,6 +746,13 @@ compartida y una etiqueta por comercio o por id crece sin límite. Un verbo HTTP
 archivos de una carpeta común (`PROMETHEUS_MULTIPROC_DIR`, que `servidor.py` crea sola) y al leer se
 suman, así la cifra es la del servicio completo.
 
+**Dos límites a tener presentes.** (1) La traza de un error inesperado incluye el mensaje de la
+excepción tal como lo escribe la librería (por ejemplo pandas o scikit-learn), que en un caso raro
+podría traer un valor del pago: antes de compartir registros fuera del servidor, revísalos. (2)
+`/v1/metricas` pasa por el proxy como el resto de `/v1/`: queda abierta a internet y protegida solo
+por la clave de administrador. Son datos agregados (sin ids ni comercios); si prefieres cerrarla
+hasta que exista un lector, bloquéala en el `Caddyfile` como `/demo`.
+
 **Lo que NO hay:** alertas ni tableros (Grafana), almacenamiento central de registros (si el
 contenedor se recrea se pierden, salvo que configures el controlador de logs de Docker) ni trazas
 distribuidas. Los datos quedan listos para cuando se quieran.
