@@ -1,0 +1,77 @@
+# Servicio antifraude en un servidor: la API, el servidor web con HTTPS automático (Caddy), las copias de seguridad y la vigilancia.
+# Uso (desde esta carpeta):  cp .env.ejemplo .env  → llenar .env y los archivos de secretos/  → docker compose up -d --build
+# Lee LEEME.md ANTES de ejecutar nada: ahí están los pasos, lo que hay que comprar y las pruebas obligatorias.
+name: antifraude
+
+x-endurecido: &endurecido            # restricciones que comparten todos los contenedores propios
+  restart: unless-stopped
+  read_only: true
+  tmpfs: ["/tmp"]
+  cap_drop: ["ALL"]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 256
+
+services:
+  api:
+    <<: *endurecido
+    build: {context: .., dockerfile: despliegue/Dockerfile}
+    image: antifraude:0.3.0
+    environment:
+      MODELO_IA_PEPPER_ARCHIVO: /run/secrets/pepper          # el secreto va en un archivo, no en una variable de entorno
+      MODELO_IA_CSP: ${MODELO_IA_CSP:-report-only}
+      MODELO_IA_PROVEEDOR_IP: ${MODELO_IA_PROVEEDOR_IP:-simulado}
+      MODELO_IA_LIMITE: ${MODELO_IA_LIMITE:-600}
+      MODELO_IA_HSTS: "0"                                    # el HSTS lo pone Caddy (quien termina el HTTPS)
+    secrets: [pepper]
+    volumes: ["datos:/datos"]
+    expose: ["8000"]
+    mem_limit: 1g
+    networks: [interna]                                      # SIN salida a internet: si algo fallara, no puede mandar datos afuera
+
+  caddy:
+    <<: *endurecido
+    image: caddy:2-alpine
+    cap_add: ["NET_BIND_SERVICE"]
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMINIO: ${DOMINIO:?Falta DOMINIO en .env}
+      CORREO_ACME: ${CORREO_ACME:?Falta CORREO_ACME en .env}
+      HSTS_SEGUNDOS: ${HSTS_SEGUNDOS:-300}
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_datos:/data", "caddy_config:/config"]
+    depends_on: {api: {condition: service_healthy}}
+    networks: [interna, externa]
+
+  respaldo:
+    <<: *endurecido
+    image: antifraude:0.3.0
+    command: ["python", "-m", "modelo_ia.despliegue.respaldo", "ciclo", "--cada-horas", "${RESPALDO_CADA_HORAS:-6}"]
+    environment:
+      MODELO_IA_RESPALDO_FRASE_ARCHIVO: /run/secrets/respaldo_frase
+    secrets: [respaldo_frase]
+    volumes: ["datos:/datos", "${RESPALDOS_CARPETA:-./respaldos}:/respaldos"]
+    depends_on: {api: {condition: service_healthy}}
+    networks: [externa]                                      # puede salir a internet (para copiar las copias a otro lugar)
+
+  vigilancia:
+    <<: *endurecido
+    image: antifraude:0.3.0
+    command: ["python", "-m", "modelo_ia.despliegue.vigilancia", "--url-interna", "http://api:8000", "--url-publica", "https://${DOMINIO}", "--cada-minutos", "5"]
+    environment:
+      MODELO_IA_ALERTA_URL: ${MODELO_IA_ALERTA_URL:-}
+      MODELO_IA_MAX_HORAS_RESPALDO: ${MODELO_IA_MAX_HORAS_RESPALDO:-13}
+    volumes: ["datos:/datos", "${RESPALDOS_CARPETA:-./respaldos}:/respaldos:ro"]
+    depends_on: {api: {condition: service_healthy}}
+    networks: [interna, externa]
+
+networks:
+  interna: {internal: true}
+  externa: {}
+
+volumes:
+  datos: {}
+  caddy_datos: {}
+  caddy_config: {}
+
+secrets:
+  pepper: {file: ./secretos/pepper}
+  respaldo_frase: {file: ./secretos/respaldo_frase}
