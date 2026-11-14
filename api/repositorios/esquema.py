@@ -189,6 +189,16 @@ class Esquema:
         for sentencia in sentencias(REGISTRO_MODELOS):
             con.execute(sentencia)
 
+    @staticmethod
+    def _reglas_de(texto: Any) -> List[Any]:
+        """Las reglas guardadas en un `reglas_json` viejo. Si el texto está dañado o no es una lista, esa evaluación queda sin filas de reglas
+        (antes bloqueaba el arranque): el JSON original sigue intacto en `evaluaciones`."""
+        try:
+            reglas = json.loads(texto or "[]")
+        except (TypeError, ValueError):
+            return []
+        return reglas if isinstance(reglas, list) else []
+
     def m4_sql_portable(self, con: sqlite3.Connection) -> None:
         """Migración 4: lo que antes dependía de funciones propias de SQLite pasa a columnas y tablas normales, que valen igual en cualquier motor:
           - `evaluaciones.seq`: el orden de llegada (antes `rowid`, que solo existe en SQLite). Se rellena con `rowid`, así el orden no cambia.
@@ -204,7 +214,7 @@ class Esquema:
         if con.execute("SELECT 1 FROM evaluacion_reglas LIMIT 1").fetchone() is None:
             filas = []
             for r in con.execute("SELECT id, reglas_json FROM evaluaciones"):
-                for posicion, regla in enumerate(json.loads(r["reglas_json"] or "[]")):
+                for posicion, regla in enumerate(self._reglas_de(r["reglas_json"])):
                     filas.append((r["id"], posicion, str(regla.get("regla", "?")) if isinstance(regla, dict) else "?"))
                 if len(filas) >= 5000:
                     con.executemany(

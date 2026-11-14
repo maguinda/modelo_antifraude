@@ -118,7 +118,7 @@ class ConsultasRepositorio:
         por_comercio = con.execute(
             "SELECT e.comercio_id, c.nombre, COUNT(*) pagos, SUM(CASE WHEN decision = 'APROBADA' THEN 1 ELSE 0 END) aprobadas, SUM(CASE WHEN decision = 'EN_REVISION' THEN 1 ELSE 0 END) en_revision, "
             "SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, COALESCE(SUM(CASE WHEN decision='RECHAZADA' THEN monto_cop END),0) monto_rechazado "
-            f"FROM evaluaciones e JOIN comercios c ON c.id = e.comercio_id {donde} GROUP BY e.comercio_id ORDER BY pagos DESC LIMIT 100",
+            f"FROM evaluaciones e JOIN comercios c ON c.id = e.comercio_id {donde} GROUP BY e.comercio_id, c.nombre ORDER BY pagos DESC LIMIT 100",
             par,
         ).fetchall()
         reglas = con.execute(
@@ -137,7 +137,7 @@ class ConsultasRepositorio:
                 "SELECT COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS analista, COUNT(*) AS resueltas, SUM(CASE WHEN r.decision_analista = 'APROBADA' THEN 1 ELSE 0 END) AS aprobadas, "
                 "SUM(CASE WHEN r.decision_analista = 'RECHAZADA' THEN 1 ELSE 0 END) AS rechazadas, AVG(r.minutos_resolucion) AS minutos_promedio "
                 f"FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion LEFT JOIN claves k ON k.id = r.clave_analista {_y(donde)} r.estado = 'resuelta' "
-                "GROUP BY r.clave_analista ORDER BY resueltas DESC LIMIT 50",
+                "GROUP BY r.clave_analista, k.etiqueta, k.id ORDER BY resueltas DESC LIMIT 50",
                 par,
             ).fetchall()
         alcance, par2 = ("WHERE e.comercio_id = ?", (f.comercio_id,)) if f.comercio_id is not None else ("", ())

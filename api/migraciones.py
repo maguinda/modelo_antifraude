@@ -150,7 +150,7 @@ def _quitar(archivo: Path) -> None:
         pass
 
 
-ESPERA_MAXIMA_CANDADO = 120.0  # segundos: más que eso es que otro proceso se colgó con el candado, y es mejor fallar con un mensaje claro que esperar para siempre
+ESPERA_MAXIMA_CANDADO = 600.0  # segundos: más que eso es que otro proceso se colgó con el candado, y es mejor fallar con un mensaje claro que esperar para siempre
 log = logging.getLogger("modelo_ia.migraciones")
 
 

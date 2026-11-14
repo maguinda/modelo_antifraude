@@ -131,7 +131,7 @@ class ModelosRegistroRepositorio:
         with self.base.transaccion() as con:
             actual = con.execute("SELECT id FROM modelos_registro WHERE rol=? AND estado='en_uso'", (rol,)).fetchone()
             previo = con.execute(
-                "SELECT id, version, sha256 FROM modelos_registro WHERE rol=? AND estado='archivado' AND promovido IS NOT NULL ORDER BY promovido DESC, id DESC LIMIT 1",
+                "SELECT id, version, sha256 FROM modelos_registro WHERE rol=? AND estado='archivado' AND promovido IS NOT NULL ORDER BY promovido DESC NULLS LAST, id DESC LIMIT 1",
                 (rol,),
             ).fetchone()
             if previo is None:
