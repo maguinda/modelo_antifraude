@@ -97,6 +97,15 @@ python -m pytest modelo_ia/tests -q                    # las pruebas
 ```
 Las pruebas que necesitan las bases de IP de 133 MB (`datos_ip/`) se saltan solas en la CI.
 
+## Migraciones de la base de datos
+Los cambios de esquema son **migraciones numeradas** (`api/migraciones.py`; la lista está en `Almacen._migraciones`). Cada una se aplica una sola vez, en su propia transacción, y queda registrada en la tabla `migraciones`.
+- **Base con datos:** antes de aplicar el primer cambio pendiente se guarda una copia (`<base>.antes-de-migrar-vN-FECHA.sqlite3`, un solo archivo, permisos 600). Si la copia falla, no se migra.
+- **Dos procesos arrancando a la vez** (`--workers`): el estado se relee dentro del bloqueo de escritura, así ninguna migración corre dos veces (30 rondas con procesos reales lo comprueban).
+- **Base más nueva que el programa:** se rechaza con un mensaje claro y no se toca. No hay migración «hacia atrás»: se vuelve atrás restaurando una copia.
+- **Bases de versiones anteriores** (sin tabla `migraciones`) se adoptan con la migración 1, que conserva todos los datos.
+- `python -m modelo_ia.api.admin migraciones` muestra qué está aplicado (no modifica nada); `... admin migrar` aplica lo que falte.
+- **Para cambiar el esquema no edites la migración 1** (una prueba lo impide): agrega la 2 con el cambio, y para una base nueva se aplican las dos en orden.
+
 ## Cómo está organizada la API (`api/`)
 `crear_app` (en `app.py`, unas 60 líneas) solo arma la aplicación y registra las piezas; cada tema vive en su archivo:
 

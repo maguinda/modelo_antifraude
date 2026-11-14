@@ -100,7 +100,9 @@ def test_una_base_vieja_sin_las_columnas_nuevas_se_actualiza(tmp_path):
     ruta = tmp_path / "vieja.sqlite3"
     Almacen(ruta, "p" * 40).inicializar()
     con = sqlite3.connect(ruta)
-    con.execute("ALTER TABLE claves DROP COLUMN ultimo_uso"); con.execute("ALTER TABLE claves DROP COLUMN creada_por"); con.commit(); con.close()
+    con.execute("ALTER TABLE claves DROP COLUMN ultimo_uso"); con.execute("ALTER TABLE claves DROP COLUMN creada_por")
+    con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
+    con.commit(); con.close()
     a = Almacen(ruta, "p" * 40); a.inicializar()
     assert {"ultimo_uso", "creada_por"} <= {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(claves)")}
     assert a.autenticar(a.crear_usuario("analista", "Ana Pérez")[1]).usuario == "Ana Pérez"

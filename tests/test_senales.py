@@ -198,7 +198,9 @@ def test_una_base_vieja_sin_la_columna_de_senales_se_actualiza(tmp_path):
     from modelo_ia.api.almacen import Almacen
     ruta = tmp_path / "v.sqlite3"
     Almacen(ruta, "p" * 40).inicializar()
-    con = sqlite3.connect(ruta); con.execute("ALTER TABLE evaluaciones DROP COLUMN senales_json"); con.commit(); con.close()
+    con = sqlite3.connect(ruta); con.execute("ALTER TABLE evaluaciones DROP COLUMN senales_json")
+    con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
+    con.commit(); con.close()
     Almacen(ruta, "p" * 40).inicializar()
     assert "senales_json" in {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(evaluaciones)")}
 

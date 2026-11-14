@@ -334,7 +334,9 @@ def test_una_base_de_antes_de_esta_version_se_actualiza_sin_perder_nada(tmp_path
     con = sqlite3.connect(ruta)
     for col in ("razon_social", "nit", "suspendido_en", "motivo_suspension"):
         con.execute(f"ALTER TABLE comercios DROP COLUMN {col}")
-    con.execute("DROP TABLE acuerdos"); con.commit(); con.close()
+    con.execute("DROP TABLE acuerdos")
+    con.execute("DROP TABLE migraciones")  # una base de antes de existir las migraciones no tiene esta tabla
+    con.commit(); con.close()
     b = Almacen(ruta, "p" * 40); b.inicializar(); b.inicializar()                                 # y es repetible
     assert b.autenticar(clave).comercio_id == cid
     cols = {r[1] for r in sqlite3.connect(ruta).execute("PRAGMA table_info(comercios)")}

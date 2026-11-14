@@ -14,7 +14,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
+
+from .migraciones import Migracion, aplicar, estado as estado_de_migraciones, listar_copias, sentencias
 
 PLATAFORMA = 1          # id del «comercio» al que pertenecen las claves de analistas y administradores
 
@@ -170,7 +172,6 @@ class Almacen:
         if not pendientes:
             return
         usados = {r[0] for r in con.execute("SELECT id_seguimiento FROM evaluaciones WHERE id_seguimiento IS NOT NULL")}
-        con.execute("BEGIN IMMEDIATE")
         for r in pendientes:
             fila = json.loads(r["fila_json"])
             nuevo = id_seguimiento_libre(usados.__contains__)
@@ -179,34 +180,66 @@ class Almacen:
             con.execute("UPDATE evaluaciones SET id_seguimiento=?, ip_codigo=?, disp_codigo=?, monto_cop=? WHERE id=?",
                         (nuevo, self.codigo_ip(fila.get("ip_huella")), None if not huella or str(huella).startswith("SIN-") else self.codigo_dispositivo(huella),
                          fila.get("monto_cop"), r["id"]))
-        con.execute("COMMIT")
 
-    def inicializar(self) -> None:
+    def _migraciones(self) -> List[Migracion]:
+        """Los cambios de esquema, en orden. Para agregar uno: una función nueva y un número más al final. Nunca se edita ni se renumera uno ya publicado."""
+        return [Migracion(1, "Esquema inicial y adopción de bases anteriores", self._m1_esquema_inicial)]
+
+    @staticmethod
+    def _hay_datos(con: sqlite3.Connection) -> bool:
+        """¿La base ya tiene algo que valga la pena copiar antes de migrar? Una base recién creada (solo la plataforma) no."""
+        tablas = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        total = 0
+        for tabla, donde in (("claves", ""), ("evaluaciones", ""), ("comercios", f" WHERE id != {PLATAFORMA}")):
+            if tabla in tablas:
+                total += con.execute(f"SELECT COUNT(*) FROM {tabla}{donde}").fetchone()[0]
+        return total > 0
+
+    def _m1_esquema_inicial(self, con: sqlite3.Connection) -> None:
+        """Migración 1: deja la base con el esquema completo. Sirve igual para una base nueva y para una creada por versiones anteriores
+        (cada paso comprueba lo que ya existe), que desde aquí quedan registradas y avanzan solo por migraciones numeradas."""
+        for sentencia in sentencias(DDL):
+            con.execute(sentencia)
+        columnas = {r["name"] for r in con.execute("PRAGMA table_info(evaluaciones)")}
+        for nueva in ("red_origen", "estado_origen"):          # bases creadas antes de existir estas columnas
+            if nueva not in columnas:
+                con.execute(f"ALTER TABLE evaluaciones ADD COLUMN {nueva} TEXT NOT NULL DEFAULT 'comercio'")
+        for nueva, tipo in (("id_seguimiento", "TEXT"), ("ip_codigo", "TEXT"), ("disp_codigo", "TEXT"), ("monto_cop", "REAL"), ("no_enviados_json", "TEXT"), ("senales_json", "TEXT")):
+            if nueva not in columnas:
+                con.execute(f"ALTER TABLE evaluaciones ADD COLUMN {nueva} {tipo}")
+        self._rellenar_columnas_nuevas(con)
+        claves = {r["name"] for r in con.execute("PRAGMA table_info(claves)")}
+        for nueva in ("ultimo_uso", "creada_por"):                      # bases creadas antes de existir estas columnas
+            if nueva not in claves:
+                con.execute(f"ALTER TABLE claves ADD COLUMN {nueva} " + ("TEXT" if nueva == "ultimo_uso" else "INTEGER"))
+        comercios = {r["name"] for r in con.execute("PRAGMA table_info(comercios)")}
+        for nueva in ("razon_social", "nit", "suspendido_en", "motivo_suspension"):          # bases creadas antes de existir estas columnas
+            if nueva not in comercios:
+                con.execute(f"ALTER TABLE comercios ADD COLUMN {nueva} TEXT")
+        for sentencia in sentencias(INDICES_PANEL):
+            con.execute(sentencia)
+        if con.execute("SELECT 1 FROM comercios WHERE id=?", (PLATAFORMA,)).fetchone() is None:
+            con.execute("INSERT INTO comercios (id, nombre, creado) VALUES (?, 'PLATAFORMA', ?)", (PLATAFORMA, ahora_iso()))
+
+    def inicializar(self, migraciones: Optional[Sequence[Migracion]] = None) -> List[int]:
+        """Pone la base al día aplicando las migraciones que falten (ver migraciones.py). Devuelve los números de las que aplicó esta vez.
+
+        Si la base tiene datos, antes de migrar se guarda una copia junto a ella (`<base>.antes-de-migrar-vN-FECHA.sqlite3`); si no se puede, no se migra."""
         con = self.abrir()
         try:
             con.execute("PRAGMA journal_mode=WAL")
-            con.executescript(DDL)
-            columnas = {r["name"] for r in con.execute("PRAGMA table_info(evaluaciones)")}
-            for nueva in ("red_origen", "estado_origen"):          # bases creadas antes de existir estas columnas
-                if nueva not in columnas:
-                    con.execute(f"ALTER TABLE evaluaciones ADD COLUMN {nueva} TEXT NOT NULL DEFAULT 'comercio'")
-            for nueva, tipo in (("id_seguimiento", "TEXT"), ("ip_codigo", "TEXT"), ("disp_codigo", "TEXT"), ("monto_cop", "REAL"), ("no_enviados_json", "TEXT"), ("senales_json", "TEXT")):
-                if nueva not in columnas:
-                    con.execute(f"ALTER TABLE evaluaciones ADD COLUMN {nueva} {tipo}")
-            self._rellenar_columnas_nuevas(con)
-            claves = {r["name"] for r in con.execute("PRAGMA table_info(claves)")}
-            for nueva in ("ultimo_uso", "creada_por"):                      # bases creadas antes de existir estas columnas
-                if nueva not in claves:
-                    con.execute(f"ALTER TABLE claves ADD COLUMN {nueva} " + ("TEXT" if nueva == "ultimo_uso" else "INTEGER"))
-            comercios = {r["name"] for r in con.execute("PRAGMA table_info(comercios)")}
-            for nueva in ("razon_social", "nit", "suspendido_en", "motivo_suspension"):          # bases creadas antes de existir estas columnas
-                if nueva not in comercios:
-                    con.execute(f"ALTER TABLE comercios ADD COLUMN {nueva} TEXT")
-            con.executescript(INDICES_PANEL)
-            if con.execute("SELECT 1 FROM comercios WHERE id=?", (PLATAFORMA,)).fetchone() is None:
-                con.execute("INSERT INTO comercios (id, nombre, creado) VALUES (?, 'PLATAFORMA', ?)", (PLATAFORMA, ahora_iso()))
         finally:
             con.close()
+        return aplicar(self.ruta, self.abrir, migraciones if migraciones is not None else self._migraciones(), self._hay_datos, ahora_iso)
+
+    def estado_migraciones(self) -> List[Dict[str, Any]]:
+        """Qué migraciones están aplicadas y cuáles faltan, sin tocar la base."""
+        with self.lectura() as con:
+            return estado_de_migraciones(con, self._migraciones())
+
+    def copias_previas(self) -> List[Path]:
+        """Las copias que se guardaron antes de migrar. No se borran solas: tienen los mismos datos que la base, así que cuídalas igual."""
+        return listar_copias(self.ruta)
 
     @contextmanager
     def transaccion(self) -> Iterator[sqlite3.Connection]:
