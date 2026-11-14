@@ -115,7 +115,9 @@ Los cambios de esquema son **migraciones numeradas** (`api/migraciones.py`; la l
 | `dependencias.py` | Quién llama (clave y rol: `principal_actual`, `exigir`), los filtros del panel y el acceso a los servicios (`obtener_servicio`…). Los servicios viven en `app.state`; las rutas los piden como dependencias, así se pueden probar solas. |
 | `manejo.py` | Errores en `application/problem+json`, límite de tamaño y cabeceras de seguridad de todas las respuestas. |
 | `contrato.py` · `metadatos.py` | El contrato OpenAPI y los textos y respuestas documentadas de Swagger. |
-| `servicio.py` · `consultas.py` · `almacen.py` | La lógica de cada evaluación, las consultas del panel y la persistencia en SQLite. |
+| `servicio.py` · `consultas.py` | La lógica de cada evaluación y las consultas del panel (todavía llevan parte del SQL: pasará a los repositorios). |
+| `almacen.py` | **Fachada** de la persistencia: los mismos métodos de siempre, cada uno delegando a su repositorio. Una prueba vigila que sus firmas no cambien. |
+| `repositorios/` | La persistencia dividida por tema: `base.py` (conexión, transacciones y el **único candado** de escritura que todos comparten), `seudonimos.py` (todo lo que usa el secreto), `comercios.py` (comercios, suspensión, acuerdos), `claves.py` (claves, personas, autenticación), `auditoria.py` y `esquema.py` (esquema y migraciones). Los repositorios no dependen de la fachada y la fachada no tiene SQL. |
 
 Para agregar una ruta: ponla en el router de su tema, agrégala al recorrido de `tests/test_permisos_por_ruta.py` (la prueba falla si una operación del contrato no está ahí) y vuelve a exportar `openapi.json`. Esa prueba guarda una «foto» del código, el tipo y la forma de la respuesta de **cada operación con cada rol**; si cambias la API a propósito, regenérala con `REGENERAR_PERMISOS=1`.
 
