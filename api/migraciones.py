@@ -16,8 +16,10 @@ Para agregar un cambio de esquema: una función nueva `(conexion) -> None` y un 
 """
 
 import contextlib
+import logging
 import os
 import sqlite3
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -148,29 +150,49 @@ def _quitar(archivo: Path) -> None:
         pass
 
 
+ESPERA_MAXIMA_CANDADO = 120.0  # segundos: más que eso es que otro proceso se colgó con el candado, y es mejor fallar con un mensaje claro que esperar para siempre
+log = logging.getLogger("modelo_ia.migraciones")
+
+
 @contextlib.contextmanager
-def candado_de_actualizacion(ruta: Path) -> Iterator[None]:
+def candado_de_actualizacion(ruta: Path, espera_maxima: float = ESPERA_MAXIMA_CANDADO) -> Iterator[None]:
     """Un candado de ARCHIVO (`<base>.migrar.lock`) que se toma durante TODA la actualización, no solo durante cada migración.
 
     Sin él, un segundo proceso podía entrar entre dos migraciones del primero y verlas como «las primeras pendientes»: hacía su propia copia previa (una
     de más) y se repartían las migraciones. Con él, el segundo espera a que el primero termine y entonces ve que no queda nada. El sistema operativo lo
-    suelta solo si el proceso muere. Si el archivo no se puede crear (carpeta de solo lectura) se sigue sin él: es una protección extra, no la base."""
+    suelta solo si el proceso muere. Si otro proceso lo tiene más de `espera_maxima` segundos (se colgó), se falla con un mensaje claro en vez de esperar
+    para siempre. Si el archivo no se puede crear o el sistema de archivos no admite candados, se sigue SIN él y se deja un aviso en el registro: es una
+    protección extra, no la base (cada migración sigue siendo atómica y exclusiva por el bloqueo de SQLite)."""
     archivo = None
     if fcntl is not None:
         try:
             archivo = open(f"{ruta}.migrar.lock", "a")
-        except OSError:
-            archivo = None
+        except OSError as e:
+            log.warning("No se pudo crear el candado de actualización (%s): se sigue sin él.", type(e).__name__)
     try:
         if archivo is not None:
-            fcntl.flock(archivo, fcntl.LOCK_EX)
+            inicio = time.monotonic()
+            while True:
+                try:
+                    fcntl.flock(archivo, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:  # lo tiene otro proceso: se espera
+                    if time.monotonic() - inicio >= espera_maxima:
+                        raise RuntimeError(
+                            f"Otro proceso lleva más de {int(espera_maxima)} s actualizando la base y no termina. Revisa que no esté colgado "
+                            f"(el candado es el archivo {Path(ruta).name}.migrar.lock) y vuelve a intentar."
+                        )
+                    time.sleep(0.05)
+                except OSError as e:  # el sistema de archivos no admite candados (p. ej. ENOLCK): se sigue sin él
+                    log.warning(
+                        "El sistema de archivos no admite candados (%s): se actualiza sin candado de archivo.",
+                        type(e).__name__,
+                    )
+                    break
         yield
     finally:
         if archivo is not None:
-            try:
-                fcntl.flock(archivo, fcntl.LOCK_UN)
-            finally:
-                archivo.close()
+            archivo.close()  # cerrar el archivo suelta el candado (también si el proceso muere)
 
 
 def aplicar(

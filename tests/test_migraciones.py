@@ -1,9 +1,11 @@
 """Migraciones versionadas: bases de cada forma histórica, fallos a mitad, base más nueva, copia previa, procesos arrancando a la vez y la consola."""
 
 import ast
+import errno
 import hashlib
 import inspect
 import json
+import logging
 import os
 import sqlite3
 import stat
@@ -704,3 +706,66 @@ def test_la_actualizacion_completa_es_exclusiva_entre_procesos_no_solo_cada_migr
     assert resultados == {"A": [1, 2], "B": []}  # B no encontró nada pendiente
     assert eventos == ["A abre", "A m1", "A m2", "B abre"]  # y ni siquiera abrió la base hasta que A terminó las dos
     assert len(listar_copias(ruta)) == 1  # una sola copia previa, la de antes de empezar
+
+
+def test_si_otro_proceso_no_suelta_el_candado_se_falla_con_un_mensaje_claro_en_vez_de_esperar_para_siempre(tmp_path):
+    import fcntl
+
+    from modelo_ia.api.migraciones import candado_de_actualizacion
+
+    ruta = tmp_path / "x.sqlite3"
+    ocupado = open(f"{ruta}.migrar.lock", "a")
+    fcntl.flock(ocupado, fcntl.LOCK_EX)  # otro proceso (colgado) lo tiene
+    try:
+        inicio = time.monotonic()
+        with pytest.raises(RuntimeError, match="lleva más de 0 s actualizando la base"):
+            with candado_de_actualizacion(ruta, espera_maxima=0.3):
+                pytest.fail("no debía entrar")
+        assert 0.25 <= time.monotonic() - inicio < 5  # esperó lo pedido, no más
+    finally:
+        fcntl.flock(ocupado, fcntl.LOCK_UN)
+        ocupado.close()
+    with candado_de_actualizacion(ruta, espera_maxima=0.3):  # y en cuanto se suelta, se puede tomar
+        pass
+
+
+def test_sin_poder_crear_el_candado_o_sin_soporte_del_sistema_de_archivos_se_sigue_con_un_aviso(
+    tmp_path, monkeypatch, caplog
+):
+    import fcntl
+
+    from modelo_ia.api import migraciones
+    from modelo_ia.api.migraciones import candado_de_actualizacion
+
+    with caplog.at_level(logging.WARNING, logger="modelo_ia.migraciones"):
+        with candado_de_actualizacion(
+            tmp_path / "no_existe" / "x.sqlite3"
+        ):  # la carpeta no existe: el archivo no se puede crear
+            pass
+        assert "No se pudo crear el candado" in caplog.text
+        caplog.clear()
+
+        def sin_soporte(*a, **k):
+            raise OSError(errno.ENOLCK, "No locks available")  # el número depende del sistema: se usa la constante
+
+        monkeypatch.setattr(migraciones.fcntl, "flock", sin_soporte)
+        with candado_de_actualizacion(tmp_path / "x.sqlite3"):
+            pass
+        assert "no admite candados" in caplog.text
+    assert fcntl is migraciones.fcntl
+
+
+def test_el_candado_no_se_queda_tomado_si_la_actualizacion_falla(tmp_path):
+    import fcntl
+
+    from modelo_ia.api.migraciones import candado_de_actualizacion
+
+    ruta = tmp_path / "x.sqlite3"
+    with pytest.raises(ValueError):
+        with candado_de_actualizacion(ruta):
+            raise ValueError("falla a la mitad")
+    otro = open(f"{ruta}.migrar.lock", "a")
+    try:
+        fcntl.flock(otro, fcntl.LOCK_EX | fcntl.LOCK_NB)  # si se hubiera quedado tomado, esto lanzaría BlockingIOError
+    finally:
+        otro.close()
