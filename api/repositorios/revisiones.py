@@ -1,6 +1,8 @@
 """Revisiones manuales: la cola de pagos que espera a un analista y su resolución. Cada método recibe la conexión de quien llama (ver evaluaciones.py)."""
 import sqlite3
-from typing import List, Optional, Sequence, Tuple
+from typing import Any, List, Optional, Tuple
+
+from .filtros_sql import condiciones_de
 
 
 class RevisionesRepositorio:
@@ -22,10 +24,11 @@ class RevisionesRepositorio:
                           (decision, nota, clave_analista, resuelta, id_evaluacion))
         return cur.rowcount
 
-    def listar(self, con: sqlite3.Connection, estado: str, condiciones: Optional[List[str]], parametros: Sequence, orden: str, limite: int,
+    def listar(self, con: sqlite3.Connection, estado: str, filtros: Optional[Any], orden: str, limite: int,
                desplazamiento: int) -> Tuple[sqlite3.Row, List[sqlite3.Row]]:
-        """La cola de revisión. `condiciones` y `parametros` vienen ya armados (y validados) por consultas.Filtros; el orden sale de una lista fija (`ORDEN`)."""
-        donde = " AND ".join(["r.estado = ?"] + list(condiciones or []))
+        """La cola de revisión. `filtros` es el objeto ya validado de consultas.Filtros (o None); el orden sale de una lista fija (`ORDEN`)."""
+        condiciones, parametros = condiciones_de(filtros) if filtros is not None else ([], ())
+        donde = " AND ".join(["r.estado = ?"] + condiciones)
         tot = con.execute(f"SELECT COUNT(*), COALESCE(SUM(e.monto_cop), 0) FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion WHERE {donde}",
                           (estado,) + tuple(parametros)).fetchone()
         filas = con.execute(

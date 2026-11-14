@@ -116,9 +116,24 @@ Los cambios de esquema son **migraciones numeradas** (`api/migraciones.py`; la l
 | `manejo.py` | Errores en `application/problem+json`, límite de tamaño y cabeceras de seguridad de todas las respuestas. |
 | `contrato.py` · `metadatos.py` | El contrato OpenAPI y los textos y respuestas documentadas de Swagger. |
 | `servicio.py` | La lógica de cada evaluación (idempotencia, reintento optimista, decisión, revisiones, resultados, lista negra). **No tiene SQL**: habla con la persistencia por las interfaces de `repositorios/interfaces.py`, así que se puede probar sin base de datos (`tests/test_servicio_sin_base.py`, con carreras simuladas intento por intento). |
-| `consultas.py` | Las consultas del panel y el dashboard. Todavía lleva su propio SQL (con funciones de JSON propias de SQLite): es el siguiente paso. |
+| `consultas.py` | El panel y el dashboard: valida los filtros (`Filtros`: roles, fechas, códigos; un comercio solo ve lo suyo) y da forma a cada respuesta. **No tiene SQL**: pide las filas a `repositorios/consultas.py` por la interfaz `ConsultasRepo` y se prueba sin base de datos (`tests/test_consultas_sin_base.py`). |
 | `almacen.py` | **Fachada** de la persistencia: los mismos métodos de siempre, cada uno delegando a su repositorio. Una prueba vigila que sus firmas no cambien. |
-| `repositorios/` | La persistencia dividida por tema: `base.py` (conexión, transacciones y el **único candado** de escritura que todos comparten), `seudonimos.py` (todo lo que usa el secreto), `comercios.py` (comercios, suspensión, acuerdos), `claves.py` (claves, personas, autenticación), `auditoria.py`, `esquema.py` (esquema y migraciones), y para el servicio de evaluaciones `evaluaciones.py`, `revisiones.py`, `resultados.py` y `lista_negra.py`, cada uno detrás de una interfaz (`interfaces.py`, con `typing.Protocol`). Los repositorios de evaluaciones reciben la conexión de quien llama: las transacciones y el orden de los bloqueos son del servicio. Los repositorios no dependen de la fachada y la fachada no tiene SQL. |
+| `repositorios/` | La persistencia dividida por tema: `base.py` (conexión, transacciones y el **único candado** de escritura que todos comparten), `seudonimos.py` (todo lo que usa el secreto), `comercios.py` (comercios, suspensión, acuerdos), `claves.py` (claves, personas, autenticación), `auditoria.py`, `esquema.py` (esquema y migraciones), y para el servicio de evaluaciones `evaluaciones.py`, `revisiones.py`, `resultados.py` y `lista_negra.py`, más `consultas.py` (todas las lecturas del panel) y `filtros_sql.py` (traduce los filtros validados a condiciones con parámetros), cada uno detrás de una interfaz (`interfaces.py`, con `typing.Protocol`). Los repositorios de evaluaciones reciben la conexión de quien llama: las transacciones y el orden de los bloqueos son del servicio. Los repositorios no dependen de la fachada y la fachada no tiene SQL. |
+
+### Lo propio de SQLite (lista de trabajo para pasar a PostgreSQL)
+
+Todo el SQL está en `repositorios/` (y las migraciones en `migraciones.py`); una prueba (`tests/test_sqlite_confinado.py`) falla si aparece SQL propio de SQLite en otro lugar. Estos son los constructos que habría que traducir, con su archivo:
+
+| Constructo de SQLite | Dónde | Para qué sirve |
+|---|---|---|
+| `rowid` | `repositorios/evaluaciones.py` | Desempate por orden de llegada en el historial y las marcas del cliente. |
+| `INSERT OR REPLACE` | `repositorios/lista_negra.py` | Agregar a la lista negra sin fallar si ya estaba. |
+| `json_each` · `json_extract` | `repositorios/filtros_sql.py`, `repositorios/consultas.py` | Filtrar y contar por regla activada (las reglas se guardan como JSON en texto). |
+| `julianday` | `repositorios/consultas.py` | Minutos promedio que tarda cada analista en resolver. |
+| `substr(fecha,1,10)` | `repositorios/consultas.py` | Agrupar por día (las fechas son texto ISO). |
+| `AUTOINCREMENT` · `lastrowid` | `repositorios/esquema.py`, `comercios.py`, `claves.py` | Identificadores numéricos nuevos. |
+| `PRAGMA` · `BEGIN IMMEDIATE` · WAL | `repositorios/base.py`, `esquema.py`, `migraciones.py` | Conexión, un solo escritor y copias de seguridad. |
+| Sumas de condiciones (`SUM(decision='X')`) y `GROUP BY` por alias | `repositorios/consultas.py` | Conteos del resumen: PostgreSQL pide `CASE WHEN` y repetir la expresión. |
 
 Para agregar una ruta: ponla en el router de su tema, agrégala al recorrido de `tests/test_permisos_por_ruta.py` (la prueba falla si una operación del contrato no está ahí) y vuelve a exportar `openapi.json`. Esa prueba guarda una «foto» del código, el tipo y la forma de la respuesta de **cada operación con cada rol**; si cambias la API a propósito, regenérala con `REGENERAR_PERMISOS=1`.
 

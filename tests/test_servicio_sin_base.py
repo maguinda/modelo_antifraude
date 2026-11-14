@@ -111,8 +111,8 @@ class FalsasRevisiones:
     def resolver(self, con, id_evaluacion, decision, nota, clave_analista, resuelta):
         return self.cambiara
 
-    def listar(self, con, estado, condiciones, parametros, orden, limite, desplazamiento):
-        self.ultima_consulta = (estado, condiciones, tuple(parametros), orden, limite, desplazamiento)
+    def listar(self, con, estado, filtros, orden, limite, desplazamiento):
+        self.ultima_consulta = (estado, filtros, orden, limite, desplazamiento)
         return self.totales, self.cola
 
 
@@ -366,8 +366,9 @@ def test_la_cola_de_revision_entrega_lo_que_pide_el_panel_y_solo_dice_quien_reso
     base = {**fila_de("E5", COMERCIO), "comercio_nombre": "Tienda F", "rev_creada": "2026-11-12T10:00:00", "rev_resuelta": None, "senales_json": None, "fila_json": "{}"}
     alm.revisiones.totales = (2, 300000.0)
     alm.revisiones.cola = [{**base, "rev_estado": "pendiente", "rev_por": "clave #3"}, {**base, "id": "E6", "rev_estado": "resuelta", "rev_por": "Ana Pérez", "rev_resuelta": "2026-11-12T11:00:00"}]
-    r = s.listar_revisiones("pendiente", 25, 50, ["e.comercio_id = ?"], (COMERCIO,), "riesgo_desc")
-    assert alm.revisiones.ultima_consulta == ("pendiente", ["e.comercio_id = ?"], (COMERCIO,), "riesgo_desc", 25, 50)           # lo pedido llega tal cual al repositorio
+    filtros = SimpleNamespace(comercio_id=COMERCIO)                                       # el servicio no mira dentro de los filtros: los pasa tal cual
+    r = s.listar_revisiones("pendiente", 25, 50, filtros, "riesgo_desc")
+    assert alm.revisiones.ultima_consulta == ("pendiente", filtros, "riesgo_desc", 25, 50) and alm.revisiones.ultima_consulta[1] is filtros      # lo pedido llega tal cual al repositorio
     assert (r["total"], r["monto_total_cop"]) == (2, 300000.0) and [x["id_evaluacion"] for x in r["revisiones"]] == ["E5", "E6"]
     assert [x["resuelta_por"] for x in r["revisiones"]] == [None, "Ana Pérez"]                                               # quién resolvió: solo si ya está resuelta
     assert r["revisiones"][0]["senales"] == {"suben": [], "bajan": []}

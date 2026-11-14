@@ -3,20 +3,20 @@
 Reglas que se cumplen aquí (y que las pruebas vigilan):
 - Todo es lectura: ninguna consulta escribe en la base.
 - Un comercio solo ve lo suyo (si pide el de otro, 404 como en el resto de la API). Analistas y administradores ven todos.
-- Nada del usuario entra al SQL como texto: los valores van como parámetros y el orden sale de una lista fija.
+- Este archivo no tiene SQL: valida los filtros, pide las filas al repositorio (`repositorios/consultas.py`) y da forma a la respuesta.
 - La IP y la huella del dispositivo NUNCA se muestran: solo códigos cortos (p. ej. `7F3A91C2`) que permiten reconocer repeticiones.
 """
 import json
 import re
 import sqlite3
-from datetime import date, timedelta
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from .almacen import Almacen, Principal
+from .repositorios.interfaces import ORDENES_PANEL
 from .servicio import ErrorAPI, ServicioEvaluacion
 
-ORDENES = {"fecha_desc": "e.fecha DESC, e.id", "fecha_asc": "e.fecha ASC, e.id", "monto_desc": "e.monto_cop DESC, e.id",
-           "riesgo_desc": "e.probabilidad DESC, e.id"}
+ORDENES = ORDENES_PANEL                                       # los nombres de orden; el SQL de cada uno vive en el repositorio
 DECISIONES = ("APROBADA", "RECHAZADA", "EN_REVISION")
 PATRON_CODIGO = re.compile(r"^[0-9A-Fa-f]{8}$")
 EXCLUIDOS = {"ip_huella", "huella_dispositivo"}              # nunca se muestran: se reemplazan por códigos cortos
@@ -41,7 +41,7 @@ def _fecha(valor: Optional[str], nombre: str) -> Optional[date]:
 
 
 class Filtros:
-    """Convierte los filtros pedidos en un WHERE con parámetros (nunca texto del usuario dentro del SQL)."""
+    """Los filtros pedidos, ya VALIDADOS (roles, fechas, códigos), y nada más: no tiene SQL. El repositorio los traduce a condiciones con parámetros."""
 
     def __init__(self, principal: Principal, comercio_id: Optional[int] = None, desde: Optional[str] = None, hasta: Optional[str] = None,
                  decision: Optional[str] = None, modo: Optional[str] = None, monto_min: Optional[float] = None, monto_max: Optional[float] = None,
@@ -63,50 +63,15 @@ class Filtros:
             raise ErrorAPI(422, "Decisión no válida", "Usa APROBADA, RECHAZADA o EN_REVISION.")
         if modo is not None and modo not in ("normal", "degradado"):
             raise ErrorAPI(422, "Modo no válido", "Usa normal o degradado.")
-        cond: List[str] = []
-        par: List[Any] = []
-
-        def agregar(sql: str, *valores: Any) -> None:
-            cond.append(sql)
-            par.extend(valores)
-        if comercio_id is not None:
-            agregar("e.comercio_id = ?", comercio_id)
-        if d:
-            agregar("e.fecha >= ?", d.isoformat())
-        if h:
-            agregar("e.fecha < ?", (h + timedelta(days=1)).isoformat())
-        if decision:
-            agregar("e.decision = ?", decision)
-        if modo:
-            agregar("e.modo = ?", modo)
-        if monto_min is not None:
-            agregar("e.monto_cop >= ?", monto_min)
-        if monto_max is not None:
-            agregar("e.monto_cop <= ?", monto_max)
-        if id_cliente:
-            agregar("e.id_cliente = ?", id_cliente)
-        if id_transaccion:
-            agregar("e.id_transaccion = ?", id_transaccion)
-        if id_seguimiento:
-            agregar("e.id_seguimiento = ?", id_seguimiento.upper())
-        if regla:
-            agregar("EXISTS (SELECT 1 FROM json_each(e.reglas_json) j WHERE json_extract(j.value, '$.regla') = ?)", regla)
         if riesgo_min is not None and riesgo_max is not None and riesgo_min > riesgo_max:
             raise ErrorAPI(422, "Rango de riesgo no válido", "`riesgo_min` no puede superar a `riesgo_max`.")
-        if riesgo_min is not None:
-            agregar("e.probabilidad >= ?", riesgo_min)               # los pagos sin puntaje (modo degradado) no entran en un filtro de riesgo
-        if riesgo_max is not None:
-            agregar("e.probabilidad <= ?", riesgo_max)
-        if q:
-            agregar("(e.id_seguimiento = ? OR e.id_transaccion = ? OR e.id_cliente = ?)", q.upper(), q, q)
-        if ip:
-            agregar("e.ip_codigo = ?", ip.upper())
-        if dispositivo:
-            agregar("e.disp_codigo = ?", dispositivo.upper())
-        self.condiciones = cond
-        self.donde = ("WHERE " + " AND ".join(cond)) if cond else ""
-        self.parametros = tuple(par)
         self.comercio_id = comercio_id
+        self.desde, self.hasta = d, h
+        self.decision, self.modo = decision, modo
+        self.monto_min, self.monto_max = monto_min, monto_max
+        self.id_cliente, self.id_transaccion, self.id_seguimiento = id_cliente, id_transaccion, id_seguimiento
+        self.regla, self.ip, self.dispositivo = regla, ip, dispositivo
+        self.riesgo_min, self.riesgo_max, self.q = riesgo_min, riesgo_max, q
 
 
 def _decision_final(e: sqlite3.Row) -> Optional[str]:
@@ -126,11 +91,7 @@ class ConsultasPanel:
     # ------------------------------------------------------------------ listado
     def transacciones(self, f: Filtros, orden: str, limite: int, desplazamiento: int) -> Dict:
         with self.alm.lectura() as con:
-            total = con.execute(f"SELECT COUNT(*) FROM evaluaciones e {f.donde}", f.parametros).fetchone()[0]
-            filas = con.execute(
-                "SELECT e.*, c.nombre AS comercio_nombre, r.estado AS rev_estado, r.decision_analista AS rev_decision "
-                f"FROM evaluaciones e JOIN comercios c ON c.id = e.comercio_id LEFT JOIN revisiones r ON r.id_evaluacion = e.id {f.donde} "
-                f"ORDER BY {ORDENES[orden]} LIMIT ? OFFSET ?", f.parametros + (limite, desplazamiento)).fetchall()
+            total, filas = self.alm.consultas.listar(con, f, orden, limite, desplazamiento)
         return {"total": total, "transacciones": [{
             "id_evaluacion": e["id"], "id_seguimiento": e["id_seguimiento"], "comercio_id": e["comercio_id"], "comercio": e["comercio_nombre"],
             "id_transaccion": e["id_transaccion"], "id_cliente": e["id_cliente"], "fecha": e["fecha"], "monto_cop": e["monto_cop"],
@@ -142,12 +103,10 @@ class ConsultasPanel:
     def detalle(self, principal: Principal, id_pago: str) -> Dict:
         with self.alm.lectura(instantanea=True) as con:
             e = self.srv._evaluacion_visible(con, principal, id_pago)                    # 404 si no existe o es de otro comercio
-            rev = con.execute("SELECT r.*, COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS por FROM revisiones r LEFT JOIN claves k ON k.id = r.clave_analista "
-                              "WHERE r.id_evaluacion=?", (e["id"],)).fetchone()
-            res = con.execute("SELECT * FROM resultados WHERE id_evaluacion=?", (e["id"],)).fetchone()
-            nombre = con.execute("SELECT nombre FROM comercios WHERE id=?", (e["comercio_id"],)).fetchone()[0]
-            audit = con.execute("SELECT a.momento, a.accion, a.detalle, k.rol AS actor_rol, COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS actor_nombre "
-                                "FROM auditoria a LEFT JOIN claves k ON k.id = a.clave_id WHERE a.id_evaluacion=? ORDER BY a.id", (e["id"],)).fetchall()
+            rev = self.alm.consultas.revision_de(con, e["id"])
+            res = self.alm.consultas.resultado_de(con, e["id"])
+            nombre = self.alm.consultas.nombre_comercio(con, e["comercio_id"])
+            audit = self.alm.consultas.auditoria_de(con, e["id"])
             relacionados = self._relacionados(con, principal, e)
         personal = principal.rol != "comercio"
         fila = json.loads(e["fila_json"])
@@ -248,57 +207,26 @@ class ConsultasPanel:
         return pasos
 
     def _relacionados(self, con: sqlite3.Connection, principal: Principal, e: sqlite3.Row) -> Dict:
-        alcance, par = ("", ()) if principal.rol != "comercio" else (" AND comercio_id = ?", (principal.comercio_id,))
+        alcance = principal.comercio_id if principal.rol == "comercio" else None             # un comercio solo cuenta sus propios pagos
 
         def grupo(columna: str, valor: Optional[str], clave_filtro: str) -> Optional[Dict]:
             if valor is None:
                 return None
-            n = con.execute(f"SELECT COUNT(*) FROM evaluaciones WHERE {columna} = ? AND id != ?{alcance}", (valor, e["id"]) + par).fetchone()[0]
-            ultimos = con.execute(f"SELECT id_seguimiento, id_cliente, decision, fecha FROM evaluaciones WHERE {columna} = ? AND id != ?{alcance} "
-                                  "ORDER BY fecha DESC LIMIT 5", (valor, e["id"]) + par).fetchall()
+            n, ultimos = self.alm.consultas.pagos_con_codigo(con, columna, valor, e["id"], alcance)
             return {"codigo": valor, "otros_pagos": n, "filtro": {clave_filtro: valor},
                     "ultimos": [{"id_seguimiento": u["id_seguimiento"], "id_cliente": u["id_cliente"], "decision": u["decision"], "fecha": u["fecha"]} for u in ultimos]}
-        cliente = con.execute("SELECT COUNT(*) FROM evaluaciones WHERE comercio_id = ? AND id_cliente = ? AND id != ?", (e["comercio_id"], e["id_cliente"], e["id"])).fetchone()[0]
+        cliente = self.alm.consultas.otros_pagos_del_cliente(con, e["comercio_id"], e["id_cliente"], e["id"])
         return {"misma_ip": grupo("ip_codigo", e["ip_codigo"], "ip"), "mismo_dispositivo": grupo("disp_codigo", e["disp_codigo"], "dispositivo"),
                 "mismo_cliente": {"id_cliente": e["id_cliente"], "otros_pagos": cliente, "filtro": {"id_cliente": e["id_cliente"], "comercio_id": e["comercio_id"]}}}
 
     # ------------------------------------------------------------------ resumen
     def resumen(self, f: Filtros) -> Dict:
         with self.alm.lectura(instantanea=True) as con:
-            t = con.execute(
-                "SELECT COUNT(*) pagos, SUM(decision='APROBADA') aprobadas, SUM(decision='EN_REVISION') en_revision, SUM(decision='RECHAZADA') rechazadas, "
-                "COALESCE(SUM(monto_cop),0) monto, COALESCE(SUM(CASE WHEN decision='RECHAZADA' THEN monto_cop END),0) monto_rechazado, "
-                "COALESCE(SUM(CASE WHEN decision='EN_REVISION' THEN monto_cop END),0) monto_en_revision, "
-                "SUM(modo='degradado') degradados, SUM(estado_origen='no_enviado') sin_estado, AVG(latencia_ms) latencia_media "
-                f"FROM evaluaciones e {f.donde}", f.parametros).fetchone()
-            n = t["pagos"] or 0
-            p95 = None
-            if n:
-                p95 = con.execute(f"SELECT latencia_ms FROM evaluaciones e {f.donde} ORDER BY latencia_ms LIMIT 1 OFFSET ?",
-                                  f.parametros + (int(0.95 * (n - 1)),)).fetchone()[0]
-            por_dia = con.execute(
-                "SELECT substr(fecha,1,10) dia, SUM(decision='APROBADA') aprobadas, SUM(decision='EN_REVISION') en_revision, SUM(decision='RECHAZADA') rechazadas "
-                f"FROM evaluaciones e {f.donde} GROUP BY dia ORDER BY dia", f.parametros).fetchall()
-            por_comercio = con.execute(
-                "SELECT e.comercio_id, c.nombre, COUNT(*) pagos, SUM(decision='APROBADA') aprobadas, SUM(decision='EN_REVISION') en_revision, "
-                "SUM(decision='RECHAZADA') rechazadas, COALESCE(SUM(CASE WHEN decision='RECHAZADA' THEN monto_cop END),0) monto_rechazado "
-                f"FROM evaluaciones e JOIN comercios c ON c.id = e.comercio_id {f.donde} GROUP BY e.comercio_id ORDER BY pagos DESC LIMIT 100", f.parametros).fetchall()
-            reglas = con.execute(
-                "SELECT json_extract(j.value, '$.regla') regla, COUNT(*) veces, SUM(e.decision='RECHAZADA') rechazadas "
-                f"FROM evaluaciones e, json_each(e.reglas_json) j {f.donde} GROUP BY regla ORDER BY veces DESC LIMIT 20", f.parametros).fetchall()
-            hist = con.execute(
-                "SELECT MIN(CAST(probabilidad * 10 AS INTEGER), 9) cubeta, COUNT(*) pagos "
-                f"FROM evaluaciones e {f.donde + (' AND ' if f.donde else 'WHERE ')} probabilidad IS NOT NULL GROUP BY cubeta", f.parametros).fetchall()
-            por_analista = []
-            if f.es_personal:
-                ya_hay = f.donde + (" AND " if f.donde else "WHERE ")
-                por_analista = [dict(r) for r in con.execute(
-                    "SELECT COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS analista, COUNT(*) AS resueltas, SUM(r.decision_analista = 'APROBADA') AS aprobadas, "
-                    "SUM(r.decision_analista = 'RECHAZADA') AS rechazadas, ROUND(AVG((julianday(r.resuelta) - julianday(r.creada)) * 1440), 1) AS minutos_promedio "
-                    f"FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion LEFT JOIN claves k ON k.id = r.clave_analista {ya_hay} r.estado = 'resuelta' "
-                    "GROUP BY r.clave_analista ORDER BY resueltas DESC LIMIT 50", f.parametros)]
-            alcance, par = ("WHERE e.comercio_id = ?", (f.comercio_id,)) if f.comercio_id is not None else ("", ())
-            pendientes = con.execute(f"SELECT COUNT(*) FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion {alcance + (' AND ' if alcance else 'WHERE ')} r.estado = 'pendiente'", par).fetchone()[0]
+            datos = self.alm.consultas.resumen(con, f, f.es_personal)
+        t, p95, pendientes = datos["totales"], datos["p95"], datos["pendientes"]
+        n = t["pagos"] or 0
+        por_dia, por_comercio, reglas, hist = datos["por_dia"], datos["por_comercio"], datos["reglas"], datos["histograma"]
+        por_analista = [dict(r) for r in datos["por_analista"]]
         cubetas = {h["cubeta"]: h["pagos"] for h in hist}
         return {"totales": {"pagos": n, "aprobadas": t["aprobadas"] or 0, "en_revision": t["en_revision"] or 0, "rechazadas": t["rechazadas"] or 0,
                             "monto_cop": t["monto"], "monto_rechazado_cop": t["monto_rechazado"], "monto_en_revision_cop": t["monto_en_revision"],
@@ -310,27 +238,9 @@ class ConsultasPanel:
 
     # ------------------------------------------------------------------ vínculos: patrones entre pagos
     def vinculos(self, f: Filtros, minimo: int, ventana_minutos: int = 10) -> Dict:
-        base = f.donde + (" AND " if f.donde else "WHERE ")
         with self.alm.lectura(instantanea=True) as con:
-            ips = con.execute(
-                "SELECT e.ip_codigo codigo, COUNT(*) pagos, COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) clientes, COUNT(DISTINCT e.comercio_id) comercios, "
-                "SUM(decision='RECHAZADA') rechazadas, SUM(decision='EN_REVISION') en_revision, MIN(fecha) primera, MAX(fecha) ultima "
-                f"FROM evaluaciones e {base} e.ip_codigo IS NOT NULL GROUP BY e.ip_codigo HAVING clientes >= ? ORDER BY clientes DESC, pagos DESC LIMIT 50",
-                f.parametros + (minimo,)).fetchall()
-            disp = con.execute(
-                "SELECT e.disp_codigo codigo, COUNT(*) pagos, COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) clientes, COUNT(DISTINCT e.comercio_id) comercios, "
-                "SUM(decision='RECHAZADA') rechazadas, SUM(decision='EN_REVISION') en_revision, MIN(fecha) primera, MAX(fecha) ultima "
-                f"FROM evaluaciones e {base} e.disp_codigo IS NOT NULL GROUP BY e.disp_codigo HAVING clientes >= ? ORDER BY clientes DESC, pagos DESC LIMIT 50",
-                f.parametros + (minimo,)).fetchall()
-            clientes = con.execute(
-                "SELECT e.comercio_id, c.nombre comercio, e.id_cliente, COUNT(*) pagos, COUNT(DISTINCT e.ip_codigo) ips, "
-                "SUM(decision='RECHAZADA') rechazadas, MIN(fecha) primera, MAX(fecha) ultima "
-                f"FROM evaluaciones e JOIN comercios c ON c.id = e.comercio_id {base} e.ip_codigo IS NOT NULL "
-                "GROUP BY e.comercio_id, e.id_cliente HAVING ips >= ? ORDER BY ips DESC, pagos DESC LIMIT 50", f.parametros + (minimo,)).fetchall()
-            candidatas = con.execute(
-                f"SELECT e.ip_codigo, e.fecha FROM evaluaciones e {base} e.ip_codigo IN ("
-                f"SELECT ip_codigo FROM evaluaciones e {f.donde + (' AND ' if f.donde else 'WHERE ')} e.ip_codigo IS NOT NULL GROUP BY ip_codigo HAVING COUNT(*) >= ? LIMIT 200) "
-                "ORDER BY e.ip_codigo, e.fecha", f.parametros + f.parametros + (minimo,)).fetchall()
+            v = self.alm.consultas.vinculos(con, f, minimo)
+        ips, disp, clientes, candidatas = v["ips"], v["dispositivos"], v["clientes"], v["candidatas"]
         return {"minimo": minimo,
                 "misma_ip_varios_clientes": [dict(r, filtro={"ip": r["codigo"]}) for r in ips],
                 "mismo_dispositivo_varios_clientes": [dict(r, filtro={"dispositivo": r["codigo"]}) for r in disp],
@@ -361,6 +271,4 @@ class ConsultasPanel:
     # ------------------------------------------------------------------ comercios (para el filtro)
     def comercios(self) -> List[Dict]:
         with self.alm.lectura() as con:
-            return [dict(r) for r in con.execute(
-                "SELECT c.id, c.nombre, (c.activo = 0) AS suspendido, COUNT(e.id) pagos FROM comercios c LEFT JOIN evaluaciones e ON e.comercio_id = c.id "
-                "WHERE c.id != 1 GROUP BY c.id ORDER BY pagos DESC, c.nombre")]
+            return [dict(r) for r in self.alm.consultas.comercios_con_pagos(con)]
