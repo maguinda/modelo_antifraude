@@ -20,7 +20,16 @@ from modelo_ia.api import migraciones as mig
 from modelo_ia.api.ajustes import Ajustes
 from modelo_ia.api.almacen import DDL, INDICES_PANEL, PLATAFORMA, Almacen
 from modelo_ia.api.app import crear_app
-from modelo_ia.api.migraciones import BaseMasNueva, CopiaPreviaFallo, Migracion, copia_previa, sentencias, validar
+from modelo_ia.api.migraciones import (
+    BaseMasNueva,
+    CopiaPreviaFallo,
+    Migracion,
+    aplicar,
+    copia_previa,
+    listar_copias,
+    sentencias,
+    validar,
+)
 from modelo_ia.api.repositorios.esquema import Esquema
 
 IDS = [1, 2]  # las migraciones que existen hoy; quien agregue una nueva cambia solo estas dos constantes
@@ -640,3 +649,58 @@ def test_la_consola_se_niega_con_un_mensaje_claro_ante_una_base_mas_nueva(cli, t
         assert c != 0 and "versión más nueva" in err and "Traceback" not in err, orden
     c, salida, _ = cli("migraciones")
     assert c == 0 and "DESCONOCIDA" in salida
+
+
+def test_la_actualizacion_completa_es_exclusiva_entre_procesos_no_solo_cada_migracion(tmp_path):
+    """Un segundo proceso no empieza ni a mirar la base hasta que el primero terminó TODAS sus migraciones: así no se reparten las migraciones ni se
+    hace una copia previa de más (antes, uno que llegaba entre dos migraciones del primero veía la 2 como «la primera pendiente» y copiaba otra vez)."""
+    import threading
+    import time
+
+    ruta = tmp_path / "x.sqlite3"
+    con = sqlite3.connect(ruta)
+    con.execute("CREATE TABLE base (x)")
+    con.execute("INSERT INTO base VALUES (1)")
+    con.commit()
+    con.close()
+    eventos, a_mitad = [], threading.Event()
+
+    def abrir(nombre):
+        def f():
+            eventos.append(f"{nombre} abre")
+            return sqlite3.connect(ruta, timeout=30, isolation_level=None)
+
+        return f
+
+    def m1(c):
+        eventos.append("A m1")
+        a_mitad.set()  # A ya está dentro de la primera migración: ahora arranca B
+        time.sleep(0.6)
+        c.execute("CREATE TABLE t1 (x)")
+
+    def m2(c):
+        eventos.append("A m2")
+        c.execute("CREATE TABLE t2 (x)")
+
+    migraciones = [Migracion(1, "uno", m1), Migracion(2, "dos", m2)]
+    resultados = {}
+    hilo_a = threading.Thread(
+        target=lambda: resultados.update(A=aplicar(ruta, abrir("A"), migraciones, lambda c: True, lambda: "2026-11-14"))
+    )
+    hilo_a.start()
+    assert a_mitad.wait(10)
+    migraciones_b = [
+        Migracion(1, "uno", lambda c: eventos.append("B m1")),
+        Migracion(2, "dos", lambda c: eventos.append("B m2")),
+    ]
+    hilo_b = threading.Thread(
+        target=lambda: resultados.update(
+            B=aplicar(ruta, abrir("B"), migraciones_b, lambda c: True, lambda: "2026-11-14")
+        )
+    )
+    hilo_b.start()
+    hilo_a.join(30)
+    hilo_b.join(30)
+    assert resultados == {"A": [1, 2], "B": []}  # B no encontró nada pendiente
+    assert eventos == ["A abre", "A m1", "A m2", "B abre"]  # y ni siquiera abrió la base hasta que A terminó las dos
+    assert len(listar_copias(ruta)) == 1  # una sola copia previa, la de antes de empezar
