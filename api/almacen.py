@@ -20,7 +20,8 @@ from .repositorios.comercios import ComercioInexistente, ComercioNoAutorizado, C
 from .repositorios.comunes import PLATAFORMA, ahora_iso, id_seguimiento_libre, nuevo_id_seguimiento
 from .repositorios.esquema import DDL, INDICES_PANEL, Esquema
 from .repositorios.evaluaciones import EvaluacionesRepositorio
-from .repositorios.interfaces import EvaluacionesRepo, ListaNegraRepo, ResultadosRepo, RevisionesRepo
+from .repositorios.consultas import ConsultasRepositorio
+from .repositorios.interfaces import ConsultasRepo, EvaluacionesRepo, ListaNegraRepo, ResultadosRepo, RevisionesRepo
 from .repositorios.lista_negra import ListaNegraRepositorio
 from .repositorios.resultados import ResultadosRepositorio
 from .repositorios.revisiones import RevisionesRepositorio
@@ -44,6 +45,7 @@ class Almacen:
         self.revisiones: RevisionesRepo = RevisionesRepositorio()
         self.resultados: ResultadosRepo = ResultadosRepositorio()
         self.lista_negra: ListaNegraRepo = ListaNegraRepositorio()
+        self.consultas: ConsultasRepo = ConsultasRepositorio()
 
     # ------------------------------------------------------------ conexión y transacciones
     def abrir(self) -> sqlite3.Connection:

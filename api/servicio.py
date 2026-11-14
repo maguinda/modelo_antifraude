@@ -21,7 +21,6 @@ from ..reglas.seguridad import construir_reglas_seguridad
 from . import proveedores_ip, traduccion
 from .ajustes import Ajustes
 from .almacen import Almacen, ComercioNoAutorizado, Principal, ahora_iso, id_seguimiento_libre
-from .repositorios.revisiones import RevisionesRepositorio
 
 log = logging.getLogger("modelo_ia.api")
 
@@ -357,13 +356,10 @@ class ServicioEvaluacion:
             return self._respuesta(con, e, repetida=False)
 
     # ----------------------------------------------------------- revisiones
-    ORDEN_REVISIONES = RevisionesRepositorio.ORDEN
-
-    def listar_revisiones(self, estado: str, limite: int, desplazamiento: int, condiciones: Optional[List[str]] = None,
-                          parametros: tuple = (), orden: str = "antiguos") -> Dict:
-        """La cola de revisión. `condiciones` y `parametros` vienen ya armados (y validados) por consultas.Filtros; el orden sale de una lista fija."""
+    def listar_revisiones(self, estado: str, limite: int, desplazamiento: int, filtros: Optional[Any] = None, orden: str = "antiguos") -> Dict:
+        """La cola de revisión. `filtros` es el objeto ya validado de consultas.Filtros (sin SQL); el orden sale de una lista fija."""
         with self.alm.lectura() as con:
-            tot, filas = self.alm.revisiones.listar(con, estado, condiciones, parametros, orden, limite, desplazamiento)
+            tot, filas = self.alm.revisiones.listar(con, estado, filtros, orden, limite, desplazamiento)
         return {"total": tot[0], "monto_total_cop": tot[1], "revisiones": [
             {"id_evaluacion": f["id"], "id_seguimiento": f["id_seguimiento"], "comercio_id": f["comercio_id"], "comercio": f["comercio_nombre"], "id_transaccion": f["id_transaccion"],
              "puntaje_riesgo": f["probabilidad"], "motivos": json.loads(f["motivos_json"]),

@@ -7,15 +7,20 @@ import pytest
 
 from modelo_ia.api import servicio as modulo_servicio
 from modelo_ia.api.almacen import Almacen
+from modelo_ia.api import consultas as modulo_consultas
 from modelo_ia.api.repositorios import interfaces as ifaz
+from modelo_ia.api.repositorios.consultas import ConsultasRepositorio
 from modelo_ia.api.repositorios.evaluaciones import EvaluacionesRepositorio
 from modelo_ia.api.repositorios.lista_negra import ListaNegraRepositorio
 from modelo_ia.api.repositorios.resultados import ResultadosRepositorio
 from modelo_ia.api.repositorios.revisiones import RevisionesRepositorio
+from modelo_ia.tests.test_consultas_sin_base import FalsasConsultas
 from modelo_ia.tests.test_servicio_sin_base import FalsaListaNegra, FalsasEvaluaciones, FalsasRevisiones, FalsosResultados
 
 PARES = [("evaluaciones", ifaz.EvaluacionesRepo, EvaluacionesRepositorio, FalsasEvaluaciones), ("revisiones", ifaz.RevisionesRepo, RevisionesRepositorio, FalsasRevisiones),
          ("resultados", ifaz.ResultadosRepo, ResultadosRepositorio, FalsosResultados), ("lista_negra", ifaz.ListaNegraRepo, ListaNegraRepositorio, FalsaListaNegra)]
+PARES_DEL_SERVICIO = PARES                                        # los que usa servicio.py (las lecturas del panel las usa consultas.py)
+PARES = PARES + [("consultas", ifaz.ConsultasRepo, ConsultasRepositorio, FalsasConsultas)]
 
 
 def metodos(clase):
@@ -59,7 +64,7 @@ def test_el_servicio_no_tiene_sql_y_solo_llama_metodos_declarados_en_las_interfa
     fuente = inspect.getsource(modulo_servicio)
     for palabra in ("SELECT ", "INSERT ", "UPDATE ", "DELETE ", "CREATE ", "PRAGMA "):
         assert palabra not in fuente, f"servicio.py no debe tener SQL: encontré «{palabra.strip()}»"
-    declarados = {nombre: set(metodos(interfaz)) for nombre, interfaz, _, _ in PARES}
+    declarados = {nombre: set(metodos(interfaz)) for nombre, interfaz, _, _ in PARES_DEL_SERVICIO}
     usados = set()
     for nodo in ast.walk(ast.parse(fuente)):
         if isinstance(nodo, ast.Attribute) and isinstance(nodo.value, ast.Attribute) and nodo.value.attr in declarados:
@@ -77,3 +82,27 @@ def test_ningun_archivo_del_servicio_importa_sqlite_para_hablar_con_la_base_salv
     for nodo in ast.walk(ast.parse(Path(inspect.getsourcefile(modulo_servicio)).read_text(encoding="utf-8"))):
         if isinstance(nodo, ast.Attribute) and isinstance(nodo.value, ast.Name) and nodo.value.id == "sqlite3":
             assert nodo.attr in ("Connection", "Row", "IntegrityError", "OperationalError"), f"servicio.py usa sqlite3.{nodo.attr}"
+
+
+def test_el_panel_solo_llama_metodos_declarados_en_la_interfaz_de_consultas():
+    declarados = set(metodos(ifaz.ConsultasRepo))
+    usados = {nodo.attr for nodo in ast.walk(ast.parse(inspect.getsource(modulo_consultas)))
+              if isinstance(nodo, ast.Attribute) and isinstance(nodo.value, ast.Attribute) and nodo.value.attr == "consultas"
+              and isinstance(nodo.value.value, ast.Attribute) and nodo.value.value.attr == "alm"}
+    assert usados and usados <= declarados, f"consultas.py llama métodos que la interfaz no declara: {usados - declarados}"
+    assert usados == declarados, f"métodos de la interfaz que el panel no usa: {declarados - usados}"            # que no sobre nada en la interfaz
+
+
+def test_los_nombres_de_orden_que_aceptan_las_rutas_son_exactamente_los_que_el_repositorio_sabe_traducir():
+    assert tuple(ConsultasRepositorio.ORDENES) == ifaz.ORDENES_PANEL and tuple(RevisionesRepositorio.ORDEN) == ifaz.ORDENES_REVISIONES
+    assert modulo_consultas.ORDENES == ifaz.ORDENES_PANEL
+    ruta = Path(inspect.getsourcefile(modulo_servicio)).parent / "rutas" / "revisiones.py"
+    assert "|".join(ifaz.ORDENES_REVISIONES) in ruta.read_text(encoding="utf-8")                        # el patrón de la ruta de revisiones
+
+
+def test_servicio_y_panel_no_importan_ningun_repositorio_concreto():
+    """Solo la fachada (almacen.py) conoce las clases de SQLite; quien usa los repositorios solo ve las interfaces."""
+    for modulo in (modulo_servicio, modulo_consultas):
+        for nodo in ast.walk(ast.parse(inspect.getsource(modulo))):
+            if isinstance(nodo, ast.ImportFrom) and nodo.module and "repositorios" in nodo.module:
+                assert nodo.module.endswith("interfaces") or nodo.module.endswith("comunes") or nodo.module.endswith("claves"), f"{modulo.__name__} importa {nodo.module}"

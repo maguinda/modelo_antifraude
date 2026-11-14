@@ -4,6 +4,7 @@ Cubren lo que las pruebas del servicio (con falsos) no pueden: que cada consulta
 import json
 import sqlite3
 from itertools import count
+from types import SimpleNamespace
 
 import pytest
 
@@ -120,6 +121,10 @@ def test_un_resultado_guarda_cada_dato_en_su_columna(alm):
     assert lectura(alm, lambda con: alm.resultados.por_evaluacion(con, "no-existe")) is None
 
 
+FILTROS_VACIOS = dict(comercio_id=None, desde=None, hasta=None, decision=None, modo=None, monto_min=None, monto_max=None, id_cliente=None, id_transaccion=None,
+                      id_seguimiento=None, regla=None, ip=None, dispositivo=None, riesgo_min=None, riesgo_max=None, q=None)
+
+
 # ------------------------------------------------------------------ revisiones
 def test_una_revision_se_resuelve_una_sola_vez_y_la_cola_se_filtra_y_ordena(alm):
     for i, monto in enumerate((100, 300, 200)):
@@ -131,12 +136,12 @@ def test_una_revision_se_resuelve_una_sola_vez_y_la_cola_se_filtra_y_ordena(alm)
         assert alm.revisiones.resolver(con, ids[0], "APROBADA", "ok", 1, "2026-11-12T12:00:00") == 1
         assert alm.revisiones.resolver(con, ids[0], "RECHAZADA", None, 1, "2026-11-12T12:05:00") == 0       # la segunda vez no cambia nada
     assert lectura(alm, lambda con: alm.revisiones.existe(con, ids[0])) and not lectura(alm, lambda con: alm.revisiones.existe(con, "nada"))
-    pendientes = lectura(alm, lambda con: alm.revisiones.listar(con, "pendiente", None, (), "antiguos", 50, 0))
+    pendientes = lectura(alm, lambda con: alm.revisiones.listar(con, "pendiente", None, "antiguos", 50, 0))
     assert pendientes[0][0] == 2 and [f["id"] for f in pendientes[1]] == ids[1:]                            # 2 pendientes, de la más antigua a la más nueva
-    resueltas = lectura(alm, lambda con: alm.revisiones.listar(con, "resuelta", None, (), "recientes", 50, 0))
+    resueltas = lectura(alm, lambda con: alm.revisiones.listar(con, "resuelta", None, "recientes", 50, 0))
     assert resueltas[0][0] == 1 and resueltas[1][0]["rev_estado"] == "resuelta" and resueltas[1][0]["id"] == ids[0]
-    paginada = lectura(alm, lambda con: alm.revisiones.listar(con, "pendiente", ["e.id_cliente = ?"], ("C2",), "antiguos", 50, 0))
+    paginada = lectura(alm, lambda con: alm.revisiones.listar(con, "pendiente", SimpleNamespace(**dict(FILTROS_VACIOS, id_cliente="C2")), "antiguos", 50, 0))
     assert paginada[0][0] == 1 and paginada[1][0]["id"] == ids[2]
     assert lectura(alm, lambda con: alm.revisiones.por_evaluacion(con, ids[0]))["decision_analista"] == "APROBADA"
     with pytest.raises(KeyError):
-        lectura(alm, lambda con: alm.revisiones.listar(con, "pendiente", None, (), "orden_inventado", 50, 0))        # el orden sale de una lista fija
+        lectura(alm, lambda con: alm.revisiones.listar(con, "pendiente", None, "orden_inventado", 50, 0))        # el orden sale de una lista fija

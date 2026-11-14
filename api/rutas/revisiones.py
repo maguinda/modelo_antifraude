@@ -19,7 +19,7 @@ def listar_revisiones(estado: str = Query("pendiente", pattern="^(pendiente|resu
                       limite: int = Query(50, ge=1, le=200), desplazamiento: int = Query(0, ge=0),
                       orden: str = Query("antiguos", pattern="^(antiguos|recientes|riesgo_desc|monto_desc)$", description="antiguos (los que más esperan primero), recientes, riesgo_desc o monto_desc."),
                       f: Filtros = Depends(filtros_panel), p: Principal = Depends(exigir("analista", "admin")), servicio: ServicioEvaluacion = Depends(obtener_servicio)):
-    return servicio.listar_revisiones(estado, limite, desplazamiento, f.condiciones, f.parametros, orden)
+    return servicio.listar_revisiones(estado, limite, desplazamiento, f, orden)
 
 
 @router.post("/v1/revisiones/{id_evaluacion}/resolver", tags=["Revisiones"], response_model=es.RespuestaEvaluacion,
