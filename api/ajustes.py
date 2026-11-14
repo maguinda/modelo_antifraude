@@ -2,11 +2,24 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from .. import config
 
 PEPPER_DE_DESARROLLO = "pepper-de-desarrollo-cambiar-en-produccion"
+PEPPER_LARGO_MINIMO = 32
+ENTORNO_PRODUCCION = "produccion"
+
+
+def _leer_secreto_de_archivo(ruta: str) -> str:
+    """Lee un secreto de un archivo (p. ej. un «secret» de Docker), para que no viaje en una variable de entorno que `docker inspect` mostraría."""
+    try:
+        valor = Path(ruta).read_text(encoding="utf-8").strip()
+    except OSError:
+        raise RuntimeError(f"No se pudo leer el archivo del secreto (MODELO_IA_PEPPER_ARCHIVO): {Path(ruta).name}")
+    if not valor:
+        raise RuntimeError("El archivo del secreto (MODELO_IA_PEPPER_ARCHIVO) está vacío.")
+    return valor
 
 
 @dataclass
@@ -31,6 +44,8 @@ class Ajustes:
         a = cls()
         a.ruta_bd = Path(os.environ.get("MODELO_IA_BD", a.ruta_bd))
         a.pepper = os.environ.get("MODELO_IA_PEPPER", a.pepper)
+        if os.environ.get("MODELO_IA_PEPPER_ARCHIVO"):                       # manda sobre la variable directa
+            a.pepper = _leer_secreto_de_archivo(os.environ["MODELO_IA_PEPPER_ARCHIVO"])
         if os.environ.get("MODELO_IA_MODELO"):
             a.ruta_modelo = Path(os.environ["MODELO_IA_MODELO"])
         a.limite_peticiones_por_minuto = int(os.environ.get("MODELO_IA_LIMITE", a.limite_peticiones_por_minuto))
@@ -39,6 +54,21 @@ class Ajustes:
         a.hsts_segundos = int(os.environ.get("MODELO_IA_HSTS", a.hsts_segundos))
         a.durabilidad = os.environ.get("MODELO_IA_DURABILIDAD", a.durabilidad)
         return a
+
+    def problemas_de_produccion(self) -> dict:
+        """Lo que está mal para un servidor real. «bloqueantes» impiden arrancar; «avisos» se muestran pero se puede seguir."""
+        bloqueantes, avisos = [], []
+        if self.pepper_inseguro:
+            bloqueantes.append("Se está usando el secreto de desarrollo. Define MODELO_IA_PEPPER_ARCHIVO (o MODELO_IA_PEPPER) con un secreto propio.")
+        elif len(self.pepper) < PEPPER_LARGO_MINIMO:
+            bloqueantes.append(f"El secreto es demasiado corto (mínimo {PEPPER_LARGO_MINIMO} caracteres).")
+        if self.durabilidad != "FULL":
+            avisos.append("MODELO_IA_DURABILIDAD no es FULL: si se va la luz puede perderse lo último que se guardó. En producción conviene FULL.")
+        if self.proveedor_ip == "simulado":
+            avisos.append("El proveedor de IP es SIMULADO: no ubica IP reales. Configura uno real antes de evaluar pagos de verdad.")
+        if self.csp_modo != "enforce":
+            avisos.append("La política de contenido está en modo «solo observar» (MODELO_IA_CSP). Pásala a enforce cuando lleve unos días sin avisos.")
+        return {"bloqueantes": bloqueantes, "avisos": avisos}
 
     @property
     def pepper_inseguro(self) -> bool:

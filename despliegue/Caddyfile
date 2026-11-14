@@ -1,0 +1,36 @@
+# Servidor web delante de la API: HTTPS automático (certificado gratuito que se renueva solo), tamaño y tiempos acotados y sin exponer lo que es solo de demostración.
+{
+	email {$CORREO_ACME}
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 15s
+			write 30s
+			idle 2m
+		}
+	}
+}
+
+{$DOMINIO} {
+	encode zstd gzip
+	request_body {
+		max_size 64KB
+	}
+
+	# La tienda y sus rutas de demostración NO existen en producción; se cierran por si acaso. (/init/panel-config.js sí se deja: en producción solo devuelve {}.)
+	@demo path /demo/* /tienda /tienda/*
+	respond @demo 404
+
+	header {
+		# HSTS: arranca con poco tiempo (300 s) y se sube cuando todo esté probado (ver LEEME.md). Subirlo mal es difícil de deshacer.
+		Strict-Transport-Security "max-age={$HSTS_SEGUNDOS:300}"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	reverse_proxy api:8000 {
+		health_uri /v1/salud
+		health_interval 15s
+	}
+}

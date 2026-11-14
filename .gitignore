@@ -17,3 +17,9 @@ api/datos_api.sqlite3*
 # Demo local: base y claves de demostración
 api/demo/
 api/certificados_locales/
+
+# Despliegue: nunca se suben las variables reales, los secretos ni las copias de seguridad
+despliegue/.env
+despliegue/secretos/
+despliegue/respaldos/
+*.afbk

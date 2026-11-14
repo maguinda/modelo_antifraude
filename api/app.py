@@ -1,5 +1,6 @@
 """Aplicación FastAPI: endpoints, seguridad y documentación OpenAPI/Swagger."""
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -111,6 +112,12 @@ EJEMPLOS_RESPUESTA = {
 def crear_app(ajustes: Optional[Ajustes] = None, artefacto: Optional[Dict] = None, reloj=None, docs: bool = True, proveedor_ip=None,
               artefacto_sin_estado: Optional[Dict] = None) -> FastAPI:
     ajustes = ajustes or Ajustes.desde_entorno()
+    if os.environ.get("MODELO_IA_ENTORNO") == "produccion":                      # en un servidor real, nada de secretos de desarrollo
+        problemas = ajustes.problemas_de_produccion()
+        if problemas["bloqueantes"]:
+            raise RuntimeError("El servicio NO arranca en producción: " + " ".join(problemas["bloqueantes"]))
+        for aviso in problemas["avisos"]:
+            logging.getLogger("antifraude").warning("Producción: %s", aviso)
     almacen = Almacen(ajustes.ruta_bd, ajustes.pepper, ajustes.durabilidad)
     almacen.inicializar()
     if artefacto is None:
