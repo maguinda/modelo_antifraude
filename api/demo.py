@@ -58,8 +58,8 @@ def preparar(reiniciar: bool = False) -> Tuple[Ajustes, Dict[str, str]]:
         alm = Almacen(BD, pepper)
         alm.inicializar()
         comercio = alm.crear_comercio("Tienda Demo")
-        claves = {"comercio": alm.crear_clave(comercio, "comercio", "demo"), "analista": alm.crear_clave(PLATAFORMA, "analista", "demo"),
-                  "admin": alm.crear_clave(PLATAFORMA, "admin", "demo")}
+        claves = {"comercio": alm.crear_clave(comercio, "comercio", "demo"), "analista": alm.crear_usuario("analista", "Analista de demostración")[1],
+                  "admin": alm.crear_usuario("admin", "Administrador de demostración")[1]}
         _escribir_privado(CLAVES, "CLAVES DE LA DEMO (solo sirven en esta base de demostración)\n"
                           + "".join(f"{rol.upper()}={clave}\n" for rol, clave in claves.items()))
     else:

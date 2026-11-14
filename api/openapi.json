@@ -330,6 +330,30 @@
             "title": "Reglas Activadas",
             "type": "array"
           },
+          "resuelta_en": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resuelta En"
+          },
+          "resuelta_por": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quién resolvió la revisión (nombre de la persona). Solo lo ven analistas y administradores.",
+            "title": "Resuelta Por"
+          },
           "resumen_pago": {
             "additionalProperties": true,
             "default": {},
@@ -913,6 +937,38 @@
           "configuracion_insegura"
         ],
         "title": "RespuestaSalud",
+        "type": "object"
+      },
+      "RespuestaYo": {
+        "properties": {
+          "comercio": {
+            "description": "El comercio al que pertenece la clave (para analistas y administradores, la plataforma).",
+            "title": "Comercio",
+            "type": "string"
+          },
+          "rol": {
+            "description": "`comercio`, `analista` o `admin`.",
+            "title": "Rol",
+            "type": "string"
+          },
+          "usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Para analistas y administradores: el nombre de la persona dueña de la clave.",
+            "title": "Usuario"
+          }
+        },
+        "required": [
+          "rol",
+          "comercio"
+        ],
+        "title": "RespuestaYo",
         "type": "object"
       },
       "ResultadoPago": {
@@ -4357,6 +4413,53 @@
           }
         },
         "summary": "¿El servicio está vivo?",
+        "tags": [
+          "Estado"
+        ]
+      }
+    },
+    "/v1/yo": {
+      "get": {
+        "description": "Devuelve el rol de la clave y, si es de un analista o administrador, el nombre de su dueño. Sirve para que las pantallas digan «Hola, Ana» y para confirmar que usas TU clave.",
+        "operationId": "quien_soy",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaYo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "¿Quién soy con esta clave?",
         "tags": [
           "Estado"
         ]

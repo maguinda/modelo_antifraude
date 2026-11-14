@@ -39,6 +39,12 @@ try:
     carga = subprocess.run([sys.executable, "-W", "ignore", "-m", "modelo_ia.api.cargar_ejemplos", "--url", BASE, "--carpeta", str(carpeta), "--n", "400", "--dias", "10"],
                            cwd=str(RAIZ), capture_output=True, text=True, timeout=300)
     print((carga.stdout.strip().splitlines() or ["(sin salida)"])[-2][:200])
+    claves_demo = (carpeta / "claves_demo.txt").read_text(encoding="utf-8")
+    k_ana = next(l.split("=", 1)[1].strip() for l in claves_demo.splitlines() if l.startswith("ANALISTA="))
+    pend = httpx.get(BASE + "/v1/revisiones?limite=3", headers={"X-API-Key": k_ana}).json()["revisiones"]        # se resuelven 3 para que haya quién-decidió que mostrar
+    for x in pend:
+        assert httpx.post(f"{BASE}/v1/revisiones/{x['id_evaluacion']}/resolver", json={"decision": "APROBADA"}, headers={"X-API-Key": k_ana}).status_code == 200
+    seg_resuelto = pend[0]["id_seguimiento"]
     with sync_playwright() as p:
         perfiles = [("escritorio 1280", "chromium", {"viewport": {"width": 1280, "height": 900}}), ("escritorio 1280", "webkit", {"viewport": {"width": 1280, "height": 900}}),
                     ("320 px", "chromium", {"viewport": {"width": 320, "height": 568}}), ("320 px", "webkit", {"viewport": {"width": 320, "height": 568}}),
@@ -70,6 +76,8 @@ try:
             page.goto(BASE + "/dashboard#/resumen", wait_until="networkidle")
             page.wait_for_selector(".kpi", timeout=20000)
             f["kpis"] = page.locator(".kpi").count()
+            f["usuario_en_la_barra"] = page.locator("#usuario").is_visible() and page.locator("#usuario").inner_text() == "Sesión de Analista de demostración"
+            f["equipo_de_revision_visible"] = page.locator("h2:has-text('Equipo de revisión')").count() == 1 and "Analista de demostración" in page.inner_text("#contenido")
             f["graficas"] = page.locator("svg.grafica").count()
             f["pagos_en_resumen"] = page.locator(".kpi .valor").first.inner_text()
             medir("resumen")
@@ -119,6 +127,10 @@ try:
             f["detalle_ok"] = page.locator(".seg-grande").inner_text() == seg and page.locator(".pasos li").count() >= 3 and page.locator(".datos-grupo").count() >= 4
             medir("detalle")
             page.screenshot(path=str(CAPTURAS / f"{tag}_detalle.png"))
+            # un pago ya resuelto muestra quién lo resolvió
+            page.goto(BASE + f"/dashboard#/pago/{seg_resuelto}", wait_until="networkidle")
+            page.wait_for_selector(".pasos li", timeout=20000)
+            f["resuelta_por_en_el_detalle"] = "Analista de demostración" in page.inner_text("#contenido")
             # un pago que no existe: mensaje claro, sin romper
             page.goto(BASE + "/dashboard#/pago/AF-ZZZZ-ZZZZ", wait_until="networkidle")
             page.wait_for_selector("#contenido .tarjeta h2", timeout=20000)

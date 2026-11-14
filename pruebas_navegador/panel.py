@@ -14,7 +14,7 @@ from modelo_ia.api.almacen import Almacen
 S = Path(tempfile.mkdtemp(prefix="pruebas_navegador_")); CAPTURAS = S / "capturas"; CAPTURAS.mkdir(); bd = S / "nav5.sqlite3"
 for f in S.glob("nav5.sqlite3*"): f.unlink()
 pepper = secrets.token_hex(8); alm = Almacen(bd, pepper); alm.inicializar()
-cid = alm.crear_comercio("Tienda"); k_com = alm.crear_clave(cid, "comercio"); k_ana = alm.crear_clave(1, "analista")
+cid = alm.crear_comercio("Tienda"); k_com = alm.crear_clave(cid, "comercio"); k_ana = alm.crear_usuario("analista", "Ana de prueba")[1]
 srv = subprocess.Popen([sys.executable, "-m", "modelo_ia.api.servidor", "--port", "8770"], env=dict(os.environ, MODELO_IA_BD=str(bd), MODELO_IA_PEPPER=pepper, MODELO_IA_LIMITE="100000"),
                        cwd=str(RAIZ), stdout=open(S / "servidor_nav5.log", "w"), stderr=subprocess.STDOUT)
 BASE = "http://127.0.0.1:8770"; H = {"X-API-Key": k_com}; HA = {"X-API-Key": k_ana}
@@ -93,6 +93,18 @@ try:
             f["controles_menores_a_44px"] = m44
             if m44: f["cuales_menores"] = page.evaluate("Array.from(document.querySelectorAll('button, summary, input, select')).filter(e => e.offsetParent !== null && e.getBoundingClientRect().height < 43).map(e => e.tagName + '#' + e.id + '.' + e.className + ' h=' + e.getBoundingClientRect().height)")
             page.screenshot(path=str(CAPTURAS / f"{motor}_{nombre.replace(' ', '_')}.png"))
+            # --- quién soy y quién decidió: «Sesión de Ana de prueba» en la barra y «Resuelta por Ana de prueba» en lo ya resuelto
+            f["usuario_en_la_barra"] = page.locator("#usuario").is_visible() and page.locator("#usuario").inner_text() == "Sesión de Ana de prueba"
+            if page.locator("#alternar-filtros").is_visible() and page.locator("#cuerpoFiltros").is_hidden():
+                page.click("#alternar-filtros")                                      # en pantallas pequeñas los filtros vienen cerrados
+            page.select_option("#estado", "resuelta")
+            try:
+                page.wait_for_function("document.getElementById('lista').textContent.includes('Resuelta por Ana de prueba')", timeout=15000)
+                f["resuelta_por_se_ve"] = True
+            except Exception:
+                f["resuelta_por_se_ve"] = False
+            page.select_option("#estado", "pendiente")
+            page.wait_for_function("document.getElementById('contador').textContent.includes('pendiente') && document.querySelectorAll('#lista > li').length > 0", timeout=15000)      # espera por CONTENIDO: que ya sea la lista nueva
             # --- filtros de la cola: riesgo, búsqueda por ID, orden y limpiar (con espera por CONTENIDO)
             if page.locator("#alternar-filtros").is_visible() and page.locator("#cuerpoFiltros").is_hidden():
                 page.click("#alternar-filtros")
