@@ -78,6 +78,19 @@ Por defecto lee `datos/dataset_antifraude_500000_transacciones.csv`. Con otro ar
 | `tests/` | 219 pruebas automáticas. |
 | `modelos_guardados/` | Los modelos entrenados (`.joblib`) con su ficha (`.json`). |
 
+## Cómo está organizada la API (`api/`)
+`crear_app` (en `app.py`, unas 60 líneas) solo arma la aplicación y registra las piezas; cada tema vive en su archivo:
+
+| Archivo | Qué hace |
+|---|---|
+| `rutas/evaluaciones.py` · `revisiones.py` · `panel_datos.py` · `lista_negra.py` · `comercios.py` · `estado.py` | Las 22 operaciones, una por tema, cada una con su `APIRouter`. |
+| `dependencias.py` | Quién llama (clave y rol: `principal_actual`, `exigir`), los filtros del panel y el acceso a los servicios (`obtener_servicio`…). Los servicios viven en `app.state`; las rutas los piden como dependencias, así se pueden probar solas. |
+| `manejo.py` | Errores en `application/problem+json`, límite de tamaño y cabeceras de seguridad de todas las respuestas. |
+| `contrato.py` · `metadatos.py` | El contrato OpenAPI y los textos y respuestas documentadas de Swagger. |
+| `servicio.py` · `consultas.py` · `almacen.py` | La lógica de cada evaluación, las consultas del panel y la persistencia en SQLite. |
+
+Para agregar una ruta: ponla en el router de su tema, agrégala al recorrido de `tests/test_permisos_por_ruta.py` (la prueba falla si una operación del contrato no está ahí) y vuelve a exportar `openapi.json`. Esa prueba guarda una «foto» del código, el tipo y la forma de la respuesta de **cada operación con cada rol**; si cambias la API a propósito, regenérala con `REGENERAR_PERMISOS=1`.
+
 ## Datos incluidos (`datos/`)
 
 Todos son **sintéticos**: inventados por los generadores de `datos/generadores/` (semilla fija, así que se pueden volver a crear idénticos). No tienen datos de personas.
