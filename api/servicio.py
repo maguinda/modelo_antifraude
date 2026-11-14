@@ -374,13 +374,15 @@ class ServicioEvaluacion:
             tot = con.execute(f"SELECT COUNT(*), COALESCE(SUM(e.monto_cop), 0) FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion WHERE {donde}",
                               (estado,) + tuple(parametros)).fetchone()
             filas = con.execute(
-                "SELECT e.*, c.nombre AS comercio_nombre, r.estado AS rev_estado, r.creada AS rev_creada FROM revisiones r JOIN evaluaciones e ON e.id=r.id_evaluacion "
-                f"JOIN comercios c ON c.id = e.comercio_id WHERE {donde} ORDER BY {self.ORDEN_REVISIONES[orden]} LIMIT ? OFFSET ?",
+                "SELECT e.*, c.nombre AS comercio_nombre, r.estado AS rev_estado, r.creada AS rev_creada, r.resuelta AS rev_resuelta, "
+                "COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS rev_por FROM revisiones r JOIN evaluaciones e ON e.id=r.id_evaluacion "
+                f"JOIN comercios c ON c.id = e.comercio_id LEFT JOIN claves k ON k.id = r.clave_analista WHERE {donde} ORDER BY {self.ORDEN_REVISIONES[orden]} LIMIT ? OFFSET ?",
                 (estado,) + tuple(parametros) + (limite, desplazamiento)).fetchall()
         return {"total": tot[0], "monto_total_cop": tot[1], "revisiones": [
             {"id_evaluacion": f["id"], "id_seguimiento": f["id_seguimiento"], "comercio_id": f["comercio_id"], "comercio": f["comercio_nombre"], "id_transaccion": f["id_transaccion"],
              "puntaje_riesgo": f["probabilidad"], "motivos": json.loads(f["motivos_json"]),
              "reglas_activadas": json.loads(f["reglas_json"]), "creada_en": f["rev_creada"], "estado": f["rev_estado"],
+             "resuelta_en": f["rev_resuelta"], "resuelta_por": f["rev_por"] if f["rev_estado"] == "resuelta" else None,
              "resumen_pago": _resumen(json.loads(f["fila_json"]))} for f in filas]}
 
     def resolver_revision(self, principal: Principal, id_eval: str, sol) -> Dict:

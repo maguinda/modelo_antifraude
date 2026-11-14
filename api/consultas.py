@@ -48,6 +48,7 @@ class Filtros:
                  id_cliente: Optional[str] = None, id_transaccion: Optional[str] = None, id_seguimiento: Optional[str] = None,
                  regla: Optional[str] = None, ip: Optional[str] = None, dispositivo: Optional[str] = None,
                  riesgo_min: Optional[float] = None, riesgo_max: Optional[float] = None, q: Optional[str] = None):
+        self.es_personal = principal.rol != "comercio"                     # analistas y administradores: pueden ver quién decidió; los comercios, no
         if principal.rol == "comercio":
             if comercio_id is not None and comercio_id != principal.comercio_id:
                 raise ErrorAPI(404, "No encontrado", "No existe ese comercio.")               # 404 también si es de otro comercio
@@ -141,11 +142,14 @@ class ConsultasPanel:
     def detalle(self, principal: Principal, id_pago: str) -> Dict:
         with self.alm.lectura(instantanea=True) as con:
             e = self.srv._evaluacion_visible(con, principal, id_pago)                    # 404 si no existe o es de otro comercio
-            rev = con.execute("SELECT * FROM revisiones WHERE id_evaluacion=?", (e["id"],)).fetchone()
+            rev = con.execute("SELECT r.*, COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS por FROM revisiones r LEFT JOIN claves k ON k.id = r.clave_analista "
+                              "WHERE r.id_evaluacion=?", (e["id"],)).fetchone()
             res = con.execute("SELECT * FROM resultados WHERE id_evaluacion=?", (e["id"],)).fetchone()
             nombre = con.execute("SELECT nombre FROM comercios WHERE id=?", (e["comercio_id"],)).fetchone()[0]
-            audit = con.execute("SELECT momento, accion, detalle FROM auditoria WHERE id_evaluacion=? ORDER BY id", (e["id"],)).fetchall()
+            audit = con.execute("SELECT a.momento, a.accion, a.detalle, k.rol AS actor_rol, COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS actor_nombre "
+                                "FROM auditoria a LEFT JOIN claves k ON k.id = a.clave_id WHERE a.id_evaluacion=? ORDER BY a.id", (e["id"],)).fetchall()
             relacionados = self._relacionados(con, principal, e)
+        personal = principal.rol != "comercio"
         fila = json.loads(e["fila_json"])
         no_enviados = set(json.loads(e["no_enviados_json"] or "[]"))
         reglas, motivos = json.loads(e["reglas_json"]), json.loads(e["motivos_json"])
@@ -168,11 +172,22 @@ class ConsultasPanel:
                        "estado_origen": e["estado_origen"], "red_origen": e["red_origen"]},
             "datos_recibidos": self._datos(fila, no_enviados, e),
             "campos_no_enviados": sorted(no_enviados),
-            "revision": None if rev is None else {"estado": rev["estado"], "decision_analista": rev["decision_analista"], "nota": rev["nota"],
-                                                  "creada": rev["creada"], "resuelta": rev["resuelta"]},
+            "revision": None if rev is None else dict({"estado": rev["estado"], "decision_analista": rev["decision_analista"], "nota": rev["nota"],
+                                                       "creada": rev["creada"], "resuelta": rev["resuelta"]},
+                                                      **({"resuelta_por": rev["por"] if rev["estado"] == "resuelta" else None} if personal else {})),
             "resultado_informado": None if res is None else {"resultado": res["resultado"], "fecha_confirmacion": res["fecha_confirmacion"], "nota": res["nota"]},
-            "auditoria": [{"momento": a["momento"], "accion": a["accion"], "detalle": json.loads(a["detalle"] or "{}")} for a in audit],
+            "auditoria": [{"momento": a["momento"], "accion": a["accion"], "detalle": json.loads(a["detalle"] or "{}"),
+                           "actor": self._actor(a, personal)} for a in audit],
             "relacionados": relacionados}
+
+    @staticmethod
+    def _actor(a: sqlite3.Row, personal: bool) -> str:
+        """Quién hizo la acción. El personal ve el nombre; un comercio solo ve el tipo de actor (no se le muestran los nombres de los empleados de la plataforma)."""
+        if a["actor_rol"] is None:
+            return "el sistema"
+        if a["actor_rol"] == "comercio":
+            return "tu comercio" if not personal else "el comercio"
+        return a["actor_nombre"] if personal else {"analista": "un analista", "admin": "un administrador"}.get(a["actor_rol"], "la plataforma")
 
     def _datos(self, fila: Dict, no_enviados: set, e: sqlite3.Row) -> Dict:
         usados = set(EXCLUIDOS) | CAMPOS_FILA_DEL_PAGO
@@ -261,6 +276,14 @@ class ConsultasPanel:
             hist = con.execute(
                 "SELECT MIN(CAST(probabilidad * 10 AS INTEGER), 9) cubeta, COUNT(*) pagos "
                 f"FROM evaluaciones e {f.donde + (' AND ' if f.donde else 'WHERE ')} probabilidad IS NOT NULL GROUP BY cubeta", f.parametros).fetchall()
+            por_analista = []
+            if f.es_personal:
+                ya_hay = f.donde + (" AND " if f.donde else "WHERE ")
+                por_analista = [dict(r) for r in con.execute(
+                    "SELECT COALESCE(NULLIF(k.etiqueta, ''), 'clave #' || k.id) AS analista, COUNT(*) AS resueltas, SUM(r.decision_analista = 'APROBADA') AS aprobadas, "
+                    "SUM(r.decision_analista = 'RECHAZADA') AS rechazadas, ROUND(AVG((julianday(r.resuelta) - julianday(r.creada)) * 1440), 1) AS minutos_promedio "
+                    f"FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion LEFT JOIN claves k ON k.id = r.clave_analista {ya_hay} r.estado = 'resuelta' "
+                    "GROUP BY r.clave_analista ORDER BY resueltas DESC LIMIT 50", f.parametros)]
             alcance, par = ("WHERE e.comercio_id = ?", (f.comercio_id,)) if f.comercio_id is not None else ("", ())
             pendientes = con.execute(f"SELECT COUNT(*) FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion {alcance + (' AND ' if alcance else 'WHERE ')} r.estado = 'pendiente'", par).fetchone()[0]
         cubetas = {h["cubeta"]: h["pagos"] for h in hist}
@@ -269,7 +292,7 @@ class ConsultasPanel:
                             "modo_degradado": t["degradados"] or 0, "sin_estado_del_dispositivo": t["sin_estado"] or 0,
                             "revisiones_pendientes": pendientes, "latencia_media_ms": t["latencia_media"], "latencia_p95_ms": p95},
                 "por_dia": [dict(d) for d in por_dia], "por_comercio": [dict(c) for c in por_comercio],
-                "reglas_mas_activadas": [dict(r) for r in reglas],
+                "reglas_mas_activadas": [dict(r) for r in reglas], "por_analista": por_analista,
                 "distribucion_del_puntaje": [{"desde": i / 10, "hasta": (i + 1) / 10, "pagos": cubetas.get(i, 0)} for i in range(10)]}
 
     # ------------------------------------------------------------------ vínculos: patrones entre pagos

@@ -140,7 +140,10 @@
       bA.addEventListener("click", function () { if (pendiente === "RECHAZADA") { reset(); return; } pulsar("APROBADA", bA, bR, "aprobar", "ok"); });
       bR.addEventListener("click", function () { if (pendiente === "APROBADA") { reset(); return; } pulsar("RECHAZADA", bR, bA, "rechazar", "mal"); });
       add(botones, bA, bR); der.appendChild(botones);
-    } else { der.appendChild(el("p", "meta", "Este pago ya fue resuelto.")); }
+    } else {
+      var quien = rev.resuelta_por ? "Resuelta por " + rev.resuelta_por + (rev.resuelta_en ? " · " + hace(rev.resuelta_en) : "") + "." : "Este pago ya fue resuelto.";
+      der.appendChild(el("p", "meta", quien));
+    }
     if (rev.id_seguimiento) { var ver = el("a", "btn suave", "Ver todo en el dashboard →"); ver.href = "/dashboard#/pago/" + encodeURIComponent(rev.id_seguimiento); der.appendChild(ver); }
     det.appendChild(der); d.appendChild(det); li.appendChild(d);
     return li;
@@ -198,6 +201,7 @@
       $("acceso").hidden = true; $("panel").hidden = false; $("actualizar").hidden = false; $("salir").hidden = false; $("errorAcceso").hidden = true;
       $("clave").value = "";
       clearInterval(temporizador); temporizador = setInterval(vigilar, 20000);
+      api("/v1/yo").then(function (y) { var u = $("usuario"); u.textContent = "Sesión de " + (y.usuario || "una clave sin nombre"); u.hidden = false; }).catch(function () { /* no es indispensable */ });
       return cargarComercios().then(cargar);
     }).catch(function (e) {
       clave = null;
@@ -209,7 +213,7 @@
   function salir(texto) {
     clave = null; clearInterval(temporizador);
     try { sessionStorage.removeItem("clave_analista"); } catch (e) { /* nada */ }
-    $("panel").hidden = true; $("acceso").hidden = false; $("actualizar").hidden = true; $("salir").hidden = true; $("contador").textContent = "";
+    $("panel").hidden = true; $("acceso").hidden = false; $("actualizar").hidden = true; $("salir").hidden = true; $("contador").textContent = ""; $("usuario").hidden = true;
     var t = $("errorAcceso"); t.textContent = texto || ""; t.hidden = !texto;
   }
 

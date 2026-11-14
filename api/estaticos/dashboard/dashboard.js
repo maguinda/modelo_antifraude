@@ -257,6 +257,21 @@
       q.appendChild(dl);
       add(fila2, d, q);
       c.appendChild(fila2);
+      if (esStaff && (r.por_analista || []).length) {
+        var eq = tarjeta("Equipo de revisión", "Qué resolvió cada persona en este periodo y cuánto tardó, en promedio, desde que el pago quedó en revisión.");
+        var cj = el("div", "tabla-caja"), tq = el("table", "tabla"), cq = el("tr");
+        ["Analista", "Resueltas", "Aprobadas", "Rechazadas", "Minutos promedio"].forEach(function (h, i) { var th = el("th", i ? "num" : null, h); th.scope = "col"; cq.appendChild(th); });
+        add(tq, add(el("thead"), cq));
+        var cuq = el("tbody");
+        r.por_analista.forEach(function (x) {
+          var tr = el("tr");
+          [["Analista", x.analista, 0], ["Resueltas", NUM.format(x.resueltas), 1], ["Aprobadas", NUM.format(x.aprobadas), 1], ["Rechazadas", NUM.format(x.rechazadas), 1], ["Minutos promedio", x.minutos_promedio === null ? "—" : NUM.format(x.minutos_promedio), 1]]
+            .forEach(function (v) { var c2 = el("td", v[2] ? "num" : null, v[1]); c2.dataset.etiqueta = v[0]; tr.appendChild(c2); });
+          cuq.appendChild(tr);
+        });
+        add(tq, cuq); cj.appendChild(tq); eq.appendChild(cj);
+        c.appendChild(add(el("div", "pila"), eq));
+      }
       if (esStaff && r.por_comercio.length) {
         var pc = tarjeta("Por comercio", "Toca un comercio para ver sus pagos.");
         var caja = el("div", "tabla-caja"), tb = el("table", "tabla"), cab = el("tr");
@@ -430,13 +445,13 @@
       if (!d.revision && !d.resultado_informado) rv.appendChild(vacio("Este pago no pasó por revisión ni tiene resultado informado."));
       else {
         var dr = el("dl", "datos");
-        if (d.revision) [["Revisión", d.revision.estado], ["Decisión del analista", d.revision.decision_analista || "—"], ["Nota", d.revision.nota || "—"], ["Resuelta", d.revision.resuelta ? fecha(d.revision.resuelta) : "—"]].forEach(function (x) { add(dr, el("dt", null, x[0]), el("dd", null, x[1])); });
+        if (d.revision) [["Revisión", d.revision.estado], ["Decisión del analista", d.revision.decision_analista || "—"], ["Resuelta por", d.revision.resuelta_por || "—"], ["Nota", d.revision.nota || "—"], ["Resuelta", d.revision.resuelta ? fecha(d.revision.resuelta) : "—"]].forEach(function (x) { add(dr, el("dt", null, x[0]), el("dd", null, x[1])); });
         if (d.resultado_informado) [["Resultado informado", d.resultado_informado.resultado], ["Confirmado", fecha(d.resultado_informado.fecha_confirmacion)]].forEach(function (x) { add(dr, el("dt", null, x[0]), el("dd", null, x[1])); });
         rv.appendChild(dr);
       }
       var au = tarjeta("Auditoría", "Registro que no se puede editar.");
       var ul = el("ul", "auditoria");
-      d.auditoria.forEach(function (x) { add(ul, add(el("li"), el("strong", null, x.accion), el("span", null, fecha(x.momento)))); });
+      d.auditoria.forEach(function (x) { add(ul, add(el("li"), el("strong", null, x.accion + " · " + (x.actor || "")), el("span", null, fecha(x.momento)))); });
       au.appendChild(ul);
       add(cola, rv, au);
       c.appendChild(cola);
@@ -513,6 +528,7 @@
     }).then(function () {
       try { sessionStorage.setItem("clave_analista", c); } catch (e) { /* sin almacenamiento: no pasa nada */ }
       $("acceso").hidden = true; $("nav").hidden = false; $("salir").hidden = false;
+      api("/v1/yo").then(function (y) { var u = $("usuario"); u.textContent = y.rol === "comercio" ? y.comercio : "Sesión de " + (y.usuario || "una clave sin nombre"); u.hidden = false; }).catch(function () { /* no es indispensable */ });
       pintar();
     }).catch(function (e) {
       clave = null;
@@ -524,7 +540,7 @@
   function salir(texto) {
     clave = null; esStaff = false; comercios = [];
     try { sessionStorage.removeItem("clave_analista"); } catch (e) { /* nada */ }
-    $("nav").hidden = true; $("salir").hidden = true; $("contenido").textContent = ""; $("acceso").hidden = false;
+    $("nav").hidden = true; $("salir").hidden = true; $("usuario").hidden = true; $("contenido").textContent = ""; $("acceso").hidden = false;
     var m = $("errorAcceso"); m.textContent = texto || ""; m.hidden = !texto; $("clave").value = "";
   }
   $("formAcceso").addEventListener("submit", function (ev) {

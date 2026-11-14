@@ -59,12 +59,20 @@ Caddy pide solo el certificado HTTPS la primera vez (tarda un minuto). Prueba: `
 
 **4. Crear la primera clave de administrador** (se muestra una sola vez, en tu terminal):
 ```
-docker compose exec api python -m modelo_ia.api.admin crear-clave --rol admin
-docker compose exec api python -m modelo_ia.api.admin crear-clave --rol analista
+docker compose exec api python -m modelo_ia.api.admin crear-clave --rol admin --nombre "Tu nombre"
+docker compose exec api python -m modelo_ia.api.admin crear-clave --rol analista --nombre "Nombre de la persona"
 docker compose exec api python -m modelo_ia.api.admin crear-comercio --nombre "Comercio piloto 1"
 docker compose exec api python -m modelo_ia.api.admin crear-clave --rol comercio --comercio-id 2
 ```
 Guarda cada clave en un gestor de contraseñas. No se pueden volver a ver.
+
+## Personas y claves
+
+**Cada analista y cada administrador tiene SU clave, con su nombre.** El sistema no te deja crearla sin nombre ni repetir el nombre de otra clave activa. Gracias a eso se sabe quién decidió cada revisión (aparece en el panel de revisión, en el dashboard y en el equipo de revisión del resumen) y se puede dar de baja a una persona sin afectar a las demás. **No compartas claves.** Los nombres de los analistas los ven el personal y nadie más: un comercio no ve quién decidió sobre sus pagos, solo «un analista».
+- **Ver quién tiene acceso:** `docker compose exec api python -m modelo_ia.api.admin listar-claves` (muestra la última vez que se usó cada clave; nunca muestra las claves). Revísalo cada mes y apaga las que no se usan.
+- **Cuando una persona deja de trabajar con el sistema:** `... admin desactivar-clave --id N`. Sus decisiones pasadas siguen a su nombre.
+- **Cambiar la clave de una persona** (por ejemplo, si cree que se la vieron): `... admin rotar-clave --id N`. La anterior queda apagada y la nueva se muestra una sola vez.
+- **Límite:** la clave es la única credencial (no hay contraseña ni doble factor). Quien tenga la clave de Ana actúa como Ana. Por eso cada persona debe guardarla en un gestor de contraseñas y no escribirla en chats ni correos.
 
 ## Pruebas obligatorias antes de usarlo con datos de nadie
 
@@ -131,7 +139,7 @@ Como los archivos están cifrados, el lugar donde queden guardados no ve su cont
 - **Un solo servidor.** Si se cae, el servicio está caído hasta que lo recuperes. Pérdida máxima de datos: el intervalo entre copias. Tiempo de recuperación: el de montar un servidor y restaurar.
 - **SQLite, no PostgreSQL.** Alcanza para un piloto: se midieron unas 65 evaluaciones por segundo por proceso, sin errores. Conviene pasar a PostgreSQL cuando haya más de un servidor, un uso sostenido cercano al límite, o el comercio pida alta disponibilidad.
 - **El límite de peticiones se cuenta por proceso**, y hay 2 procesos: el límite real puede ser hasta el doble del configurado.
-- **No hay usuarios individuales para los analistas** (comparten una clave): no se sabe quién decidió cada revisión.
+- **La clave de cada persona es su única credencial:** no hay contraseña ni doble factor. Quien la robe, actúa como esa persona.
 - **El proveedor de IP sigue simulado** mientras no configures uno real.
 - **No hay una prueba de seguridad hecha por un tercero.**
 
@@ -141,5 +149,5 @@ Como los archivos están cifrados, el lugar donde queden guardados no ve su cont
 2. Copia fuera del servidor funcionando y la frase y el secreto guardados aparte.
 3. Un proveedor de IP real configurado.
 4. El acuerdo de datos revisado por un abogado y firmado, y el aviso a los clientes del comercio publicado.
-5. Una decisión sobre los analistas: usuario propio para cada uno.
+5. Una clave con nombre para cada analista (ver «Personas y claves»); quien tenga claves sin nombre, que las rote o las apague.
 6. Una prueba de seguridad externa, o al menos una revisión cuidadosa de los permisos del servidor.

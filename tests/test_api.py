@@ -1561,7 +1561,7 @@ def test_el_script_del_dashboard_nunca_inserta_datos_como_html_y_solo_lee():
 def test_el_dashboard_lee_la_api_del_panel_y_no_las_de_escritura():
     js = (DASH / "dashboard.js").read_text(encoding="utf-8")
     rutas = set(re.findall(r"\"(/v1/[a-z\-/]+)", js))
-    assert rutas and all(r.startswith("/v1/panel/") for r in rutas), rutas
+    assert rutas and all(r.startswith("/v1/panel/") or r == "/v1/yo" for r in rutas), rutas       # /v1/yo solo dice quién eres (lectura)
 
 
 # ------------------------------------------------------------------ filtros y orden de la cola de revisión manual
@@ -1725,3 +1725,95 @@ def test_el_modo_manual_de_la_tienda_sigue_permitiendo_probar_escenarios(demo):
     assert r.status_code == 200
     fila, _, _ = _fila_tienda(demo, "probador")
     assert fila["estado_dispositivo"] == "No reconocido" and fila["edad_cuenta_dias"] == 2 and fila["ip_pais"] == "Rusia"
+
+
+# ------------------------------------------------------------------ analistas con nombre: quién decidió cada revisión
+def _dos_analistas(ctx):
+    """Dos personas con su clave propia, creadas como lo haría el administrador."""
+    alm = ctx.app.state.almacen
+    ana, k_ana = alm.crear_usuario("analista", "Ana Pérez")
+    beto, k_beto = alm.crear_usuario("analista", "Beto Ruiz")
+    ctx.claves["ana"], ctx.claves["beto"] = k_ana, k_beto
+    return ana, beto
+
+
+def _pendiente(ctx, tx, cliente):
+    r = ctx.evaluar(pago_minimo(tx, cliente)).json()
+    assert r["decision"] == "EN_REVISION"
+    return r
+
+
+def test_yo_dice_quien_es_el_dueno_de_la_clave_y_no_inventa_nombres_a_los_comercios(ctx):
+    _dos_analistas(ctx)
+    assert ctx.cliente.get("/v1/yo", headers=ctx.h("ana")).json() == {"rol": "analista", "usuario": "Ana Pérez", "comercio": "PLATAFORMA"}
+    c = ctx.cliente.get("/v1/yo", headers=ctx.h("A")).json()
+    assert c["rol"] == "comercio" and c["usuario"] is None and c["comercio"] == "Tienda A"
+    assert ctx.cliente.get("/v1/yo").status_code == 401 and ctx.cliente.get("/v1/yo", headers={"X-API-Key": "mia_falsa"}).status_code == 401
+
+
+def test_cada_revision_queda_a_nombre_de_quien_la_resolvio(ctx):
+    _dos_analistas(ctx)
+    r1, r2 = _pendiente(ctx, "AN1", "CAN1"), _pendiente(ctx, "AN2", "CAN2")
+    ctx.post(f"/v1/revisiones/{r1['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "ana")
+    ctx.post(f"/v1/revisiones/{r2['id_evaluacion']}/resolver", {"decision": "RECHAZADA", "nota": "no contesta"}, "beto")
+    filas = {f["id_transaccion"]: f for f in cola(ctx, "admin", estado="resuelta").json()["revisiones"]}
+    assert filas["AN1"]["resuelta_por"] == "Ana Pérez" and filas["AN2"]["resuelta_por"] == "Beto Ruiz" and filas["AN1"]["resuelta_en"]
+    d = panel(ctx, f"transacciones/{r2['id_seguimiento']}", "ana").json()
+    assert d["revision"]["resuelta_por"] == "Beto Ruiz" and d["decision"]["decidio"] == "analista"
+    assert any(a["accion"] == "revision_resuelta" and a["actor"] == "Beto Ruiz" for a in d["auditoria"])
+    assert cola(ctx, "ana", estado="pendiente").json()["revisiones"] == [] or all(f["resuelta_por"] is None for f in cola(ctx, "ana", estado="pendiente").json()["revisiones"])
+
+
+def test_un_comercio_nunca_ve_el_nombre_de_los_analistas(ctx):
+    _dos_analistas(ctx)
+    r = _pendiente(ctx, "AN3", "CAN3")
+    ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA", "nota": "ok"}, "ana")
+    vistas = [ctx.cliente.get(f"/v1/evaluaciones/{r['id_evaluacion']}", headers=ctx.h("A")).text, panel(ctx, f"transacciones/{r['id_seguimiento']}", "A").text,
+              panel(ctx, "transacciones", "A").text, panel(ctx, "resumen", "A").text, ctx.cliente.get("/v1/yo", headers=ctx.h("A")).text]
+    for t in vistas:
+        assert "Ana" not in t and "Pérez" not in t and "Beto" not in t and "resuelta_por" not in t, t[:200]
+    d = panel(ctx, f"transacciones/{r['id_seguimiento']}", "A").json()
+    assert {a["actor"] for a in d["auditoria"] if a["accion"] == "revision_resuelta"} == {"un analista"} and "resuelta_por" not in d["revision"]
+    assert "Ana Pérez" in panel(ctx, f"transacciones/{r['id_seguimiento']}", "admin").text                     # el personal sí
+
+
+def test_el_resumen_cuenta_por_persona_y_solo_lo_ve_el_personal(ctx):
+    _dos_analistas(ctx)
+    for i, quien in enumerate(("ana", "ana", "beto")):
+        r = _pendiente(ctx, f"EQ{i}", f"CEQ{i}")
+        ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA" if i != 1 else "RECHAZADA"}, quien)
+    eq = {e["analista"]: e for e in panel(ctx, "resumen", "admin").json()["por_analista"]}
+    assert eq["Ana Pérez"]["resueltas"] == 2 and eq["Ana Pérez"]["aprobadas"] == 1 and eq["Ana Pérez"]["rechazadas"] == 1 and eq["Beto Ruiz"]["resueltas"] == 1
+    assert all(e["minutos_promedio"] is not None and e["minutos_promedio"] >= 0 for e in eq.values())
+    assert panel(ctx, "resumen", "A").json()["por_analista"] == []
+    assert [e["analista"] for e in panel(ctx, "resumen", "admin", desde="2030-01-01").json()["por_analista"]] == []     # respeta los filtros
+
+
+def test_al_dar_de_baja_a_una_persona_su_clave_deja_de_servir_pero_sus_decisiones_siguen_a_su_nombre(ctx):
+    ana, _ = _dos_analistas(ctx)
+    r = _pendiente(ctx, "AN4", "CAN4")
+    ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "ana")
+    ctx.app.state.almacen.desactivar_clave(ana)
+    assert ctx.cliente.get("/v1/yo", headers=ctx.h("ana")).status_code == 401
+    assert ctx.cliente.get("/v1/revisiones", headers=ctx.h("ana")).status_code == 401
+    assert ctx.cliente.get("/v1/yo", headers=ctx.h("beto")).status_code == 200                              # las demás personas no se afectan
+    assert cola(ctx, "admin", estado="resuelta").json()["revisiones"][0]["resuelta_por"] == "Ana Pérez"
+
+
+def test_al_rotar_la_clave_la_persona_sigue_siendo_la_misma(ctx):
+    ana, _ = _dos_analistas(ctx)
+    r = _pendiente(ctx, "AN5", "CAN5")
+    ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "ana")
+    nuevo_id, k_nueva = ctx.app.state.almacen.rotar_clave(ana)
+    assert ctx.cliente.get("/v1/yo", headers=ctx.h("ana")).status_code == 401                                  # la vieja ya no sirve
+    assert ctx.cliente.get("/v1/yo", headers={"X-API-Key": k_nueva}).json()["usuario"] == "Ana Pérez" and nuevo_id != ana
+    r2 = _pendiente(ctx, "AN6", "CAN6")
+    ctx.cliente.post(f"/v1/revisiones/{r2['id_evaluacion']}/resolver", json={"decision": "APROBADA"}, headers={"X-API-Key": k_nueva})
+    por = {f["id_transaccion"]: f["resuelta_por"] for f in cola(ctx, "admin", estado="resuelta").json()["revisiones"]}
+    assert por == {"AN5": "Ana Pérez", "AN6": "Ana Pérez"}
+
+
+def test_una_clave_sin_nombre_se_muestra_como_clave_numero(ctx):
+    r = _pendiente(ctx, "AN7", "CAN7")
+    ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "analista")           # la clave del contexto no tiene nombre
+    assert cola(ctx, "admin", estado="resuelta").json()["revisiones"][0]["resuelta_por"].startswith("clave #")

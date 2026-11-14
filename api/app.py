@@ -346,6 +346,12 @@ def crear_app(ajustes: Optional[Ajustes] = None, artefacto: Optional[Dict] = Non
         clave = almacen.crear_clave(id_comercio, "comercio", "alta por API")
         return {"id_comercio": id_comercio, "nombre": solicitud.nombre, "clave_api": clave}
 
+    @app.get("/v1/yo", tags=["Estado"], response_model=es.RespuestaYo, summary="¿Quién soy con esta clave?", operation_id="quien_soy",
+             description="Devuelve el rol de la clave y, si es de un analista o administrador, el nombre de su dueño. Sirve para que las pantallas digan «Hola, Ana» y para confirmar que usas TU clave.",
+             responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 429)})
+    def quien_soy(p: Principal = Depends(exigir("comercio", "analista", "admin"))):
+        return {"rol": p.rol, "usuario": p.usuario or None, "comercio": p.nombre}
+
     @app.get("/v1/modelo", tags=["Estado"], response_model=es.InfoModelo, summary="Modelo en uso", operation_id="modelo_en_uso",
              responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 429)})
     def modelo_en_uso(p: Principal = Depends(principal_actual)):

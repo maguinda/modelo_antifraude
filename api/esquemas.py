@@ -275,6 +275,8 @@ class FilaRevision(BaseModel):
     reglas_activadas: List[ReglaActivada]
     creada_en: datetime
     estado: str
+    resuelta_en: Optional[datetime] = None
+    resuelta_por: Optional[str] = Field(None, description="Quién resolvió la revisión (nombre de la persona). Solo lo ven analistas y administradores.")
     resumen_pago: Dict[str, Any] = Field({}, description="Datos del pago que el analista necesita para decidir (sin datos de tarjeta ni huella).")
 
 
@@ -282,6 +284,12 @@ class ListaRevisiones(BaseModel):
     total: int = Field(description="Cuántas revisiones cumplen los filtros.")
     monto_total_cop: float = Field(0, description="Suma de los montos de esas revisiones.")
     revisiones: List[FilaRevision]
+
+
+class RespuestaYo(BaseModel):
+    rol: str = Field(description="`comercio`, `analista` o `admin`.")
+    usuario: Optional[str] = Field(None, description="Para analistas y administradores: el nombre de la persona dueña de la clave.")
+    comercio: str = Field(description="El comercio al que pertenece la clave (para analistas y administradores, la plataforma).")
 
 
 class RespuestaComercio(BaseModel):
