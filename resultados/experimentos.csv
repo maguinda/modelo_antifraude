@@ -43,3 +43,5 @@ fecha,version,modelo,variables,umbral,recall_prueba,precision_prueba,ranking_ap_
 2026-11-13 08:54:00,0.3.0,gradient_boosting,completo,0.35,0.93,0.451,0.922,4957,308,243.6,11.96,"v0.3.0: historial por comercio, datos v2 mov30",True,comercio
 2026-11-13 08:54:15,0.3.0,logistica,completo,0.3,0.916,0.301,0.876,9299,369,389.4,5.36,v0.3.0 explicable,True,comercio
 2026-11-13 09:26:08,0.3.0,gradient_boosting,completo,0.3,0.931,0.348,0.902,7634,304,265.5,16.95,v0.3.0: modelo SIN estado del dispositivo (para pagos donde el comercio no lo manda),True,comercio
+2026-11-13 20:25:54,0.3.0,gradient_boosting,perfil,0.25,0.937,0.211,0.811,15363,277,348.7,7.43,v0.3.0: nivel perfil sin estado del dispositivo (para archivos de historial con datos parciales),True,comercio
+2026-11-13 20:26:08,0.3.0,gradient_boosting,historial,0.25,0.937,0.21,0.811,15473,277,343.2,7.34,v0.3.0: nivel historial sin estado del dispositivo (para archivos de historial con datos parciales),True,comercio

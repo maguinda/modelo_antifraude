@@ -1,0 +1,57 @@
+{
+  "version": "0.3.0",
+  "modelo": "gradient_boosting",
+  "conjunto": "historial",
+  "numericas": [
+    "monto_cop",
+    "transacciones_ultimas_24h",
+    "hora",
+    "es_madrugada",
+    "es_fin_semana",
+    "minutos_desde_anterior",
+    "ciudad_distinta_anterior",
+    "n_compras_previas",
+    "monto_vs_promedio",
+    "dispositivo_nuevo_cliente"
+  ],
+  "categoricas": [
+    "dispositivo",
+    "localizacion",
+    "metodo_pago",
+    "canal_pago",
+    "tipo_ip",
+    "estado_dispositivo",
+    "categoria"
+  ],
+  "umbral_revisar": 0.25,
+  "umbral_bloquear": 0.7,
+  "filas": {
+    "entrenamiento": 807623,
+    "validacion": 88639,
+    "prueba": 103738
+  },
+  "huella_datos": "b1f5cc361e1452d2",
+  "scikit_learn": "1.6.1",
+  "datos_sinteticos": true,
+  "etiquetas_conocidas": true,
+  "sin_estado": true,
+  "alcance_historial": "comercio",
+  "metricas_validacion": {
+    "umbral": 0.25,
+    "recall": 0.943491124260355,
+    "precision": 0.18821932361447205,
+    "ranking_ap": 0.7961701434488666,
+    "fraudes_que_escapan": 191,
+    "falsas_alarmas": 13754,
+    "costo_cop": 301738137.0
+  },
+  "metricas_prueba": {
+    "umbral": 0.25,
+    "recall": 0.9367868553172067,
+    "precision": 0.2096741240167535,
+    "ranking_ap": 0.8108892456093743,
+    "fraudes_que_escapan": 277,
+    "falsas_alarmas": 15473,
+    "costo_cop": 343194368.0
+  }
+}
