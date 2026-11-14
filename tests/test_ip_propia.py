@@ -1,5 +1,4 @@
 """Proveedor de IP «propio» y su descargador: clasificación, honestidad sobre lo que no sabe, descargas atómicas y que la IP nunca se guarde."""
-import gzip
 import json
 import sqlite3
 from datetime import date
@@ -262,3 +261,12 @@ def test_la_unica_direccion_externa_permitida_en_las_pantallas_es_el_credito_de_
         otro = html.replace("</body>", '<a href="https://otro.example">x</a></body>')
         assert "https://" in sin_credito(otro)                                    # un segundo enlace externo NO queda cubierto por la excepción
         assert "https://" in sin_credito(html.replace("noopener noreferrer", "noopener"))   # ni el mismo enlace sin su rel
+
+
+def test_si_la_base_trae_algo_inesperado_se_trata_como_vacio_y_no_falla():
+    """Un archivo dañado o de otra versión no debe tumbar la evaluación: la IP queda como desconocida."""
+    extraños = [[1, 2, 3], 42, "texto", {"country": [1], "city": 5, "location": "x"}, {"country": {"names": 7}}]
+    for raro in extraños:
+        p = proveedor({"6.6.6.6": raro}, {"6.6.6.6": raro})
+        i = p.consultar("6.6.6.6")
+        assert i.tipo_ip == "DESCONOCIDA" and i.pais == "Desconocido" and i.reputacion == 50, (raro, i)

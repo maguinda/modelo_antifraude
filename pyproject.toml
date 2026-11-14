@@ -1,0 +1,24 @@
+# Configuración de las herramientas de calidad. No define el paquete: solo dice cómo se revisa el código.
+# Cómo correrlas (desde la carpeta que contiene modelo_ia/):
+#   ruff check modelo_ia            errores reales (imports sobrantes, nombres sin definir, argumentos mutables)
+#   mypy                            tipos en modelo_ia/api (por ahora solo informa, no bloquea)
+
+[tool.ruff]
+line-length = 200                      # el código usa líneas largas a propósito; no se revisa el estilo, solo errores reales
+target-version = "py39"                # lo más viejo que corre en tu equipo; producción usa 3.12
+extend-exclude = ["datos_ip", "modelos_guardados", "resultados"]
+
+[tool.ruff.lint]
+select = [
+    "E9",      # errores de sintaxis
+    "F",       # pyflakes: imports sobrantes, nombres sin definir, variables sin usar
+    "B006",    # argumento por defecto mutable (un bug clásico)
+    "W605",    # secuencia de escape inválida en un texto
+]
+
+[tool.mypy]
+python_version = "3.9"
+files = ["api"]
+ignore_missing_imports = true          # sklearn, pandas y otras no traen tipos completos
+check_untyped_defs = false             # empezamos solo con lo que ya tiene anotaciones
+warn_unused_configs = true

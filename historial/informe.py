@@ -7,7 +7,6 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .. import config
 from .campos import CAMPOS
 from .reproducir import Resultado
 

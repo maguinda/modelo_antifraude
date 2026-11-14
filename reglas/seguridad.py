@@ -6,7 +6,6 @@ Los valores son conservadores y están aquí para que se puedan cambiar con una 
 """
 from typing import Dict, Iterable, List
 
-import pandas as pd
 
 from .motor import Regla
 from .reglas_base import ANONIMAS

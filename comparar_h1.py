@@ -92,7 +92,7 @@ def ejecutar(ruta: Optional[Path] = None, repeticiones: int = 1000, registrar: b
     v, p = mascaras["validacion"], mascaras["prueba"]
     dv, dp = df.loc[v], df.loc[p]
     yv, yp = y[v].values, y[p].values
-    mv, mp = dv["monto_cop"].values, dp["monto_cop"].values
+    mp = dp["monto_cop"].values
 
     # --- modelo (regresión logística) ---------------------------------------
     r = entrenar.ajustar_y_evaluar(df, mascaras, modelos.MODELO_POR_DEFECTO, "historial")

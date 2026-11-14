@@ -20,7 +20,7 @@ from ..reglas import SEVERIDAD, MotorReglas
 from ..reglas.seguridad import construir_reglas_seguridad
 from . import proveedores_ip, traduccion
 from .ajustes import Ajustes
-from .almacen import PLATAFORMA, Almacen, ComercioNoAutorizado, Principal, ahora_iso, id_seguimiento_libre
+from .almacen import Almacen, ComercioNoAutorizado, Principal, ahora_iso, id_seguimiento_libre
 
 log = logging.getLogger("modelo_ia.api")
 

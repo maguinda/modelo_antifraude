@@ -25,7 +25,7 @@ from fastapi.responses import RedirectResponse
 
 from .. import config
 from .ajustes import Ajustes
-from .almacen import PLATAFORMA, Almacen
+from .almacen import Almacen
 from .app import crear_app
 from .documentacion import registrar_documentacion
 from .panel import registrar_panel

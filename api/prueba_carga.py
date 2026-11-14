@@ -73,7 +73,6 @@ async def correr(url: str, clave: str, peticiones: int, concurrencia: int, reint
     limites = httpx.Limits(max_connections=concurrencia, max_keepalive_connections=concurrencia)
     async with httpx.AsyncClient(base_url=url, headers={"X-API-Key": clave}, timeout=120, limits=limites, verify=False) as c:
         # los originales primero (en paralelo); los reintentos después, para que siempre exista el original
-        n_orig = sum(1 for t in trabajos if not t[1])
         cola_orig, cola_rein = asyncio.Queue(), asyncio.Queue()
         for t in trabajos:
             (cola_rein if t[1] else cola_orig).put_nowait(t)

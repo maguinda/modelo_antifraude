@@ -15,7 +15,7 @@ sin afectar a las demás. No compartas claves.
 import argparse
 
 from .ajustes import Ajustes
-from .almacen import PLATAFORMA, Almacen, ComercioInexistente, OperacionNoPermitida
+from .almacen import Almacen, ComercioInexistente, OperacionNoPermitida
 
 
 def main(argv=None) -> None:
@@ -47,9 +47,9 @@ def main(argv=None) -> None:
             id_comercio = almacen.crear_comercio(a.nombre, a.razon_social, a.nit)
             print(f"Comercio creado con id {id_comercio}. Ahora crea su clave con: crear-clave --rol comercio --comercio-id {id_comercio}")
         elif a.orden == "listar-comercios":
-            for c in almacen.listar_comercios():
-                ac_ = c["acuerdo"]
-                print(f"{c['id']:>3}  {c['estado']:10} {c['nombre'][:26]:26} claves {c['claves_activas']}  pagos {c['pagos']:>6}  acuerdo: {ac_['estado']}" + (f" ({ac_['version']}, hasta {ac_['vigente_hasta'] or 'sin vencimiento'})" if ac_["version"] else ""))
+            for com in almacen.listar_comercios():
+                ac_ = com["acuerdo"]
+                print(f"{com['id']:>3}  {com['estado']:10} {com['nombre'][:26]:26} claves {com['claves_activas']}  pagos {com['pagos']:>6}  acuerdo: {ac_['estado']}" + (f" ({ac_['version']}, hasta {ac_['vigente_hasta'] or 'sin vencimiento'})" if ac_["version"] else ""))
         elif a.orden == "suspender-comercio":
             print("Comercio suspendido: sus claves ya no funcionan." if almacen.suspender_comercio(a.id, a.motivo) else "Ese comercio ya estaba suspendido.")
         elif a.orden == "reactivar-comercio":

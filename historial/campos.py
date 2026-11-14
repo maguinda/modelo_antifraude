@@ -4,8 +4,8 @@
 """
 import re
 import unicodedata
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
 
 from ..api import esquemas as es
 
