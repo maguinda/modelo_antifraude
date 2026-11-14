@@ -2477,6 +2477,10 @@ def test_sin_pantallas_la_api_responde_datos_y_documentacion_pero_no_entrega_el_
         "/estaticos/sdk/antifraude.js",
     ):
         assert ctx.cliente.get(ruta).status_code == 404, ruta
+    config = ctx.cliente.get(
+        "/init/panel-config.js"
+    )  # lo pide el HTML que entrega el otro servidor web: sigue siendo de la API
+    assert config.status_code == 200 and config.text == "window.PANEL_CONFIG = {};"
     assert ctx.cliente.get("/v1/salud").status_code == 200
     assert ctx.cliente.get("/v1/yo", headers=ctx.h("A")).status_code == 200
     assert ctx.cliente.get("/docs").status_code == 200  # la documentación del contrato sigue siendo del backend
@@ -2494,7 +2498,7 @@ def test_con_pantallas_el_frontend_sale_de_la_carpeta_frontend_y_la_variable_de_
 
 
 def test_cada_ruta_de_la_api_que_usa_el_frontend_existe_en_el_contrato(ctx):
-    """Frontend y backend se separan, pero siguen hablando por un contrato: un JS que llame a una ruta que ya no existe se detecta aquí."""
+    """Frontend y backend se separan, pero siguen hablando por un contrato: un JS que llame a una ruta /v1 (escrita tal cual en el código) que ya no existe se detecta aquí."""
     import re
 
     contrato = set(ctx.app.openapi()["paths"])

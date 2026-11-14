@@ -1,14 +1,16 @@
 # Frontend (pantallas)
 
+> Es una **carpeta separada con un contrato verificado y un modo «aparte» opcional**, no un despliegue independiente todavía: por omisión la API sigue entregándolas.
+
 Las pantallas del sistema: **panel** de revisión, **dashboard** de control, **tienda** de demostración, el **SDK**
 que corre en el navegador del comprador y el diseño compartido (`comun/diseno.css`). Son HTML, CSS y JavaScript
 propios, sin pasos de compilación y sin terceros.
 
 ## Cómo se relaciona con el backend
-- Solo hablan con la API por su **contrato**: rutas `/v1/...` (y `/demo/...` en la demo), del mismo origen, con la
+- Solo hablan con la API por su **contrato**: rutas `/v1/...` (y `/demo/...` en la demo, que solo existe en la demo), del mismo origen, con la
   clave en la cabecera `X-API-Key`. No importan nada del backend ni leen su disco.
 - Una prueba (`test_cada_ruta_de_la_api_que_usa_el_frontend_existe_en_el_contrato`) falla si algún script llama a
-  una ruta que ya no está en `openapi.json`; otra (`test_los_limites_entre_carpetas_se_respetan`) falla si las
+  una ruta `/v1/...` escrita literalmente que ya no está en `openapi.json` (no ve las rutas que se arman con variables ni `/demo/...`); otra (`test_los_limites_entre_carpetas_se_respetan`) falla si las
   pantallas vuelven a `api/` o si el frontend referencia al backend.
 - Las direcciones públicas no cambiaron: `/panel`, `/dashboard`, `/tienda` y `/estaticos/<carpeta>/<archivo>`.
 

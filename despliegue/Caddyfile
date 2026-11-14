@@ -17,8 +17,8 @@
 		max_size 64KB
 	}
 
-	# La tienda y sus rutas de demostración NO existen en producción; se cierran por si acaso. (/init/panel-config.js sí se deja: en producción solo devuelve {}.)
-	@demo path /demo/* /tienda /tienda/*
+	# La tienda y sus rutas de demostración NO existen en producción; se cierran por si acaso. (el código estático de la tienda, /estaticos/tienda/*, también se cierra; /init/panel-config.js sí se deja: en producción solo devuelve {}.)
+	@demo path /demo/* /tienda /tienda/* /estaticos/tienda/*
 	respond @demo 404
 
 	header {

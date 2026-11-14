@@ -76,8 +76,7 @@ def crear_app(
     montar_estaticos(app, ajustes.servir_pantallas)
     if docs:
         registrar_documentacion(app, ajustes.csp_modo)
-        if ajustes.servir_pantallas:
-            registrar_panel(app, ajustes.csp_modo)
+        registrar_panel(app, ajustes.csp_modo, pantallas=ajustes.servir_pantallas)
     app.state.almacen, app.state.servicio, app.state.ajustes, app.state.consultas = (
         almacen,
         servicio,

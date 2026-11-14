@@ -21,8 +21,13 @@ def cabecera_panel(modo: str):
     return {"Content-Security-Policy-Report-Only": CSP_PANEL, "Cache-Control": "no-store"}
 
 
-def registrar_panel(app: FastAPI, modo_csp: str = "report-only", clave_demo: Optional[str] = None) -> None:
+def registrar_panel(
+    app: FastAPI, modo_csp: str = "report-only", clave_demo: Optional[str] = None, pantallas: bool = True
+) -> None:
     """Agrega /panel y /dashboard. En modo demo (127.0.0.1) entra solo, con la clave de analista de la demo."""
+    if not pantallas:  # las entrega otro servidor web: aquí solo queda lo que es de la API
+        registrar_config_panel(app, clave_demo)
+        return
     cabeceras = cabecera_panel(modo_csp)
     html = (FRONTEND / "panel" / "index.html").read_text(encoding="utf-8")
     app.add_api_route(
@@ -40,6 +45,12 @@ def registrar_panel(app: FastAPI, modo_csp: str = "report-only", clave_demo: Opt
         include_in_schema=False,
         response_class=HTMLResponse,
     )
+    registrar_config_panel(app, clave_demo)
+
+
+def registrar_config_panel(app: FastAPI, clave_demo: Optional[str] = None) -> None:
+    """/init/panel-config.js: lo piden /panel y /dashboard. Es de la API (en producción solo devuelve {}), así que existe aunque las pantallas
+    las entregue otro servidor web (MODELO_IA_PANTALLAS=0)."""
     config = "window.PANEL_CONFIG = " + json.dumps({"claveDemo": clave_demo} if clave_demo else {}) + ";"
     app.add_api_route(
         "/init/panel-config.js",
