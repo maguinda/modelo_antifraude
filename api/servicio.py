@@ -364,14 +364,21 @@ class ServicioEvaluacion:
             return self._respuesta(con, e, repetida=False)
 
     # ----------------------------------------------------------- revisiones
-    def listar_revisiones(self, estado: str, limite: int, desplazamiento: int) -> Dict:
+    ORDEN_REVISIONES = {"antiguos": "r.creada, e.id", "recientes": "r.creada DESC, e.id", "riesgo_desc": "e.probabilidad DESC, r.creada", "monto_desc": "e.monto_cop DESC, r.creada"}
+
+    def listar_revisiones(self, estado: str, limite: int, desplazamiento: int, condiciones: Optional[List[str]] = None,
+                          parametros: tuple = (), orden: str = "antiguos") -> Dict:
+        """La cola de revisión. `condiciones` y `parametros` vienen ya armados (y validados) por consultas.Filtros; el orden sale de una lista fija."""
+        donde = " AND ".join(["r.estado = ?"] + list(condiciones or []))
         with self.alm.lectura() as con:
-            total = con.execute("SELECT COUNT(*) FROM revisiones WHERE estado=?", (estado,)).fetchone()[0]
+            tot = con.execute(f"SELECT COUNT(*), COALESCE(SUM(e.monto_cop), 0) FROM revisiones r JOIN evaluaciones e ON e.id = r.id_evaluacion WHERE {donde}",
+                              (estado,) + tuple(parametros)).fetchone()
             filas = con.execute(
-                "SELECT e.*, r.estado AS rev_estado, r.creada AS rev_creada FROM revisiones r JOIN evaluaciones e ON e.id=r.id_evaluacion "
-                "WHERE r.estado=? ORDER BY r.creada LIMIT ? OFFSET ?", (estado, limite, desplazamiento)).fetchall()
-        return {"total": total, "revisiones": [
-            {"id_evaluacion": f["id"], "id_seguimiento": f["id_seguimiento"], "comercio_id": f["comercio_id"], "id_transaccion": f["id_transaccion"],
+                "SELECT e.*, c.nombre AS comercio_nombre, r.estado AS rev_estado, r.creada AS rev_creada FROM revisiones r JOIN evaluaciones e ON e.id=r.id_evaluacion "
+                f"JOIN comercios c ON c.id = e.comercio_id WHERE {donde} ORDER BY {self.ORDEN_REVISIONES[orden]} LIMIT ? OFFSET ?",
+                (estado,) + tuple(parametros) + (limite, desplazamiento)).fetchall()
+        return {"total": tot[0], "monto_total_cop": tot[1], "revisiones": [
+            {"id_evaluacion": f["id"], "id_seguimiento": f["id_seguimiento"], "comercio_id": f["comercio_id"], "comercio": f["comercio_nombre"], "id_transaccion": f["id_transaccion"],
              "puntaje_riesgo": f["probabilidad"], "motivos": json.loads(f["motivos_json"]),
              "reglas_activadas": json.loads(f["reglas_json"]), "creada_en": f["rev_creada"], "estado": f["rev_estado"],
              "resumen_pago": _resumen(json.loads(f["fila_json"]))} for f in filas]}

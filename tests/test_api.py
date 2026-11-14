@@ -1562,3 +1562,166 @@ def test_el_dashboard_lee_la_api_del_panel_y_no_las_de_escritura():
     js = (DASH / "dashboard.js").read_text(encoding="utf-8")
     rutas = set(re.findall(r"\"(/v1/[a-z\-/]+)", js))
     assert rutas and all(r.startswith("/v1/panel/") for r in rutas), rutas
+
+
+# ------------------------------------------------------------------ filtros y orden de la cola de revisión manual
+def cola(ctx, quien="analista", **params):
+    return ctx.cliente.get("/v1/revisiones", params=params, headers=ctx.h(quien))
+
+
+def _preparar_cola(ctx):
+    """3 pagos en revisión (2 de A, 1 de B) con puntajes conocidos, puestos a mano para probar los filtros de riesgo."""
+    ctx.evaluar(pago_minimo("Q1", "CQ1", monto_cop=200000), "A")
+    ctx.evaluar(pago_minimo("Q2", "CQ2", monto_cop=900000), "A")
+    ctx.evaluar(pago_minimo("Q3", "CQ3", monto_cop=500000), "B")
+    con = sqlite3.connect(ctx.bd)
+    for tx, prob in (("Q1", 0.20), ("Q2", 0.50), ("Q3", 0.90)):
+        con.execute("UPDATE evaluaciones SET probabilidad=? WHERE id_transaccion=?", (prob, tx))
+    con.commit(); con.close()
+
+
+def test_la_cola_filtra_por_comercio_riesgo_monto_y_busqueda(ctx):
+    _preparar_cola(ctx)
+    ids = lambda r: [x["id_transaccion"] for x in r.json()["revisiones"]]
+    todo = cola(ctx)
+    assert todo.json()["total"] == 3 and todo.json()["monto_total_cop"] == 1600000
+    assert {x["comercio"] for x in todo.json()["revisiones"]} == {"Tienda A", "Tienda B"}          # el nombre, no solo el número
+    assert set(ids(cola(ctx, comercio_id=ctx.comercios["B"]))) == {"Q3"}
+    assert set(ids(cola(ctx, riesgo_min=0.4))) == {"Q2", "Q3"} and set(ids(cola(ctx, riesgo_max=0.4))) == {"Q1"}
+    assert set(ids(cola(ctx, riesgo_min=0.3, riesgo_max=0.6))) == {"Q2"}
+    assert set(ids(cola(ctx, monto_min=400000))) == {"Q2", "Q3"}
+    seg = todo.json()["revisiones"][0]["id_seguimiento"]
+    por_seg = cola(ctx, q=seg.lower())
+    assert por_seg.json()["total"] == 1 and por_seg.json()["revisiones"][0]["id_seguimiento"] == seg
+    assert ids(cola(ctx, q="Q2")) == ["Q2"] and ids(cola(ctx, q="CQ3")) == ["Q3"] and cola(ctx, q="no-existe").json()["total"] == 0
+
+
+def test_la_cola_filtrada_cuenta_y_suma_solo_lo_filtrado(ctx):
+    _preparar_cola(ctx)
+    r = cola(ctx, riesgo_min=0.4).json()
+    assert r["total"] == 2 and r["monto_total_cop"] == 1400000
+    pagina = cola(ctx, riesgo_min=0.4, limite=1, desplazamiento=1).json()
+    assert pagina["total"] == 2 and len(pagina["revisiones"]) == 1 and pagina["monto_total_cop"] == 1400000
+
+
+def test_la_cola_se_ordena_por_lo_pedido(ctx):
+    _preparar_cola(ctx)
+    ids = lambda **k: [x["id_transaccion"] for x in cola(ctx, **k).json()["revisiones"]]
+    assert ids(orden="riesgo_desc") == ["Q3", "Q2", "Q1"] and ids(orden="monto_desc") == ["Q2", "Q3", "Q1"]
+    assert ids(orden="antiguos") == ["Q1", "Q2", "Q3"] and ids(orden="recientes") == ["Q3", "Q2", "Q1"]
+
+
+def test_la_cola_rechaza_filtros_raros_no_se_deja_inyectar_y_sigue_siendo_de_analistas(ctx):
+    _preparar_cola(ctx)
+    for malo in ({"riesgo_min": 0.9, "riesgo_max": 0.1}, {"riesgo_min": 2}, {"orden": "id; DROP TABLE evaluaciones"}, {"desde": "2026-13-45"}, {"ip": "nada"}):
+        assert cola(ctx, **malo).status_code == 422, malo
+    assert cola(ctx, q="x' OR '1'='1").json()["total"] == 0 and cola(ctx).json()["total"] == 3
+    assert cola(ctx, "A").status_code == 403 and ctx.cliente.get("/v1/revisiones").status_code == 401
+
+
+def test_la_cola_resuelta_tambien_se_filtra(ctx):
+    _preparar_cola(ctx)
+    r = cola(ctx).json()["revisiones"][0]
+    ctx.post(f"/v1/revisiones/{r['id_evaluacion']}/resolver", {"decision": "APROBADA"}, "analista")
+    assert cola(ctx, estado="resuelta").json()["total"] == 1 and cola(ctx, estado="pendiente").json()["total"] == 2
+    assert cola(ctx, estado="resuelta", q=r["id_transaccion"]).json()["total"] == 1 and cola(ctx, estado="pendiente", q=r["id_transaccion"]).json()["total"] == 0
+
+
+# ------------------------------------------------------------------ diseño compartido (comun/diseno.css) y las tres pantallas que lo usan
+COMUN = documentacion.ESTATICOS / "comun"
+PANTALLAS = {"panel": ("panel/index.html", "/panel"), "tienda": ("tienda/index.html", "/tienda"), "dashboard": ("dashboard/index.html", "/dashboard")}
+
+
+def test_todas_las_pantallas_usan_el_diseno_compartido_y_se_sirve(ctx):
+    assert ctx.cliente.get("/estaticos/comun/diseno.css").status_code == 200
+    for nombre, (archivo, ruta) in PANTALLAS.items():
+        html = (documentacion.ESTATICOS / archivo).read_text(encoding="utf-8")
+        assert '/estaticos/comun/diseno.css' in html, nombre
+        assert html.index("/estaticos/comun/diseno.css") < html.index(f"/estaticos/{nombre}/{nombre}.css"), nombre    # el compartido va primero
+        assert ctx.cliente.get(f"/estaticos/{archivo}").status_code == 200                      # la página y sus hojas se sirven
+        if nombre != "tienda":                                                                    # la tienda solo existe en el servidor de demostración
+            assert ctx.cliente.get(ruta).status_code == 200
+
+
+def test_el_diseno_compartido_tiene_modo_oscuro_y_nada_externo_ni_colores_sueltos_en_las_pantallas():
+    comun = (COMUN / "diseno.css").read_text(encoding="utf-8")
+    assert "prefers-color-scheme: dark" in comun and "--azul:" in comun and "--r-lg:" in comun
+    assert "@import" not in comun and "url(" not in comun and not re.findall(r"https?://", comun)
+    for nombre in ("panel", "tienda", "dashboard"):
+        css = (documentacion.ESTATICOS / nombre / f"{nombre}.css").read_text(encoding="utf-8")
+        assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", css), (nombre, re.findall(r"#[0-9a-fA-F]{3,8}\b", css)[:3])         # los colores viven solo en los tokens
+        assert "@import" not in css and "url(" not in css
+
+
+def test_la_tienda_y_el_panel_no_tienen_nada_en_linea_ni_externo_ni_html_inyectado():
+    for nombre in ("tienda", "panel"):
+        html = (documentacion.ESTATICOS / nombre / "index.html").read_text(encoding="utf-8")
+        js = (documentacion.ESTATICOS / nombre / f"{nombre}.js").read_text(encoding="utf-8")
+        assert not re.findall(r"<script(?![^>]*\bsrc=)", html) and "style=" not in html and "<style" not in html.lower() and "onclick" not in html.lower(), nombre
+        assert not re.findall(r"https?://", html + js), nombre
+        for peligroso in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "localStorage"):
+            assert peligroso not in js, (nombre, peligroso)
+
+
+def test_la_tienda_nunca_lee_los_campos_de_tarjeta_nombre_vencimiento_ni_cvv():
+    js = (documentacion.ESTATICOS / "tienda" / "tienda.js").read_text(encoding="utf-8")
+    for campo in ("tarjeta", "nombre", "vence", "cvv"):
+        assert f'$("{campo}").value' not in js and f'getElementById("{campo}").value' not in js, campo
+    assert 'AntifraudeSDK.observar($("pago"), $("tarjeta"))' in js                      # el SDK solo se entera de si se PEGÓ el número
+
+
+# ------------------------------------------------------------------ tienda: la simulación de proveedores se llena sola (modo auto)
+def _fila_tienda(demo, id_cliente):
+    con = sqlite3.connect(demo.BD)
+    r = con.execute("SELECT fila_json, ip_codigo, red_origen FROM evaluaciones WHERE id_cliente=? ORDER BY rowid DESC LIMIT 1", (id_cliente,)).fetchone()
+    return json.loads(r[0]), r[1], r[2]
+
+
+def test_la_tienda_dice_lo_que_ya_sabe_del_cliente_sin_revelar_ninguna_ip(demo):
+    c = TestClient(demo.crear_app_demo())
+    conocido = c.get("/demo/tienda/contexto", params={"cliente": "cliente-demo-1"})
+    nuevo = c.get("/demo/tienda/contexto", params={"cliente": "alguien-que-no-existe"})
+    assert conocido.headers["cache-control"] == "no-store"
+    assert conocido.json()["cliente"] == {"kyc_nivel": "COMPLETO", "edad_cuenta_dias": 700, "autenticacion_2fa": "NO_EXIGIDA", "estado_dispositivo": "CONOCIDO", "es_nuevo": False}
+    assert nuevo.json()["cliente"]["es_nuevo"] is True and nuevo.json()["cliente"]["estado_dispositivo"] == "NUEVO" and nuevo.json()["cliente"]["edad_cuenta_dias"] == 3
+    assert not re.findall(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", conocido.text + nuevo.text)                  # ninguna IP en la respuesta
+    assert conocido.json()["conexion"]["de_prueba"] is True                                                       # TestClient no es una IP pública
+
+
+def test_en_modo_auto_la_tienda_usa_sus_registros_y_no_lo_que_mande_el_navegador(demo):
+    c = TestClient(demo.crear_app_demo())
+    r = c.post("/demo/tienda/pagar", json=_cuerpo_tienda(id_cliente="cliente-demo-1", simulacion={"modo": "auto"}))
+    assert r.status_code == 200 and r.json()["red_origen"].startswith("proveedor:")
+    fila, ip_codigo, _ = _fila_tienda(demo, "cliente-demo-1")
+    assert fila["estado_dispositivo"] == "Conocido" and fila["edad_cuenta_dias"] == 700 and ip_codigo
+    # un navegador tramposo manda «cuenta de 9999 días, KYC completo, IP de oficina»: en modo auto se ignora y manda el registro de la tienda
+    c.post("/demo/tienda/pagar", json=_cuerpo_tienda(id_cliente="recien-llegado", simulacion={"modo": "auto", "kyc_nivel": "COMPLETO", "edad_cuenta_dias": 9999,
+                                                                                            "ip_prueba": "203.0.113.200", "estado_dispositivo": "CONOCIDO"}))
+    fila2, ip2, _ = _fila_tienda(demo, "recien-llegado")
+    assert fila2["estado_dispositivo"] == "Nuevo" and fila2["edad_cuenta_dias"] == 3 and fila2["kyc_nivel"] != "Completo"
+    assert ip2 == ip_codigo                                                                                       # misma conexión de prueba, no la VPN que pidió el navegador
+
+
+def test_la_tienda_no_se_cree_la_cabecera_x_forwarded_for(demo):
+    c = TestClient(demo.crear_app_demo())
+    c.post("/demo/tienda/pagar", json=_cuerpo_tienda(id_cliente="sin-cabecera", simulacion={"modo": "auto"}))
+    c.post("/demo/tienda/pagar", json=_cuerpo_tienda(id_cliente="con-cabecera", simulacion={"modo": "auto"}), headers={"X-Forwarded-For": "8.8.8.8", "X-Real-IP": "8.8.8.8"})
+    assert _fila_tienda(demo, "sin-cabecera")[1] == _fila_tienda(demo, "con-cabecera")[1]                     # cualquiera puede escribir esas cabeceras
+
+
+def test_la_conexion_del_comprador_real_o_de_prueba():
+    class Falso:
+        def __init__(self, host):
+            self.client = None if host is None else type("C", (), {"host": host})()
+    assert tienda_mod.conexion_del_comprador(Falso("8.8.8.8")) == ("8.8.8.8", False)
+    for host in ("127.0.0.1", "::1", "10.1.2.3", "192.168.0.7", "169.254.1.1", "0.0.0.0", "testclient", "", None):
+        assert tienda_mod.conexion_del_comprador(Falso(host)) == (tienda_mod.IP_DE_PRUEBA_LOCAL, True), host
+
+
+def test_el_modo_manual_de_la_tienda_sigue_permitiendo_probar_escenarios(demo):
+    c = TestClient(demo.crear_app_demo())
+    r = c.post("/demo/tienda/pagar", json=_cuerpo_tienda(id_cliente="probador", simulacion={"modo": "manual", "estado_dispositivo": "NO_RECONOCIDO", "ip_prueba": "203.0.113.200",
+                                                                                           "kyc_nivel": "BASICO", "edad_cuenta_dias": 2, "autenticacion_2fa": "EXIGIDA_FALLIDA", "cambio_credenciales_7d": True}))
+    assert r.status_code == 200
+    fila, _, _ = _fila_tienda(demo, "probador")
+    assert fila["estado_dispositivo"] == "No reconocido" and fila["edad_cuenta_dias"] == 2 and fila["ip_pais"] == "Rusia"

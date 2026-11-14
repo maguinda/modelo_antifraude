@@ -35,6 +35,7 @@ try:
             page.select_option("#producto", "0"); page.locator("#tarjeta").click(); page.keyboard.type("4111 1111 1111 1111", delay=40)
             page.evaluate("document.getElementById('tarjeta').dispatchEvent(new Event('paste', {bubbles: true}))")
             page.mouse.move(10, 10); [page.mouse.move(10 + i * 7, 10 + (i * 31) % 90) for i in range(1, 30)]
+            page.fill("#nombre", "TITULAR PRUEBA"); page.fill("#vence", "09/29"); page.fill("#cvv", "7391")      # campos del checkout que tampoco deben salir jamás
             page.click("#pagar"); page.wait_for_selector("#resultado:not([hidden])", timeout=20000); time.sleep(0.6)
             f["decision_normal"] = page.inner_text("#decision")
             sen = json.loads(page.inner_text("#senales"))
@@ -43,9 +44,11 @@ try:
             f["so"] = d["sistema_operativo"]; f["navegador"] = d["navegador"]; f["tipo"] = d["tipo"]; f["emulador_detectado"] = d["es_emulador"]
             f["pego_detectado"] = c.get("pego_numero_tarjeta") is True; f["tiempo_form"] = c.get("tiempo_formulario_seg"); f["tecleo_ms"] = c.get("velocidad_tecleo_ms"); f["mouse"] = c.get("mouse_natural")
             f["tarjeta_salio_en_alguna_peticion"] = any("4111" in b or "1111111" in b for b in cuerpos) or any("4111" in u for u in peticiones)
+            f["nombre_vencimiento_o_cvv_salieron"] = any(x in b for b in cuerpos for x in ("TITULAR PRUEBA", "09/29", "7391")) or any(x in u for u in peticiones for x in ("TITULAR", "7391"))
+            f["seguimiento_y_enlace_ok"] = bool(__import__("re").match(r"^AF-[0-9A-Z]{4}-[0-9A-Z]{4}$", page.inner_text("#seguimiento"))) and page.get_attribute("#enlace-detalle", "href").startswith("/dashboard#/pago/AF-")
             f["peticiones_fuera_del_servidor"] = [u for u in peticiones if not u.startswith((BASE, "data:", "blob:"))][:2]
             # --- compra sospechosa
-            page.select_option("#producto", "4"); page.select_option("#estado", "NO_RECONOCIDO"); page.select_option("#ip", "203.0.113.200")
+            page.check("#manual"); page.select_option("#producto", "4"); page.select_option("#estado", "NO_RECONOCIDO"); page.select_option("#ip", "203.0.113.200")
             page.select_option("#kyc", "BASICO"); page.fill("#edad", "2"); page.select_option("#tfa", "EXIGIDA_FALLIDA"); page.fill("#cliente", "cliente-sospechoso-" + motor + nombre.split()[0])
             page.click("#pagar"); page.wait_for_function("document.getElementById('decision').textContent === 'RECHAZADA'", timeout=20000)
             f["decision_sospechosa"] = page.inner_text("#decision"); f["regla_visible"] = "Regla:" in page.inner_text("#motivos")

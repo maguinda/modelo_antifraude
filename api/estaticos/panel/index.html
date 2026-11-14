@@ -5,36 +5,68 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Revisión manual · antifraude</title>
 <link rel="icon" href="/estaticos/favicon.png">
+<link rel="stylesheet" href="/estaticos/comun/diseno.css">
 <link rel="stylesheet" href="/estaticos/panel/panel.css">
 </head>
 <body>
 <header class="barra">
-  <h1>Revisión manual</h1>
-  <div class="acciones">
-    <span id="contador" class="contador" role="status" aria-live="polite"></span>
-    <button id="actualizar" type="button" class="secundario" hidden>Actualizar</button>
-    <button id="salir" type="button" class="secundario" hidden>Salir</button>
+  <a class="marca" href="/dashboard#/resumen" aria-label="Antifraude, ir al panel de control"><span class="marca-punto" aria-hidden="true"></span>antifraude</a>
+  <nav class="nav" aria-label="Secciones">
+    <a class="pildora-nav" href="/dashboard#/resumen">Resumen</a>
+    <a class="pildora-nav" href="/dashboard#/transacciones">Transacciones</a>
+    <a class="pildora-nav" href="/dashboard#/vinculos">Vínculos</a>
+    <a class="pildora-nav" href="/panel" aria-current="page">Revisión manual</a>
+  </nav>
+  <div class="barra-acciones">
+    <button id="salir" type="button" class="btn suave" hidden>Salir</button>
   </div>
 </header>
-<main>
-  <section id="acceso" class="tarjeta" aria-labelledby="tituloAcceso">
+<main class="contenido">
+  <section class="hero">
+    <span class="ojo">Revisión manual</span>
+    <h1>Pagos <em>por decidir</em></h1>
+    <p>Los pagos que el sistema dejó en revisión. Abre uno, mira por qué dudó y apruébalo o recházalo.</p>
+  </section>
+  <section id="acceso" class="tarjeta acceso" aria-labelledby="tituloAcceso">
     <h2 id="tituloAcceso">Entrar</h2>
     <p>Escribe tu clave de analista. Solo se guarda mientras esta pestaña esté abierta.</p>
     <form id="formAcceso" autocomplete="off">
-      <label for="clave">Clave de analista</label>
-      <input id="clave" name="clave" type="password" autocomplete="off" required>
-      <button type="submit" class="primario">Entrar</button>
+      <div class="campo"><label for="clave">Clave de analista</label><input id="clave" name="clave" type="password" autocomplete="off" required></div>
+      <button type="submit" class="btn azul">Entrar</button>
     </form>
     <p id="errorAcceso" class="error" role="alert" hidden></p>
   </section>
   <section id="panel" hidden aria-label="Pagos para revisar">
-    <div class="filtros">
-      <label for="estado">Mostrar</label>
-      <select id="estado"><option value="pendiente">Pendientes</option><option value="resuelta">Resueltas</option></select>
+    <div id="kpis" class="rejilla kpis" aria-label="Resumen de la cola"></div>
+    <section class="tarjeta pila" aria-label="Filtros">
+      <button id="alternar-filtros" type="button" class="btn suave alternar-filtros" aria-expanded="false">Filtros</button>
+      <form id="formFiltros" novalidate autocomplete="off">
+        <div id="cuerpoFiltros" class="filtros filtros-cuerpo" hidden>
+          <div class="campo"><label for="q">Buscar por ID o cliente</label><input id="q" type="text" maxlength="64" placeholder="AF-XXXX-XXXX o cliente"></div>
+          <div class="campo"><label for="estado">Mostrar</label>
+            <select id="estado"><option value="pendiente">Pendientes</option><option value="resuelta">Resueltas</option></select></div>
+          <div class="campo" id="campoComercio" hidden><label for="comercio">Comercio</label><select id="comercio"><option value="">Todos los comercios</option></select></div>
+          <div class="campo"><label for="riesgo">Riesgo</label>
+            <select id="riesgo"><option value="">Todos</option><option value="alto">Alto (60 % o más)</option><option value="medio">Medio (35 % a 59 %)</option><option value="bajo">Bajo (menos de 35 %)</option></select></div>
+          <div class="campo"><label for="monto_min">Monto mínimo</label><input id="monto_min" type="number" min="0" step="any" inputmode="decimal"><span id="error-monto" class="error-campo" role="alert" hidden></span></div>
+          <div class="campo"><label for="desde">Desde</label><input id="desde" type="date"></div>
+          <div class="campo"><label for="hasta">Hasta</label><input id="hasta" type="date"><span id="error-fechas" class="error-campo" role="alert" hidden></span></div>
+          <div class="campo"><label for="orden">Ordenar por</label>
+            <select id="orden"><option value="antiguos">Los que más esperan</option><option value="recientes">Más recientes</option><option value="riesgo_desc">Mayor riesgo</option><option value="monto_desc">Mayor monto</option></select></div>
+          <div class="campo"><div class="filtros-acciones"><button type="submit" class="btn azul">Aplicar</button><button id="limpiar" type="button" class="btn suave">Limpiar</button></div></div>
+        </div>
+      </form>
+    </section>
+    <div class="encabezado-lista">
+      <span id="contador" class="chip contador" role="status" aria-live="polite"></span>
+      <button id="actualizar" type="button" class="btn suave" hidden>Actualizar</button>
     </div>
     <p id="mensaje" class="aviso" role="status" aria-live="polite" hidden></p>
     <ul id="lista" class="lista"></ul>
-    <p id="vacio" class="vacio" hidden>No hay pagos en esta lista.</p>
+    <p id="vacio" class="vacio" hidden>No hay pagos con esos filtros.</p>
+    <nav id="paginacion" class="paginacion" aria-label="Páginas" hidden>
+      <button id="anterior" type="button" class="btn suave">← Anterior</button><span id="pagina" class="cuenta"></span><button id="siguiente" type="button" class="btn suave">Siguiente →</button>
+    </nav>
   </section>
 </main>
 <script src="/init/panel-config.js"></script>

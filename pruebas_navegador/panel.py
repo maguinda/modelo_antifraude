@@ -28,7 +28,12 @@ def sembrar(prefijo, n=4):
         r = httpx.post(BASE + "/v1/evaluaciones", json=pago(f"{prefijo}-{i}"), headers=H); assert r.status_code == 201 and r.json()["decision"] == "EN_REVISION", r.text
         ids.append(r.json()["id_evaluacion"])
     r = httpx.post(BASE + "/v1/evaluaciones", json=pago(f"{prefijo}-xss", ciudad=XSS), headers=H); assert r.status_code == 201, r.text
-    return ids, r.json()["id_evaluacion"]
+    xss = r.json()["id_evaluacion"]
+    from modelo_ia.api.ejemplos import EJEMPLOS_SOLICITUD            # dos pagos CON puntaje (ejemplos 2 y 3 de Swagger) para probar los filtros y el orden de riesgo
+    for k, ej in enumerate(("02_en_revision_comportamiento_poco_humano", "03_en_revision_vpn_cliente_nuevo")):
+        c = dict(EJEMPLOS_SOLICITUD[ej]["value"], id_transaccion=f"{prefijo}-puntaje{k}", id_cliente=f"CP-{prefijo}-{k}")
+        r = httpx.post(BASE + "/v1/evaluaciones", json=c, headers=H); assert r.status_code == 201 and r.json()["puntaje_riesgo"] is not None, r.text
+    return ids, xss
 resultados = []
 try:
     for _ in range(80):
@@ -55,7 +60,7 @@ try:
             f["tarjetas"] = page.locator("#lista > li").count(); f["contador"] = page.inner_text("#contador")
             # --- ataque XSS: el texto malicioso debe verse tal cual y no ejecutarse
             page.locator("#lista > li summary").nth(f["tarjetas"] - 1).click(); time.sleep(0.4)
-            f["xss_texto_literal"] = "<img src=x" in page.inner_text("#lista")
+            f["xss_texto_literal"] = "<img src=x" in page.eval_on_selector("#lista", "e => e.textContent")      # el texto está en el DOM como TEXTO (el detalle está plegado: innerText no lo ve)
             f["xss_ejecutado"] = page.evaluate("window.__xss === 1"); f["xss_elemento_img"] = page.locator("#lista img").count()
             # --- clave solo en sessionStorage
             f["clave_en_sessionStorage"] = page.evaluate("!!sessionStorage.getItem('clave_analista')"); f["clave_en_localStorage"] = page.evaluate("localStorage.length > 0")
@@ -88,6 +93,41 @@ try:
             f["controles_menores_a_44px"] = m44
             if m44: f["cuales_menores"] = page.evaluate("Array.from(document.querySelectorAll('button, summary, input, select')).filter(e => e.offsetParent !== null && e.getBoundingClientRect().height < 43).map(e => e.tagName + '#' + e.id + '.' + e.className + ' h=' + e.getBoundingClientRect().height)")
             page.screenshot(path=str(CAPTURAS / f"{motor}_{nombre.replace(' ', '_')}.png"))
+            # --- filtros de la cola: riesgo, búsqueda por ID, orden y limpiar (con espera por CONTENIDO)
+            if page.locator("#alternar-filtros").is_visible() and page.locator("#cuerpoFiltros").is_hidden():
+                page.click("#alternar-filtros")
+            antes_total = int(page.inner_text("#contador").split()[0])
+            seg = page.locator("#lista > li .meta").first.inner_text().split(" · ")[0]
+            clases = page.locator("#lista .medidor-riesgo.alto, #lista .medidor-riesgo.medio, #lista .medidor-riesgo.bajo").first.get_attribute("class").split()
+            nivel = next((c for c in clases if c in ("alto", "medio", "bajo")), "")
+            page.select_option("#riesgo", nivel)                                    # el nivel del primer pago: así la lista filtrada nunca queda vacía
+            try:
+                page.wait_for_function("(n) => { const m = [...document.querySelectorAll('#lista .medidor-riesgo')]; return m.length > 0 && m.every(x => x.classList.contains(n)); }", arg=nivel, timeout=15000)
+                f["filtro_riesgo_ok"] = int(page.inner_text("#contador").split()[0]) <= antes_total
+            except Exception:
+                f["filtro_riesgo_ok"] = False
+            page.select_option("#riesgo", "")
+            page.fill("#q", seg); page.click("#formFiltros button[type=submit]")
+            try:
+                page.wait_for_function("document.querySelectorAll('#lista > li').length === 1", timeout=15000)
+                f["busqueda_por_id_ok"] = seg in page.locator("#lista > li .meta").first.inner_text()
+            except Exception:
+                f["busqueda_por_id_ok"] = False
+            page.fill("#q", ""); page.fill("#desde", "2030-01-02"); page.fill("#hasta", "2030-01-01"); page.click("#formFiltros button[type=submit]")
+            f["filtro_valida_fechas"] = page.locator("#error-fechas:not([hidden])").count() == 1
+            page.click("#limpiar")
+            try:
+                page.wait_for_function("document.querySelectorAll('#lista > li').length > 1", timeout=15000)
+                f["limpiar_restaura_la_lista"] = page.locator("#error-fechas").is_hidden()
+            except Exception:
+                f["limpiar_restaura_la_lista"] = False
+            page.select_option("#orden", "riesgo_desc")
+            try:
+                page.wait_for_function("(() => { const v = [...document.querySelectorAll('#lista .medidor-riesgo')].map(x => parseInt(x.textContent)).filter(n => !isNaN(n)); return v.length > 1 && v.every((n, i) => i === 0 || v[i-1] >= n); })()", timeout=15000)
+                f["orden_por_riesgo_ok"] = True
+            except Exception:
+                f["orden_por_riesgo_ok"] = False
+            page.select_option("#orden", "antiguos")
             page.click("#salir"); f["salir_limpia"] = page.locator("#acceso").is_visible() and not page.evaluate("!!sessionStorage.getItem('clave_analista')")
             f["consola"] = consola[:3]; resultados.append(f); nav.close()
 finally:

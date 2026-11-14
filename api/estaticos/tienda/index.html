@@ -3,70 +3,133 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tienda de prueba · antifraude</title>
+<title>Checkout de prueba · antifraude</title>
 <link rel="icon" href="/estaticos/favicon.png">
+<link rel="stylesheet" href="/estaticos/comun/diseno.css">
 <link rel="stylesheet" href="/estaticos/tienda/tienda.css">
 </head>
 <body>
-<header class="barra"><h1>Tienda de prueba</h1><span class="etiqueta">DEMO local</span></header>
-<main>
-  <p class="nota"><strong>Esto es una demostración.</strong> El SDK mide tu navegador y cómo llenas el formulario, el servidor de la tienda llama a la API antifraude con su clave (la clave nunca llega a esta página) y abajo ves la decisión. Los datos de «proveedores» son <strong>simulados</strong>.</p>
-  <form id="pago" class="tarjeta" autocomplete="off" novalidate>
-    <h2>Tu compra</h2>
-    <label for="producto">Producto</label>
-    <select id="producto">
-      <option value="0">Camiseta · $ 80.000</option>
-      <option value="1">Audífonos · $ 350.000</option>
-      <option value="2">Celular · $ 1.400.000</option>
-      <option value="3">Reserva de hotel · $ 2.400.000</option>
-      <option value="4">Pedido de $ 4.800.000</option>
-    </select>
-    <label for="ciudad">Ciudad de entrega</label>
-    <select id="ciudad"><option>Bogotá</option><option>Medellín</option><option>Cali</option><option>Barranquilla</option><option>Cartagena</option></select>
-    <label for="metodo">Método de pago</label>
-    <select id="metodo"><option value="VISA">Visa</option><option value="MASTERCARD">Mastercard</option><option value="PSE">PSE</option><option value="NEQUI">Nequi</option></select>
-    <label for="tarjeta">Número de tarjeta de prueba</label>
-    <input id="tarjeta" type="text" inputmode="numeric" maxlength="23" placeholder="No escribas una tarjeta real">
-    <p class="ayuda">Este campo no se lee ni se envía a ningún lado. El SDK solo detecta si <em>pegaste</em> el número (señal típica de fraude).</p>
+<header class="barra">
+  <a class="marca" href="/tienda" aria-label="Tienda de prueba"><span class="marca-punto" aria-hidden="true"></span>tienda demo</a>
+  <p class="seguro"><span class="candado" aria-hidden="true"></span>Pago protegido por antifraude</p>
+  <div class="barra-acciones"><span class="chip falta">DEMO local</span></div>
+</header>
+<main class="contenido">
+  <ol class="etapas" aria-label="Pasos de la compra">
+    <li class="hecho"><span class="num">✓</span>Carrito</li>
+    <li class="activo" id="etapa-pago" aria-current="step"><span class="num">2</span>Pago</li>
+    <li id="etapa-fin"><span class="num">3</span>Confirmación</li>
+  </ol>
+  <p class="nota-demo"><strong>Esto es una demostración.</strong> El SDK mide tu navegador y cómo llenas el formulario, el servidor de la tienda llama a la API antifraude con su clave (nunca llega a esta página) y abajo ves la decisión. Los datos de «proveedores» son simulados. Ningún dato de tarjeta se lee ni se envía.</p>
 
-    <h2>Simulación de proveedores <span class="etiqueta">simulado</span></h2>
-    <label for="cliente">Código del cliente</label>
-    <input id="cliente" type="text" value="cliente-demo-1" maxlength="40">
-    <label for="estado">¿Ese cliente ya usó este dispositivo? (lo sabría el sistema de cuentas de la tienda)</label>
-    <select id="estado"><option value="CONOCIDO">Sí, dispositivo conocido</option><option value="">No lo sé: no lo envío (la API usa un modelo que no lo necesita)</option><option value="NUEVO">Es un dispositivo nuevo</option><option value="NO_RECONOCIDO">No reconocido</option></select>
-    <label for="ip">Conexión del comprador (IP de prueba)</label>
-    <select id="ip">
-      <option value="192.0.2.10">Casa en Bogotá (residencial)</option>
-      <option value="198.51.100.20">Celular en Medellín (móvil)</option>
-      <option value="203.0.113.10">Oficina en Bogotá (empresarial)</option>
-      <option value="203.0.113.70">VPN (centro de datos, EE. UU.)</option>
-      <option value="203.0.113.140">Proxy (Países Bajos)</option>
-      <option value="203.0.113.200">VPN desde Rusia</option>
-      <option value="10.0.0.5">Red privada, no se puede ubicar</option>
-      <option value="REAL">La IP real con la que abriste esta página</option>
-    </select>
-    <p class="ayuda">La tienda manda <strong>solo la IP</strong>; la API la ubica y la evalúa con su proveedor de IP (aquí <strong>simulado</strong>, solo reconoce estos rangos de prueba). La IP no se guarda.</p>
-    <label for="kyc">Verificación del cliente (KYC)</label>
-    <select id="kyc"><option value="COMPLETO">Completa</option><option value="BASICO">Básica</option><option value="SIN_VERIFICAR">Sin verificar</option></select>
-    <label for="edad">Antigüedad de la cuenta (días)</label>
-    <input id="edad" type="number" min="0" max="36500" value="700">
-    <label for="tfa">Autenticación de dos factores</label>
-    <select id="tfa"><option value="NO_EXIGIDA">No exigida</option><option value="EXIGIDA_APROBADA">Exigida y aprobada</option><option value="EXIGIDA_FALLIDA">Exigida y fallida</option><option value="NO_DISPONIBLE">No disponible</option></select>
-    <label class="casilla"><input id="cred" type="checkbox"> Cambió su contraseña esta semana</label>
-    <button id="pagar" type="submit" class="primario">Pagar</button>
-  </form>
-
-  <section id="resultado" class="tarjeta" hidden aria-live="polite">
-    <h2>Respuesta de la API antifraude</h2>
-    <p id="decision" class="decision"></p>
+  <section id="resultado" class="tarjeta resultado" hidden aria-live="polite" aria-labelledby="titulo-resultado">
+    <div class="resultado-cabecera">
+      <span id="icono-resultado" class="icono-resultado" aria-hidden="true"></span>
+      <div>
+        <h2 id="titulo-resultado"></h2>
+        <p id="texto-resultado" class="sub"></p>
+      </div>
+      <span id="decision" class="estado"></span>
+    </div>
+    <p class="seguimiento">Número de seguimiento: <strong id="seguimiento" class="codigo-grande"></strong> <a id="enlace-detalle" class="btn suave" href="/dashboard">Ver el detalle en el dashboard →</a></p>
+    <h3>Detalle técnico (solo demo)</h3>
     <dl class="datos" id="datos"></dl>
     <h3>Reglas activadas y motivos</h3>
     <ul id="motivos"></ul>
     <h3>Señales que envió el SDK de este navegador</h3>
     <pre id="senales"></pre>
-    <p class="ayuda">Si quedó <strong>EN_REVISION</strong>, ábrelo en <a href="/panel">/panel</a> para resolverlo como analista.</p>
+    <p class="ayuda">Si quedó <strong>EN_REVISION</strong>, ábrelo en <a href="/panel">Revisión manual</a> para resolverlo como analista.</p>
   </section>
   <p id="error" class="error" role="alert" hidden></p>
+
+  <form id="pago" class="checkout" autocomplete="off" novalidate>
+    <div class="columna-principal">
+      <section class="tarjeta">
+        <h2><span class="num">1</span>Contacto y entrega</h2>
+        <div class="campo"><label for="cliente">Código del cliente</label><input id="cliente" type="text" value="cliente-demo-1" maxlength="40" aria-describedby="error-cliente"><span id="error-cliente" class="error-campo" role="alert" hidden></span></div>
+        <div class="campo"><label for="ciudad">Ciudad de entrega</label>
+          <select id="ciudad"><option>Bogotá</option><option>Medellín</option><option>Cali</option><option>Barranquilla</option><option>Cartagena</option></select></div>
+      </section>
+
+      <section class="tarjeta">
+        <h2><span class="num">2</span>Método de pago</h2>
+        <fieldset id="metodo" class="metodos">
+          <legend class="solo-lector">Elige cómo pagar</legend>
+          <label class="metodo"><input type="radio" name="metodo" value="VISA" checked><span><strong>Visa</strong><small>Tarjeta de crédito o débito</small></span></label>
+          <label class="metodo"><input type="radio" name="metodo" value="MASTERCARD"><span><strong>Mastercard</strong><small>Tarjeta de crédito o débito</small></span></label>
+          <label class="metodo"><input type="radio" name="metodo" value="PSE"><span><strong>PSE</strong><small>Débito desde tu banco</small></span></label>
+          <label class="metodo"><input type="radio" name="metodo" value="NEQUI"><span><strong>Nequi</strong><small>Desde tu app</small></span></label>
+        </fieldset>
+        <div id="bloque-tarjeta" class="bloque-tarjeta">
+          <div class="campo"><label for="tarjeta">Número de tarjeta de prueba</label>
+            <input id="tarjeta" type="text" inputmode="numeric" maxlength="23" placeholder="1234 5678 9012 3456" autocomplete="off"></div>
+          <div class="campo"><label for="nombre">Nombre en la tarjeta</label><input id="nombre" type="text" maxlength="60" placeholder="Como aparece en la tarjeta" autocomplete="off"></div>
+          <div class="par">
+            <div class="campo"><label for="vence">Vencimiento</label><input id="vence" type="text" inputmode="numeric" maxlength="5" placeholder="MM/AA" autocomplete="off"></div>
+            <div class="campo"><label for="cvv">CVV</label><input id="cvv" type="text" inputmode="numeric" maxlength="4" placeholder="123" autocomplete="off"></div>
+          </div>
+          <p class="ayuda">No escribas una tarjeta real. Estos campos <strong>no se leen ni se envían a ningún lado</strong>: el SDK solo detecta si <em>pegaste</em> el número (señal típica de fraude).</p>
+        </div>
+        <p id="bloque-otro" class="ayuda" hidden>En una tienda real aquí te llevarían a tu banco o a tu app para aprobar el pago. En esta demostración no hace falta.</p>
+      </section>
+
+      <section id="simulacion" class="tarjeta contexto" aria-labelledby="titulo-contexto">
+        <h2 id="titulo-contexto"><span class="num">3</span>Lo que ya sabemos de esta compra</h2>
+        <p class="ayuda">Se detecta solo: la conexión la ve el servidor, el dispositivo lo detecta el navegador y la verificación del cliente sale de los registros de la tienda. No tienes que llenar nada.</p>
+        <dl class="datos contexto-datos" id="contexto"></dl>
+        <label class="casilla"><input id="manual" type="checkbox"> Quiero probar otro escenario <span class="chip falta">solo demo</span></label>
+        <div id="escenario" hidden>
+          <p class="ayuda">Aquí decides lo que normalmente se detecta solo, para ver cómo reacciona el antifraude ante una VPN, una cuenta nueva, etc.</p>
+          <div class="campo"><label for="estado">¿Ese cliente ya usó este dispositivo?</label>
+            <select id="estado"><option value="CONOCIDO">Sí, dispositivo conocido</option><option value="">No lo sé: no lo envío (la API usa un modelo que no lo necesita)</option><option value="NUEVO">Es un dispositivo nuevo</option><option value="NO_RECONOCIDO">No reconocido</option></select></div>
+          <div class="campo"><label for="ip">Conexión del comprador (IP de prueba)</label>
+            <select id="ip">
+              <option value="192.0.2.10">Casa en Bogotá (residencial)</option>
+              <option value="198.51.100.20">Celular en Medellín (móvil)</option>
+              <option value="203.0.113.10">Oficina en Bogotá (empresarial)</option>
+              <option value="203.0.113.70">VPN (centro de datos, EE. UU.)</option>
+              <option value="203.0.113.140">Proxy (Países Bajos)</option>
+              <option value="203.0.113.200">VPN desde Rusia</option>
+              <option value="10.0.0.5">Red privada, no se puede ubicar</option>
+              <option value="REAL">La IP real con la que abriste esta página</option>
+            </select></div>
+          <p class="ayuda">La tienda manda <strong>solo la IP</strong>; la API la ubica con su proveedor de IP (aquí <strong>simulado</strong>, solo reconoce estos rangos de prueba). La IP no se guarda.</p>
+          <div class="campo"><label for="kyc">Verificación del cliente (KYC)</label>
+            <select id="kyc"><option value="COMPLETO">Completa</option><option value="BASICO">Básica</option><option value="SIN_VERIFICAR">Sin verificar</option></select></div>
+          <div class="campo"><label for="edad">Antigüedad de la cuenta (días)</label><input id="edad" type="number" min="0" max="36500" value="700" aria-describedby="error-edad"><span id="error-edad" class="error-campo" role="alert" hidden></span></div>
+          <div class="campo"><label for="tfa">Autenticación de dos factores</label>
+            <select id="tfa"><option value="NO_EXIGIDA">No exigida</option><option value="EXIGIDA_APROBADA">Exigida y aprobada</option><option value="EXIGIDA_FALLIDA">Exigida y fallida</option><option value="NO_DISPONIBLE">No disponible</option></select></div>
+          <label class="casilla"><input id="cred" type="checkbox"> Cambió su contraseña esta semana</label>
+        </div>
+      </section>
+    </div>
+
+    <aside class="columna-resumen">
+      <section class="tarjeta resumen" aria-labelledby="titulo-resumen">
+        <h2 id="titulo-resumen">Resumen del pedido</h2>
+        <div class="campo"><label for="producto">Producto</label>
+          <select id="producto">
+            <option value="0">Camiseta · $ 80.000</option>
+            <option value="1">Audífonos · $ 350.000</option>
+            <option value="2">Celular · $ 1.400.000</option>
+            <option value="3">Reserva de hotel · $ 2.400.000</option>
+            <option value="4">Pedido de $ 4.800.000</option>
+          </select></div>
+        <div class="linea-producto">
+          <span id="ficha" class="ficha" aria-hidden="true"></span>
+          <div><strong id="nombre-producto"></strong><small id="categoria-producto"></small></div>
+          <span id="precio-producto" class="precio"></span>
+        </div>
+        <dl class="cuentas">
+          <div><dt>Subtotal</dt><dd id="subtotal"></dd></div>
+          <div><dt>Envío</dt><dd>Gratis</dd></div>
+          <div class="total"><dt>Total</dt><dd id="total"></dd></div>
+        </dl>
+        <button id="pagar" type="submit" class="btn azul grande">Pagar</button>
+        <p class="ayuda centrado"><span class="candado" aria-hidden="true"></span>Pago cifrado y revisado contra fraude (simulado)</p>
+      </section>
+    </aside>
+  </form>
 </main>
 <script src="/estaticos/sdk/antifraude.js"></script>
 <script src="/estaticos/tienda/tienda.js"></script>
