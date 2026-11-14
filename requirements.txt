@@ -5,6 +5,7 @@ joblib>=1.2
 pytest>=7.0
 fastapi>=0.110
 uvicorn>=0.27
+prometheus_client>=0.20     # métricas (GET /v1/metricas)
 httpx>=0.26
 openpyxl>=3.1      # solo para leer historiales en Excel (.xlsx)
 maxminddb>=2.6      # lee las bases de ubicación de IP (formato MMDB); solo con el proveedor de IP "propio"

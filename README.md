@@ -24,6 +24,7 @@ que se va mejorando, etapa por etapa.
 - [Proveedor de IP propio (bases públicas, sin enviar la IP a nadie)](#proveedor-de-ip-propio-bases-públicas-sin-enviar-la-ip-a-nadie)
 - [Comercios: alta, suspensión y acuerdo de datos](#comercios-alta-suspensión-y-acuerdo-de-datos)
 - [Panel de control: ver todo, filtrar y rastrear (API de solo lectura)](#panel-de-control-ver-todo-filtrar-y-rastrear-api-de-solo-lectura)
+- [Observabilidad: identificador de petición, registros y métricas](#observabilidad-identificador-de-petición-registros-y-métricas)
 - [Despliegue en un servidor real (preparado, todavía no desplegado)](#despliegue-en-un-servidor-real-preparado-todavía-no-desplegado)
 - [Adaptador de historial: el diagnóstico para un comercio (python -m modelo_ia.historial)](#adaptador-de-historial-el-diagnóstico-para-un-comercio-python--m-modelo_iahistorial)
 - [Qué señales aportan de verdad (y una idea que se descartó)](#qué-señales-aportan-de-verdad-y-una-idea-que-se-descartó)
@@ -178,12 +179,15 @@ registrada en la tabla `migraciones`.
 `crear_app` (en `app.py`, unas 60 líneas) solo arma la aplicación y registra las piezas; cada tema vive en su archivo:
 
 - `rutas/evaluaciones.py` · `revisiones.py` · `panel_datos.py` · `lista_negra.py` · `comercios.py` ·
-  `estado.py` — Las 22 operaciones, una por tema, cada una con su `APIRouter`.
+  `estado.py` · `metricas.py` — Las 23 operaciones, una por tema, cada una con su `APIRouter`.
 - `dependencias.py` — Quién llama (clave y rol: `principal_actual`, `exigir`), los filtros del panel
   y el acceso a los servicios (`obtener_servicio`…). Los servicios viven en `app.state`; las rutas
   los piden como dependencias, así se pueden probar solas.
 - `manejo.py` — Errores en `application/problem+json`, límite de tamaño y cabeceras de seguridad de
   todas las respuestas.
+- `observabilidad.py` · `metricas.py` · `contexto.py` — El identificador de cada petición, los
+  registros (logs) en JSON y las métricas (ver «Observabilidad»). Es un middleware por fuera de los
+  demás.
 - `contrato.py` · `metadatos.py` — El contrato OpenAPI y los textos y respuestas documentadas de
   Swagger.
 - `servicio.py` — La lógica de cada evaluación (idempotencia, reintento optimista, decisión,
@@ -417,6 +421,7 @@ python -m modelo_ia.api.exportar_openapi  # escribe modelo_ia/api/openapi.json
 | `GET /v1/comercios`, `GET /v1/comercios/{id}/acuerdos` | analista, admin | Comercios con su estado y acuerdo de datos; el NIT solo lo ve el admin. |
 | `POST /v1/comercios/{id}/suspender`, `…/reactivar`, `PUT …/acuerdo` | admin | Suspender o reactivar un comercio y registrar su acuerdo de datos (ver «Comercios: alta, suspensión y acuerdo de datos»). |
 | `GET /v1/modelo`, `GET /v1/salud` | cualquiera / sin clave | Modelo en uso y salud del servicio. |
+| `GET /v1/metricas` | admin | Métricas en formato Prometheus (peticiones, duración, pagos por decisión). |
 
 ### Probarla en tu computador (modo demo)
 
@@ -708,6 +713,42 @@ cliente con muchas IPs, viaje imposible, ráfagas, proxy). Todo es inventado.
 la decisión de la Ley 1581: aquí lo ve el analista, no el comercio. Las ráfagas usan una ventana
 fija de 10 minutos. Con millones de filas habrá que medir el rendimiento de los resúmenes (hoy hay
 índices, pero se probó con unos miles).
+
+## Observabilidad: identificador de petición, registros y métricas
+
+**Identificador de petición.** Cada respuesta lleva la cabecera `X-Request-ID`. Si el cliente manda
+uno se respeta solo cuando es corto y de caracteres seguros (letras, números, `.`, `_`, `-`, de 8 a
+64); cualquier otro valor se reemplaza por uno generado. Los errores (`application/problem+json`)
+traen el mismo valor en el campo `request_id`: un comercio lo cita en soporte y tú encuentras su
+petición en los registros.
+
+**Registros.** Una línea por petición con hora, nivel, `request_id`, método, la **plantilla** de la
+ruta (`/v1/evaluaciones/{id_evaluacion}`, nunca el id real), estado, duración en milisegundos, rol y,
+si es un comercio, su número. `/v1/salud` no se registra (es ruido de monitoreo).
+`MODELO_IA_LOG_FORMATO` elige el formato: `json` (una línea JSON por registro), `texto` (legible,
+para desarrollo) o `auto` (por defecto: JSON en producción, texto en desarrollo).
+
+**Qué nunca se escribe:** la clave de API, el cuerpo de la petición, el query string ni la IP. Un
+filtro además tapa cualquier texto con forma de clave (`mia_<rol>_…`) que se cuele en un mensaje de
+error. Una prueba envía valores «señuelo» (claves, ids de cliente, IP, ciudades) por todos esos
+caminos y comprueba que ninguno aparece en el registro.
+
+**Métricas** (`GET /v1/metricas`, solo con clave de **administrador**, formato Prometheus):
+
+- `antifraude_http_peticiones_total{metodo,ruta,estado}`: peticiones atendidas.
+- `antifraude_http_duracion_segundos{ruta}`: histograma de la duración.
+- `antifraude_evaluaciones_total{decision,modo}`: pagos evaluados por primera vez (un reintento
+  idempotente no cuenta).
+
+No hay series por comercio a propósito: la actividad de un comercio no debe verse en una serie
+compartida y una etiqueta por comercio o por id crece sin límite. Un verbo HTTP raro se cuenta como
+`OTRO`. Con varios procesos (`--workers 2`, como en el contenedor) cada uno guarda sus contadores en
+archivos de una carpeta común (`PROMETHEUS_MULTIPROC_DIR`, que `servidor.py` crea sola) y al leer se
+suman, así la cifra es la del servicio completo.
+
+**Lo que NO hay:** alertas ni tableros (Grafana), almacenamiento central de registros (si el
+contenedor se recrea se pierden, salvo que configures el controlador de logs de Docker) ni trazas
+distribuidas. Los datos quedan listos para cuando se quieran.
 
 ## Despliegue en un servidor real (preparado, todavía no desplegado)
 

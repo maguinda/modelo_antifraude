@@ -4,10 +4,13 @@
     python -m modelo_ia.api.servidor --https              # https://127.0.0.1:8000  (certificado de prueba autofirmado)
     python -m modelo_ia.api.servidor --workers 4          # varios procesos
 
-Con varios procesos, el límite de peticiones por clave se cuenta POR PROCESO (en producción va en un almacén compartido).
+Con varios procesos, el límite de peticiones por clave se cuenta POR PROCESO (en producción va en un almacén compartido). Las métricas sí se suman entre procesos.
 """
 
 import argparse
+import os
+import shutil
+import tempfile
 
 import uvicorn
 
@@ -32,8 +35,21 @@ def main(argv=None) -> None:
 
         cert, llave = asegurar()
         opciones.update(ssl_certfile=str(cert), ssl_keyfile=str(llave))
+    # el registro de cada petición lo escribe observabilidad.py (con identificador y sin datos sensibles)
+    opciones["access_log"] = False
     if a.workers > 1:
-        uvicorn.run("modelo_ia.api.servidor:fabrica", factory=True, workers=a.workers, **opciones)
+        # cada proceso cuenta solo lo suyo: sus contadores van a archivos de una carpeta común (ver metricas.py) y se suman al leer
+        propia = None
+        if not os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+            propia = tempfile.mkdtemp(prefix="metricas_")
+            os.environ["PROMETHEUS_MULTIPROC_DIR"] = propia  # los procesos hijos la heredan al arrancar
+        try:
+            uvicorn.run("modelo_ia.api.servidor:fabrica", factory=True, workers=a.workers, **opciones)
+        finally:
+            if propia:
+                # que la variable no quede apuntando a una carpeta que ya no existe
+                os.environ.pop("PROMETHEUS_MULTIPROC_DIR", None)
+                shutil.rmtree(propia, ignore_errors=True)
     else:
         uvicorn.run(crear_app(), **opciones)
 

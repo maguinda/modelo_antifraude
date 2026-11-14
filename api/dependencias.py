@@ -52,6 +52,8 @@ def principal_actual(request: Request, clave: Optional[str] = Security(esquema_c
             f"Superaste el límite de {request.app.state.ajustes.limite_peticiones_por_minuto} por minuto.",
             {"Retry-After": str(espera)},
         )
+    request.state.rol = p.rol  # solo para el registro de la petición (observabilidad.py)
+    request.state.comercio_id = p.comercio_id if p.rol == "comercio" else None
     return p
 
 

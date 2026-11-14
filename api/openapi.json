@@ -835,6 +835,18 @@
             ],
             "title": "Instance"
           },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identificador de esta petición (también en la cabecera `X-Request-ID`). Cítalo al pedir soporte.",
+            "title": "Request Id"
+          },
           "status": {
             "title": "Status",
             "type": "integer"
@@ -3389,6 +3401,63 @@
         "summary": "Agregar un cliente a tu lista negra",
         "tags": [
           "Lista negra"
+        ]
+      }
+    },
+    "/v1/metricas": {
+      "get": {
+        "description": "Peticiones por ruta y estado, duración y pagos evaluados por decisión, en el formato de texto de Prometheus. Solo con clave de **administrador**. Las rutas salen como plantilla (`/v1/evaluaciones/{id_evaluacion}`) y no hay series por comercio.",
+        "operationId": "metricas",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Texto en formato Prometheus."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Métricas del servicio (Prometheus)",
+        "tags": [
+          "Estado"
         ]
       }
     },

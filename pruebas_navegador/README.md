@@ -5,6 +5,7 @@ miden en navegadores reales cosas que un test de código no ve (desborde, tamañ
 lo que de verdad se envía por la red).
 
 ```bash
+pip install -r requirements.txt   # el servicio que levantan estas pruebas necesita sus dependencias
 pip install playwright
 python -m playwright install chromium webkit
 python modelo_ia/pruebas_navegador/documentacion.py   # Swagger y ReDoc: sin internet, sin desborde a 320 px

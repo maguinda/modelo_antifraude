@@ -1182,17 +1182,32 @@ def test_el_certificado_de_prueba_se_crea_privado_y_se_reutiliza(tmp_path):
 def test_el_servidor_solo_escucha_en_tu_computador_por_defecto_y_acepta_https_y_procesos(monkeypatch):
     from modelo_ia.api import servidor
 
+    import os
+
     llamadas = []
-    monkeypatch.setattr(servidor.uvicorn, "run", lambda *a, **kw: llamadas.append((a, kw)))
+    carpetas = []  # la carpeta de métricas que había mientras corría el servidor
+    monkeypatch.delenv("PROMETHEUS_MULTIPROC_DIR", raising=False)
+
+    def falso_run(*a, **kw):
+        llamadas.append((a, kw))
+        carpetas.append(os.environ.get("PROMETHEUS_MULTIPROC_DIR"))
+        assert carpetas[-1] is None or os.path.isdir(carpetas[-1])
+
+    monkeypatch.setattr(servidor.uvicorn, "run", falso_run)
     monkeypatch.setattr(servidor, "crear_app", lambda: "app")
     servidor.main([])
-    assert llamadas[-1][1] == {"host": "127.0.0.1", "port": 8000}
+    assert llamadas[-1][1] == {"host": "127.0.0.1", "port": 8000, "access_log": False} and carpetas[-1] is None
     servidor.main(["--workers", "3", "--port", "9000"])
     assert (
         llamadas[-1][0] == ("modelo_ia.api.servidor:fabrica",)
         and llamadas[-1][1]["workers"] == 3
         and llamadas[-1][1]["factory"] is True
+        and llamadas[-1][1]["access_log"] is False
     )
+    assert carpetas[-1] and not os.path.exists(
+        carpetas[-1]
+    )  # con varios procesos hubo carpeta de métricas, y se borró al terminar
+    assert "PROMETHEUS_MULTIPROC_DIR" not in os.environ  # y la variable no quedó puesta
 
 
 def test_si_llega_otro_pago_del_cliente_mientras_se_calcula_se_recalcula_con_su_historial(ctx, monkeypatch):

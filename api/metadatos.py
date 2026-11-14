@@ -3,6 +3,7 @@
 from fastapi.responses import JSONResponse
 
 from . import esquemas as es
+from .contexto import id_peticion
 
 VERSION_API = "1.0.0"
 MEDIA_PROBLEMA = "application/problem+json"
@@ -69,9 +70,14 @@ RESPUESTAS_ERROR = {
 
 def problema(status: int, titulo: str, detalle: str, instancia: str, errores=None, cabeceras=None) -> JSONResponse:
     cuerpo = {"type": "about:blank", "title": titulo, "status": status, "detail": detalle, "instance": instancia}
+    cabeceras = dict(cabeceras or {})
+    rid = id_peticion.get()
+    if rid:  # para citarlo en soporte y encontrar la petición en los registros
+        cuerpo["request_id"] = rid
+        cabeceras["X-Request-ID"] = rid
     if errores:
         cuerpo["errores"] = errores
-    return JSONResponse(cuerpo, status_code=status, media_type=MEDIA_PROBLEMA, headers=cabeceras or {})
+    return JSONResponse(cuerpo, status_code=status, media_type=MEDIA_PROBLEMA, headers=cabeceras)
 
 
 EJEMPLOS_RESPUESTA = {

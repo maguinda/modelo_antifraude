@@ -511,4 +511,8 @@ class Problema(BaseModel):
     status: int
     detail: str
     instance: Optional[str] = None
+    request_id: Optional[str] = Field(
+        None,
+        description="Identificador de esta petición (también en la cabecera `X-Request-ID`). Cítalo al pedir soporte.",
+    )
     errores: Optional[List[Dict[str, str]]] = None
