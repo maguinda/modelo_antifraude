@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Body, Depends, Path, Response
 
 from .. import esquemas as es
+from .. import metricas
 from ..almacen import Principal
 from ..dependencias import exigir, obtener_servicio
 from ..ejemplos import EJEMPLOS_SOLICITUD
@@ -39,6 +40,8 @@ def evaluar(
     servicio: ServicioEvaluacion = Depends(obtener_servicio),
 ):
     r = servicio.evaluar(p, solicitud)
+    if not r["repetida"]:
+        metricas.registrar_evaluacion(r["decision"], r["modo"])
     response.status_code = 200 if r["repetida"] else 201
     response.headers["X-Id-Seguimiento"] = r["id_seguimiento"]
     return r

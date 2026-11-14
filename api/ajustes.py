@@ -44,6 +44,7 @@ class Ajustes:
         "simulado"  # quién ubica y evalúa las IP (ver proveedores_ip.py); el simulado es solo de demostración
     )
     csp_modo: str = "report-only"  # política de contenido de /docs: 'report-only' (observa) o 'enforce' (bloquea)
+    log_formato: str = "auto"  # registros: 'json' (una línea JSON por registro), 'texto' o 'auto' (json en producción, texto en desarrollo)
 
     @classmethod
     def desde_entorno(cls) -> "Ajustes":
@@ -56,6 +57,7 @@ class Ajustes:
             a.ruta_modelo = Path(os.environ["MODELO_IA_MODELO"])
         a.limite_peticiones_por_minuto = int(os.environ.get("MODELO_IA_LIMITE", a.limite_peticiones_por_minuto))
         a.csp_modo = os.environ.get("MODELO_IA_CSP", a.csp_modo)
+        a.log_formato = os.environ.get("MODELO_IA_LOG_FORMATO", a.log_formato).strip().lower()
         a.proveedor_ip = os.environ.get("MODELO_IA_PROVEEDOR_IP", a.proveedor_ip)
         a.exigir_acuerdo = os.environ.get("MODELO_IA_EXIGIR_ACUERDO", "").strip().lower() in (
             "1",

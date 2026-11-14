@@ -128,6 +128,7 @@ def recorrer(ctx, completo=False):
         ("GET", "/v1/yo", "ok", None),
         ("GET", "/v1/modelo", "ok", None),
         ("GET", "/v1/salud", "ok", None),
+        ("GET", "/v1/metricas", "ok", None),
     ]
     salida = {}
     for metodo, plantilla, variante, cuerpo in casos:
@@ -223,6 +224,7 @@ ORDEN_EN_SWAGGER = [
     "quien_soy",
     "modelo_en_uso",
     "salud",
+    "metricas",
 ]
 
 
@@ -244,7 +246,7 @@ def test_app_py_solo_arma_las_piezas_y_cada_ruta_vive_en_su_router():
 
     fuente = inspect.getsource(app_mod)
     assert "@app." not in fuente and "def evaluar" not in fuente and len(fuente.splitlines()) < 100
-    from modelo_ia.api.rutas import comercios, estado, evaluaciones, lista_negra, panel_datos, revisiones
+    from modelo_ia.api.rutas import comercios, estado, evaluaciones, lista_negra, metricas, panel_datos, revisiones
 
     ops = lambda m: sorted(r.operation_id for r in m.router.routes)
     assert ops(evaluaciones) == ["consultar_evaluacion", "evaluar_pago", "informar_resultado"] and ops(revisiones) == [
@@ -256,7 +258,7 @@ def test_app_py_solo_arma_las_piezas_y_cada_ruta_vive_en_su_router():
         "quien_soy",
         "salud",
     ]
-    assert len(ops(panel_datos)) == 5 and len(ops(comercios)) == 6
+    assert len(ops(panel_datos)) == 5 and len(ops(comercios)) == 6 and ops(metricas) == ["metricas"]
     assert (
         len(
             set(

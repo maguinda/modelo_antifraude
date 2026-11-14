@@ -135,6 +135,14 @@ las copias NO debe estar junto a ellas.**
   mensajería), recibirás un aviso **solo cuando el estado cambie**.
 - Además, usa un servicio externo de «ping» gratuito que consulte `https://TU-DOMINIO/v1/salud` cada
   pocos minutos: la vigilancia interna no te avisa si el servidor entero se apaga.
+- **Registros de la API:** `docker compose logs -f api` muestra una línea JSON por petición (hora,
+  `request_id`, ruta como plantilla, estado, duración, rol). Si un comercio te manda el `request_id`
+  de un error, búscalo con `docker compose logs api | grep ESE-ID`. Nunca llevan claves, cuerpos,
+  query strings ni IP. Si recreas el contenedor se pierden: para conservarlos configura el
+  controlador de logs de Docker (rotación y tamaño máximo).
+- **Métricas:** `GET https://TU-DOMINIO/v1/metricas` con la clave de administrador
+  (`curl -H "X-API-Key: $CLAVE_ADMIN" …`) devuelve el formato Prometheus, sumando los 2 procesos de
+  la API. No hay alertas ni tableros todavía: son los datos listos para conectarlos.
 
 ## Endurecer con el tiempo
 

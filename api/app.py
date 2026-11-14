@@ -19,9 +19,10 @@ from .contrato import instalar_contrato
 from .documentacion import ESTATICOS, registrar_documentacion
 from .manejo import registrar_manejo
 from .metadatos import DESCRIPCION, ETIQUETAS, VERSION_API
+from .observabilidad import ObservabilidadMiddleware, configurar_logs
 from .panel import registrar_panel
 from .proveedores_ip import crear_proveedor
-from .rutas import comercios, estado, evaluaciones, lista_negra, panel_datos, revisiones
+from .rutas import comercios, estado, evaluaciones, lista_negra, metricas, panel_datos, revisiones
 from .seguridad import LimitadorTasa
 from .servicio import ServicioEvaluacion
 
@@ -32,6 +33,7 @@ RUTAS = (
     lista_negra,
     comercios,
     estado,
+    metricas,
 )  # en este orden aparecen en el contrato OpenAPI
 
 
@@ -44,6 +46,7 @@ def crear_app(
     artefacto_sin_estado: Optional[Dict] = None,
 ) -> FastAPI:
     ajustes = ajustes or Ajustes.desde_entorno()
+    configurar_logs(ajustes.log_formato, os.environ.get("MODELO_IA_ENTORNO"))
     if os.environ.get("MODELO_IA_ENTORNO") == "produccion":  # en un servidor real, nada de secretos de desarrollo
         problemas = ajustes.problemas_de_produccion()
         if problemas["bloqueantes"]:
@@ -82,6 +85,8 @@ def crear_app(
     )
     app.state.limitador = LimitadorTasa(ajustes.limite_peticiones_por_minuto)
     registrar_manejo(app, ajustes)
+    # el último middleware que se agrega queda por fuera: este ve la respuesta final de todos los demás
+    app.add_middleware(ObservabilidadMiddleware)
     for modulo in RUTAS:
         app.include_router(modulo.router)
     instalar_contrato(app)
