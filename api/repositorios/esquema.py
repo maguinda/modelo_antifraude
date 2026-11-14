@@ -60,6 +60,14 @@ CREATE INDEX IF NOT EXISTS ix_eval_ip ON evaluaciones (ip_codigo, fecha);
 CREATE INDEX IF NOT EXISTS ix_eval_disp ON evaluaciones (disp_codigo, fecha);
 """
 
+# Migración 4: el SQL portable (tampoco se mezcla con DDL). `seq` se agrega en la migración, con ALTER TABLE.
+SQL_PORTABLE = """
+CREATE UNIQUE INDEX IF NOT EXISTS ux_eval_seq ON evaluaciones (seq);
+CREATE TABLE IF NOT EXISTS evaluacion_reglas (
+    id_evaluacion TEXT NOT NULL REFERENCES evaluaciones(id), posicion INTEGER NOT NULL, regla TEXT NOT NULL, PRIMARY KEY (id_evaluacion, posicion));
+CREATE INDEX IF NOT EXISTS ix_eval_reglas_regla ON evaluacion_reglas (regla);
+"""
+
 # Migración 3 (no se mezcla con DDL: la migración 1 está congelada y se compara por huella)
 REGISTRO_MODELOS = """
 CREATE TABLE IF NOT EXISTS modelos_registro (
@@ -104,6 +112,11 @@ class Esquema:
             Migracion(1, "Esquema inicial y adopción de bases anteriores", self.m1_esquema_inicial),
             Migracion(2, "Segundo factor (TOTP) de las claves de administrador", self.m2_mfa_admin),
             Migracion(3, "Registro de modelos con huella SHA-256", self.m3_registro_modelos),
+            Migracion(
+                4,
+                "SQL portable: secuencia de evaluaciones, reglas por evaluación y minutos de resolución",
+                self.m4_sql_portable,
+            ),
         ]
 
     @staticmethod
@@ -175,6 +188,37 @@ class Esquema:
         """Migración 3: la tabla del registro de modelos (ver repositorios/modelos_registro.py). Un índice único parcial garantiza un solo modelo EN USO por rol."""
         for sentencia in sentencias(REGISTRO_MODELOS):
             con.execute(sentencia)
+
+    def m4_sql_portable(self, con: sqlite3.Connection) -> None:
+        """Migración 4: lo que antes dependía de funciones propias de SQLite pasa a columnas y tablas normales, que valen igual en cualquier motor:
+          - `evaluaciones.seq`: el orden de llegada (antes `rowid`, que solo existe en SQLite). Se rellena con `rowid`, así el orden no cambia.
+          - `evaluacion_reglas`: una fila por regla activada en cada evaluación (antes se leía el JSON con `json_each`). Se rellena desde `reglas_json`.
+          - `revisiones.minutos_resolucion`: lo que tardó el analista (antes `julianday`). Se rellena con la misma cuenta de antes.
+        Es repetible: comprueba lo que ya existe."""
+        evaluaciones = {r["name"] for r in con.execute("PRAGMA table_info(evaluaciones)")}
+        if "seq" not in evaluaciones:
+            con.execute("ALTER TABLE evaluaciones ADD COLUMN seq INTEGER")
+            con.execute("UPDATE evaluaciones SET seq = rowid")
+        for sentencia in sentencias(SQL_PORTABLE):
+            con.execute(sentencia)
+        if con.execute("SELECT 1 FROM evaluacion_reglas LIMIT 1").fetchone() is None:
+            filas = []
+            for r in con.execute("SELECT id, reglas_json FROM evaluaciones"):
+                for posicion, regla in enumerate(json.loads(r["reglas_json"] or "[]")):
+                    filas.append((r["id"], posicion, str(regla.get("regla", "?")) if isinstance(regla, dict) else "?"))
+                if len(filas) >= 5000:
+                    con.executemany(
+                        "INSERT INTO evaluacion_reglas (id_evaluacion, posicion, regla) VALUES (?,?,?)", filas
+                    )
+                    filas = []
+            if filas:
+                con.executemany("INSERT INTO evaluacion_reglas (id_evaluacion, posicion, regla) VALUES (?,?,?)", filas)
+        revisiones = {r["name"] for r in con.execute("PRAGMA table_info(revisiones)")}
+        if "minutos_resolucion" not in revisiones:
+            con.execute("ALTER TABLE revisiones ADD COLUMN minutos_resolucion REAL")
+            con.execute(
+                "UPDATE revisiones SET minutos_resolucion = (julianday(resuelta) - julianday(creada)) * 1440 WHERE estado = 'resuelta'"
+            )
 
     def inicializar(self, migraciones: Optional[Sequence[Migracion]] = None) -> List[int]:
         """Pone la base al día aplicando las migraciones que falten (ver migraciones.py). Devuelve los números de las que aplicó esta vez.

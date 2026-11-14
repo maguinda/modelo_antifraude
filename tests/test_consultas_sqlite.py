@@ -50,7 +50,7 @@ CASOS = [
     ({"id_seguimiento": "af-aaaa-bbbb"}, ["e.id_seguimiento = ?"], ("AF-AAAA-BBBB",)),
     (
         {"regla": "R1"},
-        ["EXISTS (SELECT 1 FROM json_each(e.reglas_json) j WHERE json_extract(j.value, '$.regla') = ?)"],
+        ["EXISTS (SELECT 1 FROM evaluacion_reglas er WHERE er.id_evaluacion = e.id AND er.regla = ?)"],
         ("R1",),
     ),
     ({"riesgo_min": 0.2}, ["e.probabilidad >= ?"], (0.2,)),

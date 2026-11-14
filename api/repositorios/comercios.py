@@ -63,18 +63,19 @@ class ComerciosRepositorio:
             raise ValueError("El NIT debe llevar solo números, puntos o guion (de 5 a 20 caracteres).")
         with self.base.transaccion() as con:
             cur = con.execute(
-                "INSERT INTO comercios (nombre, creado, razon_social, nit) VALUES (?, ?, ?, ?)",
+                "INSERT INTO comercios (nombre, creado, razon_social, nit) VALUES (?, ?, ?, ?) RETURNING id",
                 (nombre, ahora_iso(), razon_social, nit),
             )
+            nuevo_id = int(cur.fetchone()[0])
             auditar(
                 con,
                 None,
                 por,
                 "comercio_creado",
                 None,
-                {"nombre": nombre, "id": cur.lastrowid, "con_nit": nit is not None},
+                {"nombre": nombre, "id": nuevo_id, "con_nit": nit is not None},
             )  # el NIT nunca va a la auditoría
-            return int(cur.lastrowid)
+            return nuevo_id
 
     def verificar_comercio(
         self, con: sqlite3.Connection, comercio_id: int, exigir_acuerdo: bool = False, hoy: Optional[date] = None
@@ -170,7 +171,7 @@ class ComerciosRepositorio:
             if con.execute("SELECT 1 FROM comercios WHERE id=?", (comercio_id,)).fetchone() is None:
                 raise ComercioInexistente("No existe ese comercio.")
             cur = con.execute(
-                "INSERT INTO acuerdos (comercio_id, version, firmado_en, vigente_hasta, referencia, registrado, registrado_por) VALUES (?,?,?,?,?,?,?)",
+                "INSERT INTO acuerdos (comercio_id, version, firmado_en, vigente_hasta, referencia, registrado, registrado_por) VALUES (?,?,?,?,?,?,?) RETURNING id",
                 (
                     comercio_id,
                     version,
@@ -181,6 +182,7 @@ class ComerciosRepositorio:
                     por,
                 ),
             )
+            acuerdo_id = cur.fetchone()[0]
             auditar(
                 con,
                 comercio_id,
@@ -194,7 +196,7 @@ class ComerciosRepositorio:
                     "referencia": referencia,
                 },
             )
-            return int(cur.lastrowid)
+            return int(acuerdo_id)
 
     def historial_acuerdos(self, comercio_id: int, hoy: Optional[date] = None) -> Optional[List[Dict[str, Any]]]:
         """None si el comercio no existe. Del más reciente al más viejo; el primero es el que vale."""

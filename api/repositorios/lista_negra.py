@@ -18,7 +18,8 @@ class ListaNegraRepositorio:
         self, con: sqlite3.Connection, comercio_id: int, id_cliente: str, motivo: Optional[str], creada: str
     ) -> None:
         con.execute(
-            "INSERT OR REPLACE INTO lista_negra (comercio_id, id_cliente, motivo, creada) VALUES (?,?,?,?)",
+            "INSERT INTO lista_negra (comercio_id, id_cliente, motivo, creada) VALUES (?,?,?,?) "
+            "ON CONFLICT (comercio_id, id_cliente) DO UPDATE SET motivo = excluded.motivo, creada = excluded.creada",
             (comercio_id, id_cliente, motivo, creada),
         )
 

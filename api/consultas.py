@@ -419,6 +419,10 @@ class ConsultasPanel:
             datos["histograma"],
         )
         por_analista = [dict(r) for r in datos["por_analista"]]
+        # el redondeo se hace aquí y no en el SQL: ROUND(real, n) no existe igual en todos los motores
+        for fila in por_analista:
+            if fila.get("minutos_promedio") is not None:
+                fila["minutos_promedio"] = round(float(fila["minutos_promedio"]), 1)
         cubetas = {h["cubeta"]: h["pagos"] for h in hist}
         return {
             "totales": {

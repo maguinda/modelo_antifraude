@@ -70,18 +70,19 @@ class ClavesRepositorio:
 
         def insertar(c: sqlite3.Connection) -> int:
             cur = c.execute(
-                "INSERT INTO claves (hash, comercio_id, rol, etiqueta, creada, creada_por) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO claves (hash, comercio_id, rol, etiqueta, creada, creada_por) VALUES (?,?,?,?,?,?) RETURNING id",
                 (self.seudonimos.hash_clave(clave), comercio_id, rol, etiqueta, ahora_iso(), creada_por),
             )
+            nueva = int(cur.fetchone()[0])
             auditar(
                 c,
                 comercio_id,
-                int(cur.lastrowid),
+                nueva,
                 "clave_creada",
                 None,
                 {"rol": rol, "nombre": etiqueta or None, "creada_por": creada_por},
             )
-            return int(cur.lastrowid)
+            return nueva
 
         if con is not None:
             return insertar(con), clave
