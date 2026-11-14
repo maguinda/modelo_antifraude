@@ -53,6 +53,10 @@ class Ajustes:
     proxies_confiables: str = (
         ""  # IP o redes (separadas por coma) cuyo X-Forwarded-For se acepta (MODELO_IA_PROXY_CONFIABLE)
     )
+    exigir_registro_modelos: bool = False  # si es True, solo arranca con un modelo EN USO del registro y con la huella verificada (MODELO_IA_EXIGIR_REGISTRO)
+    deriva_min_muestra: int = (
+        500  # pagos mínimos en la ventana para dar un estado de deriva (MODELO_IA_DERIVA_MIN_MUESTRA)
+    )
     log_formato: str = "auto"  # registros: 'json' (una línea JSON por registro), 'texto' o 'auto' (json en producción, texto en desarrollo)
 
     @classmethod
@@ -67,6 +71,14 @@ class Ajustes:
         a.limite_peticiones_por_minuto = int(os.environ.get("MODELO_IA_LIMITE", a.limite_peticiones_por_minuto))
         a.csp_modo = os.environ.get("MODELO_IA_CSP", a.csp_modo)
         a.log_formato = os.environ.get("MODELO_IA_LOG_FORMATO", a.log_formato).strip().lower()
+        a.exigir_registro_modelos = os.environ.get("MODELO_IA_EXIGIR_REGISTRO", "").strip().lower() in (
+            "1",
+            "true",
+            "si",
+            "sí",
+            "yes",
+        )
+        a.deriva_min_muestra = int(os.environ.get("MODELO_IA_DERIVA_MIN_MUESTRA", a.deriva_min_muestra))
         a.exigir_mfa = os.environ.get("MODELO_IA_EXIGIR_MFA", "").strip().lower() in ("1", "true", "si", "sí", "yes")
         a.limite_claves_invalidas = int(os.environ.get("MODELO_IA_LIMITE_INVALIDAS", a.limite_claves_invalidas))
         a.proxies_confiables = os.environ.get("MODELO_IA_PROXY_CONFIABLE", a.proxies_confiables).strip()
@@ -113,6 +125,11 @@ class Ajustes:
             avisos.append(
                 "MODELO_IA_EXIGIR_MFA no está activo: las acciones de administrador (crear o suspender comercios, acuerdos) piden solo la clave. "
                 "Activa el segundo factor de cada administrador («admin activar-mfa») y luego esta opción."
+            )
+        if not self.exigir_registro_modelos:
+            avisos.append(
+                "MODELO_IA_EXIGIR_REGISTRO no está activo: si no hay un modelo registrado, se usa modelo_actual.joblib SIN verificar su huella (un .joblib se carga ejecutando código). "
+                "Registra los modelos («admin modelo-adoptar») y activa esta opción."
             )
         if not self.proxies_confiables:
             avisos.append(

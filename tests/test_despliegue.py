@@ -412,11 +412,12 @@ def test_los_avisos_de_produccion_no_impiden_arrancar_pero_se_dicen():
     p = Ajustes(pepper="s" * 40).problemas_de_produccion()
     assert (
         p["bloqueantes"] == []
-        and len(p["avisos"]) == 6
+        and len(p["avisos"]) == 7
         and any("SIMULADO" in a for a in p["avisos"])
         and any("EXIGIR_ACUERDO" in a for a in p["avisos"])
         and any("EXIGIR_MFA" in a for a in p["avisos"])
         and any("PROXY_CONFIABLE" in a for a in p["avisos"])
+        and any("EXIGIR_REGISTRO" in a for a in p["avisos"])
     )
     ok = Ajustes(
         pepper="s" * 40,
@@ -425,6 +426,7 @@ def test_los_avisos_de_produccion_no_impiden_arrancar_pero_se_dicen():
         csp_modo="enforce",
         exigir_acuerdo=True,
         exigir_mfa=True,
+        exigir_registro_modelos=True,
         proxies_confiables="172.16.0.0/12",
     ).problemas_de_produccion()
     assert ok == {"bloqueantes": [], "avisos": []}

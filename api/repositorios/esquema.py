@@ -60,6 +60,15 @@ CREATE INDEX IF NOT EXISTS ix_eval_ip ON evaluaciones (ip_codigo, fecha);
 CREATE INDEX IF NOT EXISTS ix_eval_disp ON evaluaciones (disp_codigo, fecha);
 """
 
+# Migración 3 (no se mezcla con DDL: la migración 1 está congelada y se compara por huella)
+REGISTRO_MODELOS = """
+CREATE TABLE IF NOT EXISTS modelos_registro (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, archivo TEXT NOT NULL, sha256 TEXT NOT NULL, nombre TEXT NOT NULL, version TEXT NOT NULL, conjunto TEXT NOT NULL,
+    rol TEXT NOT NULL CHECK (rol IN ('principal','sin_estado')), estado TEXT NOT NULL DEFAULT 'candidato' CHECK (estado IN ('candidato','en_uso','archivado')),
+    referencia_json TEXT, registrado TEXT NOT NULL, promovido TEXT, archivado TEXT, UNIQUE (sha256, rol));
+CREATE UNIQUE INDEX IF NOT EXISTS un_modelo_en_uso_por_rol ON modelos_registro(rol) WHERE estado = 'en_uso';
+"""
+
 
 class Esquema:
     def __init__(self, base: Base, seudonimos: Seudonimizador):
@@ -94,6 +103,7 @@ class Esquema:
         return [
             Migracion(1, "Esquema inicial y adopción de bases anteriores", self.m1_esquema_inicial),
             Migracion(2, "Segundo factor (TOTP) de las claves de administrador", self.m2_mfa_admin),
+            Migracion(3, "Registro de modelos con huella SHA-256", self.m3_registro_modelos),
         ]
 
     @staticmethod
@@ -160,6 +170,11 @@ class Esquema:
         ):
             if nueva not in columnas:
                 con.execute(f"ALTER TABLE claves ADD COLUMN {nueva} {tipo}")
+
+    def m3_registro_modelos(self, con: sqlite3.Connection) -> None:
+        """Migración 3: la tabla del registro de modelos (ver repositorios/modelos_registro.py). Un índice único parcial garantiza un solo modelo EN USO por rol."""
+        for sentencia in sentencias(REGISTRO_MODELOS):
+            con.execute(sentencia)
 
     def inicializar(self, migraciones: Optional[Sequence[Migracion]] = None) -> List[int]:
         """Pone la base al día aplicando las migraciones que falten (ver migraciones.py). Devuelve los números de las que aplicó esta vez.

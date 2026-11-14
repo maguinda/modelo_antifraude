@@ -3480,7 +3480,7 @@
     },
     "/v1/metricas": {
       "get": {
-        "description": "Peticiones por ruta y estado, duración y pagos evaluados por decisión, en el formato de texto de Prometheus. Solo con clave de **administrador**. Las rutas salen como plantilla (`/v1/evaluaciones/{id_evaluacion}`) y no hay series por comercio.",
+        "description": "Peticiones por ruta y estado, duración y pagos evaluados por decisión, en el formato de texto de Prometheus. Más `antifraude_deriva_psi` y `antifraude_deriva_pagos` (deriva de los puntajes de los últimos 7 días). Solo con clave de **administrador**. Las rutas salen como plantilla (`/v1/evaluaciones/{id_evaluacion}`) y no hay series por comercio.",
         "operationId": "metricas",
         "responses": {
           "200": {
@@ -3638,6 +3638,153 @@
           }
         ],
         "summary": "Comercios (para el filtro del panel)",
+        "tags": [
+          "Panel de control"
+        ]
+      }
+    },
+    "/v1/panel/deriva": {
+      "get": {
+        "description": "Compara la distribución de los **puntajes** de los pagos recientes con la de la validación del modelo (PSI en 10 cubetas): menos de 0,10 estable, de 0,10 a 0,25 atención, más de 0,25 alerta. Con menos pagos que el mínimo (`MODELO_IA_DERIVA_MIN_MUESTRA`, 500) no se da estado: el PSI sería ruido. Mide si los puntajes cambiaron, **no si el modelo acierta** (eso exige las etiquetas, que llegan tarde). Solo analistas y administradores.",
+        "operationId": "deriva_del_modelo",
+        "parameters": [
+          {
+            "description": "Cuántos días hacia atrás se miran.",
+            "in": "query",
+            "name": "ventana_dias",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "description": "Cuántos días hacia atrás se miran.",
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Ventana Dias",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Deriva Del Modelo",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Datos inválidos (incluye el envío de datos de tarjeta)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Deriva del modelo en uso (solo personal)",
+        "tags": [
+          "Panel de control"
+        ]
+      }
+    },
+    "/v1/panel/modelos": {
+      "get": {
+        "description": "El registro de modelos: huella (12 primeros caracteres de su SHA-256), estado (candidato, en uso, archivado), cuándo se promovió y cuál se está ejecutando con la huella verificada. Se administra desde la consola del servidor (`admin modelo-registrar`, `modelo-promover`, `modelo-revertir`). Solo analistas y administradores.",
+        "operationId": "modelos_registrados",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Modelos Registrados",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Falta la clave de API o no es válida."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problema"
+                }
+              }
+            },
+            "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Modelos registrados (solo personal)",
         "tags": [
           "Panel de control"
         ]

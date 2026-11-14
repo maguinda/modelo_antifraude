@@ -18,7 +18,18 @@ import joblib
 import pandas as pd
 import sklearn
 
-from . import config, datos, etiquetas, evaluacion, experimentos, explicacion_local, modelos, particion, variables
+from . import (
+    config,
+    datos,
+    deriva,
+    etiquetas,
+    evaluacion,
+    experimentos,
+    explicacion_local,
+    modelos,
+    particion,
+    variables,
+)
 
 
 def preparar_datos(
@@ -94,6 +105,10 @@ def ajustar_y_evaluar(
         "umbral_bloquear": umbral_bloquear,
         "segundos_entrenamiento": round(segundos, 2),
         "filas": {k: int(v.sum()) for k, v in mascaras.items()},
+        "referencia_puntaje": {
+            "n": int(len(p_valid)),
+            "proporciones": deriva.proporciones(deriva.histograma(p_valid.tolist())),
+        },  # para medir la deriva en producción
         "fraudes_validacion": int(y_v.sum()),
         "fraudes_prueba": int(y_p.sum()),
         "metricas_validacion": evaluacion.metricas(p_valid, y_v, montos_v, umbral_revisar),
@@ -138,6 +153,7 @@ def guardar(resultado: Dict, ruta_datos: Path, como_actual: bool = False, como_a
         "metricas_validacion": resultado["metricas_validacion"],
         "metricas_prueba": resultado["metricas_prueba"],
         "referencia": resultado.get("referencia"),
+        "referencia_puntaje": resultado.get("referencia_puntaje"),
     }
     joblib.dump({"pipeline": resultado["pipeline"], "meta": meta}, ruta_modelo)
     ruta_modelo.with_suffix(".json").write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")

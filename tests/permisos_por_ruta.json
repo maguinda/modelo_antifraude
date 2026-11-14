@@ -772,6 +772,214 @@
    "type"
   ]
  ],
+ "GET /v1/panel/deriva [ok] admin": [
+  200,
+  "application/json",
+  [
+   "cubetas",
+   "estado",
+   "modelo",
+   "nota",
+   "psi",
+   "referencia",
+   "umbrales",
+   "ventana"
+  ]
+ ],
+ "GET /v1/panel/deriva [ok] analista": [
+  200,
+  "application/json",
+  [
+   "cubetas",
+   "estado",
+   "modelo",
+   "nota",
+   "psi",
+   "referencia",
+   "umbrales",
+   "ventana"
+  ]
+ ],
+ "GET /v1/panel/deriva [ok] clave_falsa": [
+  401,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/deriva [ok] comercio_A": [
+  403,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/deriva [ok] comercio_B": [
+  403,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/deriva [ok] sin_clave": [
+  401,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/deriva?ventana_dias=0 [ventana_mala] admin": [
+  422,
+  "application/problem+json",
+  [
+   "detail",
+   "errores",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/deriva?ventana_dias=0 [ventana_mala] analista": [
+  422,
+  "application/problem+json",
+  [
+   "detail",
+   "errores",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/deriva?ventana_dias=0 [ventana_mala] clave_falsa": [
+  401,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/deriva?ventana_dias=0 [ventana_mala] comercio_A": [
+  403,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/deriva?ventana_dias=0 [ventana_mala] comercio_B": [
+  403,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/deriva?ventana_dias=0 [ventana_mala] sin_clave": [
+  401,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/modelos [ok] admin": [
+  200,
+  "application/json",
+  "lista"
+ ],
+ "GET /v1/panel/modelos [ok] analista": [
+  200,
+  "application/json",
+  "lista"
+ ],
+ "GET /v1/panel/modelos [ok] clave_falsa": [
+  401,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/modelos [ok] comercio_A": [
+  403,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/modelos [ok] comercio_B": [
+  403,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
+ "GET /v1/panel/modelos [ok] sin_clave": [
+  401,
+  "application/problem+json",
+  [
+   "detail",
+   "instance",
+   "request_id",
+   "status",
+   "title",
+   "type"
+  ]
+ ],
  "GET /v1/panel/resumen [ok] admin": [
   200,
   "application/json",
