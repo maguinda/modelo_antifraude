@@ -20,6 +20,7 @@ from modelo_ia.api.ajustes import Ajustes
 from modelo_ia.api.almacen import DDL, INDICES_PANEL, PLATAFORMA, Almacen
 from modelo_ia.api.app import crear_app
 from modelo_ia.api.migraciones import BaseMasNueva, CopiaPreviaFallo, Migracion, copia_previa, sentencias, validar
+from modelo_ia.api.repositorios.esquema import Esquema
 
 PEPPER = "p" * 40
 RAIZ = Path(__file__).resolve().parents[2]                       # la carpeta que contiene modelo_ia/ (para lanzar procesos que lo importen)
@@ -226,8 +227,8 @@ def test_si_falla_la_migracion_1_a_mitad_no_queda_el_esquema_a_medias(tmp_path, 
 
     def rompe(self, con):
         raise RuntimeError("falla después de crear tablas y columnas")
-    original = Almacen._rellenar_columnas_nuevas
-    monkeypatch.setattr(Almacen, "_rellenar_columnas_nuevas", lambda self, con: (original(self, con), rompe(self, con)))
+    original = Esquema.rellenar_columnas_nuevas
+    monkeypatch.setattr(Esquema, "rellenar_columnas_nuevas", lambda self, con: (original(self, con), rompe(self, con)))
     with pytest.raises(RuntimeError, match="falla después"):
         Almacen(ruta, PEPPER).inicializar()
     con = sqlite3.connect(ruta)
@@ -361,7 +362,7 @@ def test_una_lista_de_migraciones_mal_numerada_es_un_error_de_programacion():
 def textos_de_la_migracion_1() -> str:
     """Todos los textos fijos de la migración 1 (el SQL y los nombres de columnas que agrega), en orden. Se usan los textos y no el árbol del código porque
     `ast.dump` cambia entre versiones de Python (3.9 y 3.12 darían huellas distintas) y los textos no."""
-    fuente = ast.parse(textwrap.dedent(inspect.getsource(Almacen._m1_esquema_inicial))).body[0]
+    fuente = ast.parse(textwrap.dedent(inspect.getsource(Esquema.m1_esquema_inicial))).body[0]
     cuerpo = fuente.body[1:] if isinstance(fuente.body[0], ast.Expr) and isinstance(getattr(fuente.body[0], "value", None), ast.Constant) else fuente.body   # sin el docstring
     return "|".join(n.value for c in cuerpo for n in ast.walk(c) if isinstance(n, ast.Constant) and isinstance(n.value, str))
 
