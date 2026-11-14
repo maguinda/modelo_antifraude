@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from modelo_ia import config, explicacion_local as el, modelos, predecir
+from modelo_ia import config, explicacion_local as el, modelos
 from modelo_ia.api.ajustes import Ajustes
 from modelo_ia.api.app import crear_app
 from modelo_ia.api.ejemplos import EJEMPLOS_SOLICITUD
@@ -135,7 +135,6 @@ def test_la_referencia_sale_de_los_pagos_legitimos_del_entrenamiento():
 
 
 def test_agregar_referencia_a_modelos_viejos_no_cambia_sus_predicciones(tmp_path, ruta_csv_completo):
-    import shutil
     from modelo_ia import entrenar
     df, m = entrenar.preparar_datos(ruta_csv_completo, "completo", "comercio")
     r = entrenar.ajustar_y_evaluar(df, m, "logistica", "completo")

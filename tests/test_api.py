@@ -775,7 +775,6 @@ def test_la_pagina_base_no_trae_clave_ni_preautorizacion(ctx):
 
 # ------------------------------------------------------------------ pantalla de analistas
 import re                                                          # noqa: E402
-from modelo_ia.api import panel as panel_mod                       # noqa: E402
 
 
 def test_la_cola_trae_un_resumen_del_pago_sin_huella_ni_tarjeta(ctx):
@@ -1017,7 +1016,7 @@ def test_las_variables_en_linea_con_dos_comercios_son_iguales_a_las_del_entrenam
     ctx.app.state.servicio._variables = espiar
     for i, fila in sub.iterrows():
         assert ctx.evaluar(_a_solicitud(fila, f"DC-{i}"), fila["id_comercio"]).status_code == 201
-    meta, comparadas, con_historial_distinto = artefacto["meta"], 0, 0
+    meta, comparadas = artefacto["meta"], 0
     for i, fila in sub.iterrows():
         en_linea = capturadas[(ctx.comercios[fila["id_comercio"]], fila["fecha"].isoformat(), fila["id_cliente"])]
         for col in meta["numericas"] + meta["categoricas"]:

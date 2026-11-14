@@ -1,0 +1,71 @@
+# Pruebas y calidad en cada push. Corre con las MISMAS versiones que se despliegan (requirements-dev.txt incluye requirements-produccion.txt).
+# El repositorio es público: el flujo no usa secretos, tiene permisos de solo lectura y las acciones están fijadas por su huella (SHA), no por etiqueta.
+name: Pruebas y calidad
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    name: Pruebas (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.12"]      # 3.9 es el de tu equipo hoy; 3.12 es el de producción. Cuando migres, se quita la 3.9.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          path: modelo_ia            # el paquete se llama modelo_ia: las pruebas lo importan por ese nombre
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: modelo_ia/requirements-dev.txt
+      - name: Instalar dependencias (versiones exactas)
+        run: python -m pip install -r modelo_ia/requirements-dev.txt
+      - name: Pruebas
+        run: python -m pytest modelo_ia/tests -q -p no:cacheprovider
+
+  calidad:
+    name: Calidad (ruff, tipos y archivos pesados)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          path: modelo_ia
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: modelo_ia/requirements-dev.txt
+      - name: Instalar dependencias (versiones exactas)
+        run: python -m pip install -r modelo_ia/requirements-dev.txt
+      - name: Errores reales de código (ruff)
+        run: ruff check modelo_ia
+      - name: Tipos en api/ (solo informa, no bloquea)
+        continue-on-error: true
+        working-directory: modelo_ia
+        run: mypy
+      - name: Ningún archivo versionado de más de 5 MB
+        working-directory: modelo_ia
+        run: |
+          grandes=$(git ls-files -z | xargs -0 du -k | awk '$1 > 5120 {print "  " $2 " (" $1 " KB)"}')
+          if [ -n "$grandes" ]; then
+            echo "Hay archivos versionados de más de 5 MB (¿datos pesados o personales subidos por error?):"
+            echo "$grandes"
+            exit 1
+          fi
+          echo "Ningún archivo versionado supera los 5 MB."

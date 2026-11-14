@@ -20,7 +20,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 from urllib.parse import urlparse
 
 OK, AVISO, CRITICO = 0, 1, 2

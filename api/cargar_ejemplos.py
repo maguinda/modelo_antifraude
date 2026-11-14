@@ -12,7 +12,6 @@ Las claves de los comercios nuevos se usan en memoria y NO se imprimen ni se gua
 """
 import argparse
 import random
-import sys
 import time
 from collections import Counter
 from datetime import datetime, timedelta

@@ -1,7 +1,7 @@
 """El archivo de mapeo: le dice al adaptador qué columna del archivo del comercio corresponde a cada campo de la API."""
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from .campos import CAMPOS, POR_RUTA, REQUERIDOS, normalizar
 

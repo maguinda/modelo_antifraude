@@ -3,7 +3,6 @@ import json
 import pytest
 
 from modelo_ia import config, entrenar, experimentos, modelos, predecir
-from modelo_ia.tests.conftest import hacer_datos
 
 
 @pytest.fixture

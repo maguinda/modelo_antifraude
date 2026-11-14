@@ -13,7 +13,6 @@ import hashlib
 import ipaddress
 import json
 import os
-import shutil
 import sys
 import tempfile
 import urllib.request

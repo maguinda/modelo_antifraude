@@ -5,7 +5,7 @@ Necesita Playwright:   pip install playwright && python -m playwright install ch
 Uso:                   python modelo_ia/pruebas_navegador/tienda.py
 Las capturas quedan en la carpeta temporal que se imprime al final. No toca tu demo ni tus datos.
 """
-import os, sys, tempfile, time, subprocess, json, shutil
+import sys, tempfile, time, subprocess, json
 from pathlib import Path
 import httpx
 from playwright.sync_api import sync_playwright

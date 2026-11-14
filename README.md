@@ -78,6 +78,25 @@ Por defecto lee `datos/dataset_antifraude_500000_transacciones.csv`. Con otro ar
 | `tests/` | 219 pruebas automáticas. |
 | `modelos_guardados/` | Los modelos entrenados (`.joblib`) con su ficha (`.json`). |
 
+## Calidad y pruebas automáticas (CI)
+Cada `push` corre `.github/workflows/pruebas.yml` en GitHub (gratis, el repositorio es público):
+
+| Trabajo | Qué hace | ¿Bloquea? |
+|---|---|---|
+| Pruebas (Python 3.9 y 3.12) | Las pruebas con las **versiones exactas de producción** (`requirements-dev.txt` incluye `despliegue/requirements-produccion.txt`). 3.9 es la de tu equipo hoy y 3.12 la de producción; cuando migres, se quita la 3.9. | Sí |
+| Calidad · `ruff` | Solo errores reales: sintaxis, imports sobrantes, nombres sin definir, variables sin usar, argumentos mutables por defecto, escapes inválidos. No revisa estilo (el código usa líneas largas a propósito). | Sí |
+| Calidad · `mypy` | Tipos en `api/`. Por ahora **solo informa** (hoy hay 34 avisos, casi todos de librerías sin tipos); se endurecerá poco a poco. | No |
+| Calidad · archivos pesados | Falla si se versiona un archivo de más de 5 MB (datos pesados o personales subidos por error). | Sí |
+
+El flujo no usa secretos, tiene permisos de solo lectura y sus acciones están fijadas por huella (SHA), no por etiqueta. Se corre igual en tu equipo, desde la carpeta que contiene `modelo_ia/`:
+```
+pip install -r modelo_ia/requirements-dev.txt          # versiones exactas (a diferencia de requirements.txt, que es amplio)
+ruff check modelo_ia                                   # errores reales
+(cd modelo_ia && mypy)                                 # tipos, informativo
+python -m pytest modelo_ia/tests -q                    # las pruebas
+```
+Las pruebas que necesitan las bases de IP de 133 MB (`datos_ip/`) se saltan solas en la CI.
+
 ## Cómo está organizada la API (`api/`)
 `crear_app` (en `app.py`, unas 60 líneas) solo arma la aplicación y registra las piezas; cada tema vive en su archivo:
 

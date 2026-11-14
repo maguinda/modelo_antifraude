@@ -10,7 +10,7 @@ Uso:  python -m modelo_ia.reentrenamiento --datos modelo_ia/datos/dataset_antifr
 """
 import argparse
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 import pandas as pd

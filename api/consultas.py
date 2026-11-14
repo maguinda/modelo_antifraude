@@ -10,7 +10,7 @@ import json
 import re
 import sqlite3
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from .almacen import Almacen, Principal
 from .servicio import ErrorAPI, ServicioEvaluacion

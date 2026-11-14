@@ -281,7 +281,6 @@ def test_la_vigilancia_revisa_base_disco_y_certificado(entorno, monkeypatch):
     assert vigilancia.revisar_base(entorno["tmp"] / "no_existe.sqlite3")[0][0] == vigilancia.CRITICO
     entorno["bd"].write_bytes(b"basura" * 1000)
     assert any(n == vigilancia.CRITICO for n, _ in vigilancia.revisar_base(entorno["bd"]))
-    uso = type("U", (), {})
     for libre, esperado in ((50, vigilancia.OK), (10, vigilancia.AVISO), (2, vigilancia.CRITICO)):
         monkeypatch.setattr(vigilancia.shutil, "disk_usage", lambda p, l=libre: type("U", (), {"free": l, "total": 100})())
         assert vigilancia.revisar_disco(entorno["bd"])[0][0] == esperado

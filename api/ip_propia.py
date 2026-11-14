@@ -18,7 +18,7 @@ import json
 import re
 from datetime import date
 from pathlib import Path
-from typing import Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
 from .ip_datos import CARPETA, FUENTES, _manifiesto
 from .proveedores_ip import InfoIP
@@ -33,6 +33,11 @@ LIMITE_ANTIGUEDAD_DIAS = 60
 NOMBRES_PAIS = {"CO": "Colombia", "US": "Estados Unidos", "RU": "Rusia", "NL": "Países Bajos", "GB": "Reino Unido", "KR": "Corea del Sur", "VE": "Venezuela",
                 "BO": "Bolivia", "CN": "China", "DE": "Alemania", "FR": "Francia", "ES": "España", "MX": "México", "BR": "Brasil", "AR": "Argentina", "PE": "Perú",
                 "EC": "Ecuador", "CL": "Chile", "PA": "Panamá", "IN": "India", "NG": "Nigeria", "UA": "Ucrania", "TR": "Turquía", "VN": "Vietnam", "ID": "Indonesia"}
+
+
+def _registro(dato: Any) -> Dict[str, Any]:
+    """Un registro de la base como diccionario; si la base trae algo inesperado (un archivo dañado), se trata como vacío en vez de fallar."""
+    return dato if isinstance(dato, dict) else {}
 
 
 def _nombre_pais(iso: Optional[str], nombres: Dict[str, str]) -> str:
@@ -81,18 +86,20 @@ class ProveedorPropio:
         a = ipaddress.ip_address(ip)
         if a.is_private or a.is_loopback or a.is_link_local or a.is_reserved or a.is_unspecified or a.is_multicast:
             return InfoIP("DESCONOCIDA", "Desconocido", None, False, 30)
-        ciudad, asn = self._ciudad.get(str(a)) or {}, self._asn.get(str(a)) or {}
-        iso = (ciudad.get("country") or {}).get("iso_code")
-        nombres = (ciudad.get("country") or {}).get("names") or {}
+        ciudad, asn = _registro(self._ciudad.get(str(a))), _registro(self._asn.get(str(a)))
+        iso = _registro(ciudad.get("country")).get("iso_code")
+        nombres = _registro(_registro(ciudad.get("country")).get("names"))
         pais = _nombre_pais(iso, nombres)
-        nombre_ciudad = ((ciudad.get("city") or {}).get("names") or {}).get("es") or ((ciudad.get("city") or {}).get("names") or {}).get("en")
-        loc = ciudad.get("location") or {}
+        nombres_ciudad = _registro(_registro(ciudad.get("city")).get("names"))
+        nombre_ciudad = nombres_ciudad.get("es") or nombres_ciudad.get("en")
+        loc = _registro(ciudad.get("location"))
         lat, lon = (loc.get("latitude"), loc.get("longitude")) if (iso != "CO" and iso is not None) else (None, None)   # ciudad poco fiable dentro de Colombia
         org = str(asn.get("autonomous_system_organization", "")).upper()
+        con_asn = bool(asn.get("autonomous_system_number") or asn.get("autonomous_system_organization"))      # un registro sin número ni nombre de operador no cuenta
         if str(a) in self._tor:
             return InfoIP("PROXY", pais, nombre_ciudad, True, REPUTACION["tor"], lat, lon)
         if self._en_nube(a) or any(k in org for k in ALOJAMIENTO):
             return InfoIP("PROXY", pais, nombre_ciudad, True, REPUTACION["centro_de_datos"], lat, lon)
-        if not asn and iso is None:
+        if not con_asn and iso is None:
             return InfoIP("DESCONOCIDA", "Desconocido", None, False, REPUTACION["sin_datos"])
-        return InfoIP("RESIDENCIAL" if asn else "DESCONOCIDA", pais, nombre_ciudad, False, REPUTACION["normal"] if asn else REPUTACION["sin_datos"], lat, lon)
+        return InfoIP("RESIDENCIAL" if con_asn else "DESCONOCIDA", pais, nombre_ciudad, False, REPUTACION["normal"] if con_asn else REPUTACION["sin_datos"], lat, lon)

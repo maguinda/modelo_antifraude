@@ -17,7 +17,7 @@ Para modelos ya entrenados que no traen su referencia:  python -m modelo_ia.expl
 """
 import argparse
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import joblib
 import numpy as np

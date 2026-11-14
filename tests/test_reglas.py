@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modelo_ia import comparar_h1, config, entrenar, evaluacion, predecir, variables
+from modelo_ia import comparar_h1, config, entrenar, predecir
 from modelo_ia.reglas import MotorReglas, Regla
 from modelo_ia.reglas import reglas_base
 from modelo_ia.reglas.seguridad import construir_reglas_seguridad

@@ -1,0 +1,20 @@
+# Todo lo necesario para correr las pruebas y las revisiones de calidad, con versiones EXACTAS (las mismas que usa la CI).
+#   pip install -r requirements-dev.txt
+# Parte de lo que se despliega, para probar lo mismo que corre en producción.
+-r despliegue/requirements-produccion.txt
+certifi==2026.10.23
+et-xmlfile==2.0.0
+httpcore==1.0.9
+httpx==0.28.1
+iniconfig==2.1.0
+librt==0.16.0
+mypy==1.19.1
+mypy-extensions==1.1.0
+openpyxl==3.1.5
+packaging==26.3
+pathspec==1.1.1
+pluggy==1.6.0
+pygments==2.21.0
+pytest==8.4.2
+ruff==0.17.1
+tomli==2.5.0; python_version < "3.11"
