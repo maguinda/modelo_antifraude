@@ -111,6 +111,10 @@ dl.datos dd { margin: 0; font-weight: 600; text-align: right; }
   a.seg, a.codigo, button.codigo { display: inline-flex; align-items: center; min-height: var(--toque); }
 }
 
+/* ---- crédito de la base de ubicación de IP (licencia CC BY 4.0 de DB-IP: enlace en las páginas que muestran sus resultados) */
+.pie-creditos { max-width: 1280px; margin: 0 auto; padding: var(--e4); text-align: center; font-size: 13px; }
+.pie-creditos a { display: inline-block; padding: var(--e2) var(--e3); min-height: 44px; line-height: 28px; box-sizing: border-box; }
+
 /* ---- «señales que más pesaron» (las usan la revisión manual y el dashboard) */
 .senales { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e3); }
 .senal { display: grid; gap: var(--e1); }

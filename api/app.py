@@ -57,6 +57,8 @@ API para decidir, **antes de aprobar un pago**, si una transacción se **aprueba
 * Los errores usan el formato estándar `application/problem+json`.
 
 > Los modelos actuales se entrenaron con **datos sintéticos**. No son una promesa de desempeño sobre fraude real.
+
+**Créditos.** La ubicación por IP usa las bases gratuitas de [DB-IP.com](https://db-ip.com) (licencia CC BY 4.0). La API nunca devuelve la ubicación de la IP en la respuesta de una evaluación.
 """
 
 ETIQUETAS = [

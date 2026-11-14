@@ -100,6 +100,9 @@ class ServicioEvaluacion:
         if self.proveedor.nombre == "simulado":
             avisos.append("La inteligencia de IP es SIMULADA (solo reconoce rangos de documentación): no ubica IPs reales ni detecta VPN, proxy "
                           "o centros de datos de verdad. Configura un proveedor real (MODELO_IA_PROVEEDOR_IP) antes de producción.")
+        edad = getattr(self.proveedor, "antiguedad_dias", None)
+        if self.proveedor.nombre == "propio" and edad is not None and edad > 60:
+            avisos.append(f"Las bases de IP tienen {edad} días: se publican cada mes. Actualízalas con `python -m modelo_ia.api.ip_datos descargar`.")
         if self.art_sin_estado is None:
             avisos.append("No hay modelo para pagos SIN `dispositivo.estado`: esos pagos quedarán en modo degradado (EN_REVISION). "
                           "Entrénalo con `--sin-estado --como-actual-sin-estado`.")

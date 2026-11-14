@@ -238,7 +238,7 @@ python -m modelo_ia.api.demo --reiniciar   # borra la base de demostración y em
 - **La IP cruda no se guarda, no se devuelve y no se registra.** Se usa en memoria; en la base solo queda una huella irreversible (HMAC con el secreto del servicio) para reconocer repeticiones. Hay pruebas que buscan la IP en la base, en las respuestas, en la auditoría y en los registros.
 - **Lo que mande el comercio manda.** Si envía también `tipo_ip`, `pais`, etc., eso se respeta y el proveedor solo completa lo que falta. Un comercio que ya tenga su propio proveedor puede seguir mandando todo y no mandar la IP.
 - La respuesta dice de dónde salió cada dato (`red_origen`: `comercio`, `proveedor:<nombre>` o `proveedor_fallo`). Si el proveedor falla, la API no se cae: usa lo que mandó el comercio y, si no alcanza, queda en modo degradado.
-- El proveedor es una **interfaz** (`api/proveedores_ip.py`): para usar uno real se escribe una clase con `consultar(ip)` y se elige con `MODELO_IA_PROVEEDOR_IP`. El que viene (`simulado`) es solo de demostración: reconoce rangos de IP reservados para documentación (`192.0.2.x`, `198.51.100.x`, `203.0.113.x`) y nada más. `GET /v1/salud` avisa mientras se use.
+- El proveedor es una **interfaz** (`api/proveedores_ip.py`): para usar uno real se escribe una clase con `consultar(ip)` y se elige con `MODELO_IA_PROVEEDOR_IP`. Hay dos: `simulado` (solo de demostración: reconoce rangos de IP reservados para documentación (`192.0.2.x`, `198.51.100.x`, `203.0.113.x`) y nada más; `GET /v1/salud` avisa mientras se use) y `propio` (bases públicas descargadas: ver «Proveedor de IP propio» más abajo).
 - Una IP puede ser dato personal: cada comercio debe cubrir este tratamiento en su política (Ley 1581). Es una decisión legal, no solo técnica.
 
 **El estado del dispositivo es opcional** (`dispositivo.estado`: «Conocido», «Nuevo» o «No reconocido»). Lo sabe el sistema de cuentas del comercio (¿este cliente ya usó este equipo?), no el SDK. Si no llega, la API usa un **segundo modelo entrenado sin esa variable** (`modelo_actual_sin_estado.joblib`, se entrena con `--sin-estado --como-actual-sin-estado`) y la respuesta dice `estado_origen: no_enviado`. Si ese modelo no existe, el pago queda en modo degradado y `/v1/salud` lo avisa.
@@ -291,13 +291,28 @@ La primera prueba de carga **encontró un problema real**: con muchas peticiones
 **Lo que NO está hecho:**
 - **No está desplegada.** Falta HTTPS con certificado real (y HSTS), un servidor de producción, PostgreSQL, copias de seguridad y monitoreo. Todo lo anterior se hizo y se probó **en local**.
 - **El SDK solo existe para navegador**, no para apps móviles, y es de demostración (el «mouse natural» es una heurística simple).
-- **No hay proveedores reales.** La ubicación y la reputación de las IP las da un proveedor **simulado** (no ubica IPs reales ni detecta VPN, proxy o centros de datos de verdad; hay que contratar uno real, que normalmente es de pago), y el KYC y el 2FA también están simulados.
+- **No hay proveedor de pago.** Con `propio` la ubicación es de bases gratuitas (país y operador sí; ciudad poco fiable en Colombia; sin distinguir móvil de residencial; VPN comerciales no se detectan) y la reputación es una estimación fija por categoría, no una real. El KYC y el 2FA también están simulados.
 - **La pantalla de analistas es una primera versión**: falta el protocolo de revisión, los tiempos máximos de respuesta, que cada analista tenga su propia identidad (hoy se entra con una clave de rol) y avisar al comercio cuando se resuelve (hoy consulta con `GET`).
 - **Falta pasar la política de contenido a modo «bloquear»** tras unos días de uso, y los avisos de WebKit sobre ella son esperados (ese navegador no hace nada en modo «solo observar»).
 - **Velocidad:** ~65 pagos por segundo por proceso; acelerar el cálculo de variables (sin pandas) es posible pero no se hizo.
 - **La cola de revisión sería enorme** con el umbral actual: en una muestra de 2.000 pagos, el 13,6 % de los legítimos quedó en revisión. Hay que ajustar los umbrales con el costo real de revisar.
 - **Gradient Boosting no devuelve motivos por variable** (solo las reglas activadas).
 - **No se probó un celular real ni Android real**, solo perfiles emulados de Chromium y WebKit.
+
+## Proveedor de IP propio (bases públicas, sin enviar la IP a nadie)
+`MODELO_IA_PROVEEDOR_IP=propio` ubica y clasifica la IP en el mismo servidor con bases descargadas (`python -m modelo_ia.api.ip_datos descargar`, unos 70 MB que van a `datos_ip/`, fuera de git; `estado` las comprueba):
+
+| Dato | Fuente | Confianza |
+|---|---|---|
+| País y operador (ASN) | DB-IP Lite, mensual | país: buena; operador: regular |
+| Ciudad | DB-IP Lite | solo se muestra; dentro de Colombia no se calcula distancia porque las IP de celular caen casi todas en la capital |
+| Centro de datos | rangos publicados por AWS y Google Cloud + operadores de alojamiento conocidos por el nombre de su ASN | buena para esas nubes; heurística para el resto |
+| Salidas de Tor | lista pública del Proyecto Tor | buena |
+| Móvil / residencial, VPN comerciales, reputación global | no se sabe | la reputación es una estimación fija (normal 80, centro de datos 45, Tor 20, sin datos 50) |
+
+Las descargas son atómicas y verificadas (si una falla se conserva la versión anterior); `GET /v1/salud` avisa si las bases tienen más de 60 días. Para cambiar a un proveedor de pago basta otra clase con `consultar(ip)`.
+
+**Créditos y licencias de terceros.** La ubicación de IP usa las bases gratuitas de [DB-IP.com](https://db-ip.com) (licencia CC BY 4.0: exige atribución, que se da en el pie del panel y del dashboard y en esta documentación). Los rangos de AWS y Google Cloud y la lista de salidas de Tor no publican licencia o términos: **pendiente de revisar con un abogado**, junto al acuerdo de datos.
 
 ## Panel de control: ver todo, filtrar y rastrear (API de solo lectura)
 

@@ -798,7 +798,7 @@ def test_el_panel_se_sirve_con_politica_de_contenido_y_sin_cache(ctx):
 def test_el_panel_no_tiene_scripts_ni_estilos_en_linea():
     html = (documentacion.ESTATICOS / "panel" / "index.html").read_text(encoding="utf-8")
     assert not re.findall(r"<script(?![^>]*\bsrc=)", html) and "style=" not in html and "onclick" not in html.lower()
-    assert "http://" not in html and "https://" not in html
+    assert "http://" not in sin_credito(html) and "https://" not in sin_credito(html)
 
 
 def test_el_script_del_panel_nunca_inserta_datos_como_html():
@@ -1541,7 +1541,7 @@ def test_el_dashboard_no_tiene_scripts_ni_estilos_en_linea_ni_nada_externo():
     assert not re.findall(r"<script(?![^>]*\bsrc=)", html) and "style=" not in html and "onclick" not in html.lower() and "<style" not in html.lower()
     css = (DASH / "dashboard.css").read_text(encoding="utf-8")
     js = (DASH / "dashboard.js").read_text(encoding="utf-8")
-    for nombre, texto in (("html", html), ("css", css), ("js", js)):
+    for nombre, texto in (("html", sin_credito(html)), ("css", css), ("js", js)):
         externos = [u for u in re.findall(r"https?://[^\s\"')]+", texto) if "www.w3.org" not in u]
         assert not externos, (nombre, externos)                                           # ni CDN, ni fuentes, ni imágenes de terceros
     assert "@import" not in css and "url(" not in css
@@ -1653,12 +1653,20 @@ def test_el_diseno_compartido_tiene_modo_oscuro_y_nada_externo_ni_colores_suelto
         assert "@import" not in css and "url(" not in css
 
 
+CREDITO_DB_IP = '<footer class="pie-creditos"><a href="https://db-ip.com" rel="noopener noreferrer" target="_blank">IP Geolocation by DB-IP</a></footer>'
+
+
+def sin_credito(html: str) -> str:
+    """Quita el ÚNICO enlace externo permitido en las pantallas (crédito de DB-IP, licencia CC BY 4.0). Cualquier otra dirección externa sigue siendo un error."""
+    return html.replace(CREDITO_DB_IP, "")
+
+
 def test_la_tienda_y_el_panel_no_tienen_nada_en_linea_ni_externo_ni_html_inyectado():
     for nombre in ("tienda", "panel"):
         html = (documentacion.ESTATICOS / nombre / "index.html").read_text(encoding="utf-8")
         js = (documentacion.ESTATICOS / nombre / f"{nombre}.js").read_text(encoding="utf-8")
         assert not re.findall(r"<script(?![^>]*\bsrc=)", html) and "style=" not in html and "<style" not in html.lower() and "onclick" not in html.lower(), nombre
-        assert not re.findall(r"https?://", html + js), nombre
+        assert not re.findall(r"https?://", sin_credito(html) + js), nombre
         for peligroso in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "localStorage"):
             assert peligroso not in js, (nombre, peligroso)
 
