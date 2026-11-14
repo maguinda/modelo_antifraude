@@ -7,13 +7,27 @@
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Dict, Optional
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 
-ESTATICOS = Path(__file__).resolve().parent / "estaticos"
+ESTATICOS = (
+    Path(__file__).resolve().parent / "estaticos"
+)  # SOLO lo del contrato y su documentación (Swagger, ReDoc, logo): es del backend
+FRONTEND = Path(
+    os.environ.get("MODELO_IA_FRONTEND") or Path(__file__).resolve().parent.parent / "frontend"
+)  # las pantallas: carpeta frontend/
+SECCIONES_FRONTEND = (
+    "panel",
+    "dashboard",
+    "tienda",
+    "comun",
+    "sdk",
+)  # se publican en /estaticos/<sección>/..., igual que antes de separarlas
 NOMBRE_ESQUEMA = "APIKeyHeader"  # nombre con el que FastAPI registra la cabecera X-API-Key
 PARAMETROS_SWAGGER = {
     "persistAuthorization": True,
@@ -60,6 +74,17 @@ def _js_inicio(clave: Optional[str]) -> str:
         + ', {url: "/openapi.json", dom_id: "#swagger-ui", layout: "BaseLayout", deepLinking: true, '
         "presets: [SwaggerUIBundle.presets.apis], " + gancho + "}));"
     )
+
+
+def montar_estaticos(app: FastAPI, servir_pantallas: bool) -> None:
+    """Publica los archivos de /estaticos: los de la documentación (backend) y, si se pide, las pantallas de la carpeta frontend/.
+    Las pantallas se montan ANTES para que /estaticos/panel/... salga de allí y no de la carpeta de la documentación."""
+    if servir_pantallas:
+        for seccion in SECCIONES_FRONTEND:
+            app.mount(
+                f"/estaticos/{seccion}", StaticFiles(directory=str(FRONTEND / seccion)), name=f"estaticos_{seccion}"
+            )
+    app.mount("/estaticos", StaticFiles(directory=str(ESTATICOS)), name="estaticos")
 
 
 def registrar_documentacion(

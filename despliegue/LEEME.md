@@ -179,6 +179,8 @@ Caddy real: al desplegar, comprueba que 25 claves inventadas seguidas desde tu c
 
 ## Endurecer con el tiempo
 
+- **Pantallas aparte (opcional, no probado con Caddy real):** por omisión la API entrega las pantallas de `frontend/`. Si quieres que las entregue Caddy y la API
+  solo responda datos, sigue los pasos de la cabecera de `Caddyfile.pantallas-aparte` y valida con `caddy validate` y `curl -sI` antes de producción.
 - **Política de contenido (`MODELO_IA_CSP`):** déjala en `report-only` unos días, revisa que las
   pantallas y `/docs` funcionen y los avisos del navegador estén vacíos, y entonces pásala a
   `enforce` (cambia `.env` y `docker compose up -d`).

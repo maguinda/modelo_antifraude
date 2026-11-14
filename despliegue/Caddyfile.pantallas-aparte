@@ -1,0 +1,73 @@
+# VARIANTE OPCIONAL (no se usa por omisión; NO se ha probado con Caddy real): el servidor web entrega las pantallas y la API solo responde datos.
+# Para usarla: (1) MODELO_IA_PANTALLAS=0 en el servicio `api`; (2) montar la carpeta frontend/ en el servicio `caddy` como /srv/frontend (solo lectura);
+# (3) usar este archivo en lugar de Caddyfile; (4) ANTES de producción: `caddy validate` y revisar con `curl -sI` que /panel y /dashboard traen la CSP.
+# Las rutas públicas no cambian (/panel, /dashboard, /estaticos/<carpeta>/...), así que ningún script necesita cambios y no hace falta CORS.
+# Servidor web delante de la API: HTTPS automático (certificado gratuito que se renueva solo), tamaño y tiempos acotados y sin exponer lo que es solo de demostración.
+{
+	email {$CORREO_ACME}
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 15s
+			write 30s
+			idle 2m
+		}
+	}
+}
+
+{$DOMINIO} {
+	encode zstd gzip
+	request_body {
+		max_size 64KB
+	}
+
+	# La tienda y sus rutas de demostración NO existen en producción; se cierran por si acaso. (/init/panel-config.js sí se deja: en producción solo devuelve {}.)
+	@demo path /demo/* /tienda /tienda/*
+	respond @demo 404
+
+	header {
+		# HSTS: arranca con poco tiempo (300 s) y se sube cuando todo esté probado (ver LEEME.md). Subirlo mal es difícil de deshacer.
+		Strict-Transport-Security "max-age={$HSTS_SEGUNDOS:300}"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	# /dashboard usa su propia carpeta: se separa para que cada pantalla lea su index.html
+	handle /dashboard {
+		header Content-Security-Policy-Report-Only "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'"
+		header Cache-Control no-store
+		rewrite * /index.html
+		root * /srv/frontend/dashboard
+		file_server
+	}
+	handle /panel {
+		header Content-Security-Policy-Report-Only "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'"
+		header Cache-Control no-store
+		rewrite * /index.html
+		root * /srv/frontend/panel
+		file_server
+	}
+	handle_path /estaticos/panel/* {
+		root * /srv/frontend/panel
+		file_server
+	}
+	handle_path /estaticos/dashboard/* {
+		root * /srv/frontend/dashboard
+		file_server
+	}
+	handle_path /estaticos/comun/* {
+		root * /srv/frontend/comun
+		file_server
+	}
+	handle_path /estaticos/sdk/* {
+		root * /srv/frontend/sdk
+		file_server
+	}
+
+	# Todo lo demás (la API, /docs, /estaticos de la documentación e /init/panel-config.js) sigue en la API
+	reverse_proxy api:8000 {
+		health_uri /v1/salud
+		health_interval 15s
+	}
+}

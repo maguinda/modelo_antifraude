@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response
 
-from .documentacion import ESTATICOS
+from .documentacion import FRONTEND
 
 # Sin scripts ni estilos en línea y sin terceros. Primero se observa; luego se bloquea (ver Ajustes.csp_modo).
 CSP_PANEL = (
@@ -24,7 +24,7 @@ def cabecera_panel(modo: str):
 def registrar_panel(app: FastAPI, modo_csp: str = "report-only", clave_demo: Optional[str] = None) -> None:
     """Agrega /panel y /dashboard. En modo demo (127.0.0.1) entra solo, con la clave de analista de la demo."""
     cabeceras = cabecera_panel(modo_csp)
-    html = (ESTATICOS / "panel" / "index.html").read_text(encoding="utf-8")
+    html = (FRONTEND / "panel" / "index.html").read_text(encoding="utf-8")
     app.add_api_route(
         "/panel",
         lambda: HTMLResponse(html, headers=cabeceras),
@@ -32,7 +32,7 @@ def registrar_panel(app: FastAPI, modo_csp: str = "report-only", clave_demo: Opt
         include_in_schema=False,
         response_class=HTMLResponse,
     )
-    pagina = (ESTATICOS / "dashboard" / "index.html").read_text(encoding="utf-8")
+    pagina = (FRONTEND / "dashboard" / "index.html").read_text(encoding="utf-8")
     app.add_api_route(
         "/dashboard",
         lambda: HTMLResponse(pagina, headers=cabeceras),

@@ -497,7 +497,7 @@ def test_los_filtros_de_comercio_de_las_pantallas_marcan_los_suspendidos(ctx):
     lista = ctx.cliente.get("/v1/panel/comercios", headers=ctx.h("analista")).json()
     assert {c["nombre"]: c["suspendido"] for c in lista} == {"Tienda A": 0, "Tienda B": 1}
     for js in ("panel/panel.js", "dashboard/dashboard.js"):
-        assert '" (suspendido)"' in (documentacion.ESTATICOS / js).read_text(encoding="utf-8"), js
+        assert '" (suspendido)"' in (documentacion.FRONTEND / js).read_text(encoding="utf-8"), js
 
 
 def test_el_contrato_openapi_tiene_los_endpoints_nuevos_y_esta_al_dia():

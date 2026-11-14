@@ -393,7 +393,7 @@ def test_no_cuesta_casi_nada_de_tiempo(servicio):
 def test_las_pantallas_usan_la_pieza_compartida_y_nunca_insertan_html():
     from modelo_ia.api import documentacion
 
-    base = documentacion.ESTATICOS
+    base = documentacion.FRONTEND
     js = (base / "comun" / "senales.js").read_text(encoding="utf-8")
     for peligroso in (
         "innerHTML",
