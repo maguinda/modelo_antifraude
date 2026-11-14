@@ -20,7 +20,7 @@ def test_entrenar_logistica_mejora_al_azar(preparado):
     df, m = preparado
     r = entrenar.ajustar_y_evaluar(df, m, "logistica", "historial")
     base = df.loc[m["prueba"], "es_fraude"].mean()
-    assert r["metricas_prueba"]["precision"] > base * 2          # mejor que alertar al azar
+    assert r["metricas_prueba"]["precision"] > base * 2  # mejor que alertar al azar
     assert r["metricas_prueba"]["recall"] > 0.5
     assert r["metricas_prueba"]["costo_cop"] < r["costo_prueba_sin_modelo_cop"]
 
@@ -66,12 +66,23 @@ def test_guardar_cargar_y_predecir(preparado, ruta_csv, carpeta_temporal):
     meta = json.loads(ruta.with_suffix(".json").read_text(encoding="utf-8"))
     assert meta["datos_sinteticos"] is True and meta["version"] == config.VERSION
 
-    artefacto = predecir.cargar_artefacto()                 # toma modelo_actual.joblib
-    sospechoso = dict(predecir.EJEMPLO_VIAJE_IMPOSIBLE, tipo_ip="Proxy", estado_dispositivo="No reconocido",
-                      localizacion="Bogotá, Colombia", dispositivo="iPhone", metodo_pago="Visa",
-                      categoria="Ropa")
-    normal = dict(predecir.EJEMPLO_NORMAL, localizacion="Bogotá, Colombia", metodo_pago="Visa",
-                  tipo_ip="Residencial", categoria="Ropa")
+    artefacto = predecir.cargar_artefacto()  # toma modelo_actual.joblib
+    sospechoso = dict(
+        predecir.EJEMPLO_VIAJE_IMPOSIBLE,
+        tipo_ip="Proxy",
+        estado_dispositivo="No reconocido",
+        localizacion="Bogotá, Colombia",
+        dispositivo="iPhone",
+        metodo_pago="Visa",
+        categoria="Ropa",
+    )
+    normal = dict(
+        predecir.EJEMPLO_NORMAL,
+        localizacion="Bogotá, Colombia",
+        metodo_pago="Visa",
+        tipo_ip="Residencial",
+        categoria="Ropa",
+    )
     a, b = predecir.analizar_transaccion(sospechoso, artefacto), predecir.analizar_transaccion(normal, artefacto)
     assert a["decision"] in {"APROBAR", "REVISAR", "BLOQUEAR"}
     assert a["probabilidad_fraude"] > b["probabilidad_fraude"]

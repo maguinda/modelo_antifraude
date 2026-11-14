@@ -12,6 +12,7 @@ Para que la comparación sea justa:
 
 Uso:  python -m modelo_ia.comparar_h1 [--datos ruta.csv] [--repeticiones 1000]
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -41,8 +42,7 @@ def umbral_igual_fpr(puntaje_validacion, reales_validacion, fpr_objetivo: float)
     return 0.99
 
 
-def bootstrap_diferencias(alerta_a, alerta_b, reales, repeticiones: int = 1000,
-                          semilla: int = config.SEMILLA) -> Dict:
+def bootstrap_diferencias(alerta_a, alerta_b, reales, repeticiones: int = 1000, semilla: int = config.SEMILLA) -> Dict:
     """Diferencia (A menos B) en recall y en tasa de falsos positivos, con IC del 95 %.
 
     Remuestreo pareado: en cada repetición se eligen las mismas transacciones para A y para B.
@@ -61,8 +61,13 @@ def bootstrap_diferencias(alerta_a, alerta_b, reales, repeticiones: int = 1000,
         d_fpr[i] = (fp_a[idx].sum() - fp_b[idx].sum()) / (n - pos)
     ic = lambda v: [float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5))]
     ta, tb = tasas(a, y), tasas(b, y)
-    return {"dif_recall": ta["recall"] - tb["recall"], "ic95_recall": ic(d_rec),
-            "dif_fpr": ta["fpr"] - tb["fpr"], "ic95_fpr": ic(d_fpr), "repeticiones": repeticiones}
+    return {
+        "dif_recall": ta["recall"] - tb["recall"],
+        "ic95_recall": ic(d_rec),
+        "dif_fpr": ta["fpr"] - tb["fpr"],
+        "ic95_fpr": ic(d_fpr),
+        "repeticiones": repeticiones,
+    }
 
 
 def veredicto(b: Dict) -> str:
@@ -79,11 +84,17 @@ def veredicto(b: Dict) -> str:
 
 
 def _fila(nombre: str, severidad, reales, montos) -> Dict:
-    m = evaluacion.metricas(np.asarray(severidad), reales, montos, 1)     # alerta = severidad >= 1
+    m = evaluacion.metricas(np.asarray(severidad), reales, montos, 1)  # alerta = severidad >= 1
     t = tasas(np.asarray(severidad) >= 1, reales)
-    return {"metodo": nombre, "recall": m["recall"], "precision": m["precision"], "fpr": t["fpr"],
-            "falsas_alarmas": m["falsas_alarmas"], "fraudes_que_escapan": m["fraudes_que_escapan"],
-            "costo_millones": m["costo_cop"] / 1e6}
+    return {
+        "metodo": nombre,
+        "recall": m["recall"],
+        "precision": m["precision"],
+        "fpr": t["fpr"],
+        "falsas_alarmas": m["falsas_alarmas"],
+        "fraudes_que_escapan": m["fraudes_que_escapan"],
+        "costo_millones": m["costo_cop"] / 1e6,
+    }
 
 
 def ejecutar(ruta: Optional[Path] = None, repeticiones: int = 1000, registrar: bool = True) -> Dict:
@@ -102,7 +113,7 @@ def ejecutar(ruta: Optional[Path] = None, repeticiones: int = 1000, registrar: b
 
     # --- reglas ---------------------------------------------------------------
     ingenuas = motor_ingenuo()
-    params, costo_ini_v, costo_fin_v = ajustar(dv)                       # solo con validación
+    params, costo_ini_v, costo_fin_v = ajustar(dv)  # solo con validación
     ajustadas = MotorReglas(construir_reglas(params))
     sev_ingenuas, sev_ajustadas = ingenuas.severidad(dp), ajustadas.severidad(dp)
 
@@ -129,15 +140,23 @@ def ejecutar(ruta: Optional[Path] = None, repeticiones: int = 1000, registrar: b
     tabla = pd.DataFrame(filas).set_index("metodo")
 
     comparaciones = {
-        "modelo_igual_fpr_vs_reglas_ajustadas": bootstrap_diferencias(sev_modelo_igual >= 1, sev_ajustadas >= 1, yp, repeticiones),
-        "modelo_igual_fpr_vs_reglas_ingenuas": bootstrap_diferencias(sev_modelo_igual_ing >= 1, sev_ingenuas >= 1, yp, repeticiones),
-        "modelo_costo_vs_reglas_ajustadas": bootstrap_diferencias(sev_modelo >= 1, sev_ajustadas >= 1, yp, repeticiones),
+        "modelo_igual_fpr_vs_reglas_ajustadas": bootstrap_diferencias(
+            sev_modelo_igual >= 1, sev_ajustadas >= 1, yp, repeticiones
+        ),
+        "modelo_igual_fpr_vs_reglas_ingenuas": bootstrap_diferencias(
+            sev_modelo_igual_ing >= 1, sev_ingenuas >= 1, yp, repeticiones
+        ),
+        "modelo_costo_vs_reglas_ajustadas": bootstrap_diferencias(
+            sev_modelo >= 1, sev_ajustadas >= 1, yp, repeticiones
+        ),
     }
     for c in comparaciones.values():
         c["veredicto"] = veredicto(c)
 
     salida = {
-        "datos_sinteticos": True, "filas_prueba": int(p.sum()), "fraudes_prueba": int(yp.sum()),
+        "datos_sinteticos": True,
+        "filas_prueba": int(p.sum()),
+        "fraudes_prueba": int(yp.sum()),
         "parametros_reglas_ajustadas": params,
         "umbral_modelo_igual_fpr": {"vs_reglas_ajustadas": u_igual, "vs_reglas_ingenuas": u_igual_ing},
         "costo_validacion_reglas_ingenuas_millones": costo_ini_v / 1e6,
@@ -148,14 +167,26 @@ def ejecutar(ruta: Optional[Path] = None, repeticiones: int = 1000, registrar: b
     if registrar:
         config.ARCHIVO_H1.parent.mkdir(parents=True, exist_ok=True)
         config.ARCHIVO_H1.write_text(json.dumps(salida, indent=2, ensure_ascii=False), encoding="utf-8")
-        for nombre, sev in [("reglas_ingenuas", sev_ingenuas), ("reglas_ajustadas", sev_ajustadas),
-                            ("modelo_mas_red_seguridad", sev_hibrido)]:
+        for nombre, sev in [
+            ("reglas_ingenuas", sev_ingenuas),
+            ("reglas_ajustadas", sev_ajustadas),
+            ("modelo_mas_red_seguridad", sev_hibrido),
+        ]:
             f = _fila(nombre, sev, yp, mp)
-            experimentos.registrar({
-                "version": config.VERSION, "modelo": nombre, "variables": "historial", "umbral": 1,
-                "recall_prueba": round(f["recall"], 3), "precision_prueba": round(f["precision"], 3),
-                "falsas_alarmas": f["falsas_alarmas"], "fraudes_que_escapan": f["fraudes_que_escapan"],
-                "costo_prueba_millones": round(f["costo_millones"], 1), "nota": "comparación H1"})
+            experimentos.registrar(
+                {
+                    "version": config.VERSION,
+                    "modelo": nombre,
+                    "variables": "historial",
+                    "umbral": 1,
+                    "recall_prueba": round(f["recall"], 3),
+                    "precision_prueba": round(f["precision"], 3),
+                    "falsas_alarmas": f["falsas_alarmas"],
+                    "fraudes_que_escapan": f["fraudes_que_escapan"],
+                    "costo_prueba_millones": round(f["costo_millones"], 1),
+                    "nota": "comparación H1",
+                }
+            )
     return {"tabla": tabla, "salida": salida}
 
 
@@ -172,8 +203,12 @@ def main(argv=None) -> None:
     print("\nParámetros de las reglas ajustadas:", r["salida"]["parametros_reglas_ajustadas"])
     for nombre, c in r["salida"]["comparaciones"].items():
         print(f"\n{nombre}")
-        print(f"  diferencia en recall: {c['dif_recall']:+.3f}  IC95 % [{c['ic95_recall'][0]:+.3f}, {c['ic95_recall'][1]:+.3f}]")
-        print(f"  diferencia en falsos positivos (tasa): {c['dif_fpr']:+.4f}  IC95 % [{c['ic95_fpr'][0]:+.4f}, {c['ic95_fpr'][1]:+.4f}]")
+        print(
+            f"  diferencia en recall: {c['dif_recall']:+.3f}  IC95 % [{c['ic95_recall'][0]:+.3f}, {c['ic95_recall'][1]:+.3f}]"
+        )
+        print(
+            f"  diferencia en falsos positivos (tasa): {c['dif_fpr']:+.4f}  IC95 % [{c['ic95_fpr'][0]:+.4f}, {c['ic95_fpr'][1]:+.4f}]"
+        )
         print(f"  {c['veredicto']}")
 
 

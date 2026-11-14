@@ -7,6 +7,7 @@ Es una fachada de TRANSICIÓN: cuando el SQL que hoy vive en servicio.py y consu
 
 SQLite sirve para desarrollo y para empezar. Para producción se cambia por PostgreSQL manteniendo esta misma interfaz.
 """
+
 import sqlite3
 from datetime import date
 from pathlib import Path
@@ -16,7 +17,13 @@ from .migraciones import Migracion
 from .repositorios.auditoria import auditar
 from .repositorios.base import Base
 from .repositorios.claves import ClavesRepositorio, Principal, normalizar_nombre
-from .repositorios.comercios import ComercioInexistente, ComercioNoAutorizado, ComerciosRepositorio, OperacionNoPermitida, estado_acuerdo
+from .repositorios.comercios import (
+    ComercioInexistente,
+    ComercioNoAutorizado,
+    ComerciosRepositorio,
+    OperacionNoPermitida,
+    estado_acuerdo,
+)
 from .repositorios.comunes import PLATAFORMA, ahora_iso, id_seguimiento_libre, nuevo_id_seguimiento
 from .repositorios.esquema import DDL, INDICES_PANEL, Esquema
 from .repositorios.evaluaciones import EvaluacionesRepositorio
@@ -27,14 +34,29 @@ from .repositorios.resultados import ResultadosRepositorio
 from .repositorios.revisiones import RevisionesRepositorio
 from .repositorios.seudonimos import Seudonimizador
 
-__all__ = ["Almacen", "ComercioInexistente", "ComercioNoAutorizado", "DDL", "INDICES_PANEL", "OperacionNoPermitida", "PLATAFORMA", "Principal", "ahora_iso",
-           "estado_acuerdo", "id_seguimiento_libre", "normalizar_nombre", "nuevo_id_seguimiento"]
+__all__ = [
+    "Almacen",
+    "ComercioInexistente",
+    "ComercioNoAutorizado",
+    "DDL",
+    "INDICES_PANEL",
+    "OperacionNoPermitida",
+    "PLATAFORMA",
+    "Principal",
+    "ahora_iso",
+    "estado_acuerdo",
+    "id_seguimiento_libre",
+    "normalizar_nombre",
+    "nuevo_id_seguimiento",
+]
 
 
 class Almacen:
     def __init__(self, ruta: Path, pepper: str, durabilidad: str = "NORMAL"):
         """durabilidad: NORMAL (rápida; si se va la luz puede perderse lo último) o FULL (cada guardado se fuerza a disco)."""
-        self.base = Base(ruta, durabilidad)              # la única dueña de la conexión y del candado de escritura: todos los repositorios la comparten
+        self.base = Base(
+            ruta, durabilidad
+        )  # la única dueña de la conexión y del candado de escritura: todos los repositorios la comparten
         self.ruta, self.pepper, self.durabilidad = self.base.ruta, pepper.encode("utf-8"), durabilidad
         self.seudonimos = Seudonimizador(self.pepper)
         self.comercios = ComerciosRepositorio(self.base)
@@ -85,10 +107,14 @@ class Almacen:
         return self.seudonimos.codigo_dispositivo(huella)
 
     # ------------------------------------------------------------ comercios y acuerdos
-    def crear_comercio(self, nombre: str, razon_social: Optional[str] = None, nit: Optional[str] = None, por: Optional[int] = None) -> int:
+    def crear_comercio(
+        self, nombre: str, razon_social: Optional[str] = None, nit: Optional[str] = None, por: Optional[int] = None
+    ) -> int:
         return self.comercios.crear_comercio(nombre, razon_social, nit, por)
 
-    def verificar_comercio(self, con: sqlite3.Connection, comercio_id: int, exigir_acuerdo: bool = False, hoy: Optional[date] = None) -> None:
+    def verificar_comercio(
+        self, con: sqlite3.Connection, comercio_id: int, exigir_acuerdo: bool = False, hoy: Optional[date] = None
+    ) -> None:
         return self.comercios.verificar_comercio(con, comercio_id, exigir_acuerdo, hoy)
 
     def suspender_comercio(self, comercio_id: int, motivo: str, por: Optional[int] = None) -> bool:
@@ -97,8 +123,16 @@ class Almacen:
     def reactivar_comercio(self, comercio_id: int, por: Optional[int] = None) -> bool:
         return self.comercios.reactivar_comercio(comercio_id, por)
 
-    def registrar_acuerdo(self, comercio_id: int, version: str, firmado_en: date, vigente_hasta: Optional[date], referencia: str,
-                          por: Optional[int] = None, hoy: Optional[date] = None) -> int:
+    def registrar_acuerdo(
+        self,
+        comercio_id: int,
+        version: str,
+        firmado_en: date,
+        vigente_hasta: Optional[date],
+        referencia: str,
+        por: Optional[int] = None,
+        hoy: Optional[date] = None,
+    ) -> int:
         return self.comercios.registrar_acuerdo(comercio_id, version, firmado_en, vigente_hasta, referencia, por, hoy)
 
     def historial_acuerdos(self, comercio_id: int, hoy: Optional[date] = None) -> Optional[List[Dict[str, Any]]]:

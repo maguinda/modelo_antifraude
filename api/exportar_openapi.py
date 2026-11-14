@@ -2,6 +2,7 @@
 
 Uso:  python -m modelo_ia.api.exportar_openapi
 """
+
 import json
 import tempfile
 from pathlib import Path
@@ -17,8 +18,16 @@ def generar() -> dict:
     """El contrato no depende del modelo ni de la base: se genera con valores de mentira."""
     with tempfile.TemporaryDirectory() as carpeta:
         ajustes = Ajustes(ruta_bd=Path(carpeta) / "contrato.sqlite3")
-        artefacto = {"meta": {"modelo": "ejemplo", "version": config.VERSION, "conjunto": "historial",
-                              "numericas": [], "categoricas": []}, "pipeline": None}
+        artefacto = {
+            "meta": {
+                "modelo": "ejemplo",
+                "version": config.VERSION,
+                "conjunto": "historial",
+                "numericas": [],
+                "categoricas": [],
+            },
+            "pipeline": None,
+        }
         return crear_app(ajustes, artefacto).openapi()
 
 

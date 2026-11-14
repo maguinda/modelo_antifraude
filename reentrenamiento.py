@@ -8,6 +8,7 @@ La métrica de operación fija una tasa de falsos positivos (por defecto 3 %) y 
 
 Uso:  python -m modelo_ia.reentrenamiento --datos modelo_ia/datos/dataset_antifraude_1000000_transacciones.csv.gz
 """
+
 import argparse
 from pathlib import Path
 from typing import Dict
@@ -28,14 +29,21 @@ def recall_a_fpr(puntaje, reales, fpr: float = 0.03) -> float:
     return float((p[y] > umbral).mean())
 
 
-def simular(df: pd.DataFrame, mascaras: Dict[str, pd.Series], modelo: str = "gradient_boosting",
-            conjunto: str = "completo", fpr: float = 0.03) -> pd.DataFrame:
+def simular(
+    df: pd.DataFrame,
+    mascaras: Dict[str, pd.Series],
+    modelo: str = "gradient_boosting",
+    conjunto: str = "completo",
+    fpr: float = 0.03,
+) -> pd.DataFrame:
     numericas, categoricas = variables.columnas_de(conjunto)
     columnas = numericas + categoricas
     y = df[config.COLUMNA_OBJETIVO]
     corte0 = pd.Timestamp(config.FIN_ENTRENAMIENTO) + pd.Timedelta(days=1)
     estatico = modelos.crear_modelo(modelo, numericas, categoricas).fit(
-        df.loc[mascaras["entrenamiento"], columnas], etiquetas.etiqueta_conocida(df.loc[mascaras["entrenamiento"]], corte0))
+        df.loc[mascaras["entrenamiento"], columnas],
+        etiquetas.etiqueta_conocida(df.loc[mascaras["entrenamiento"]], corte0),
+    )
     mes_de = df["fecha"].dt.to_period("M")
     filas = []
     for mes in sorted(mes_de[mascaras["prueba"]].unique()):
@@ -45,7 +53,8 @@ def simular(df: pd.DataFrame, mascaras: Dict[str, pd.Series], modelo: str = "gra
             continue
         antes = df["fecha"] < inicio
         reentrenado = modelos.crear_modelo(modelo, numericas, categoricas).fit(
-            df.loc[antes, columnas], etiquetas.etiqueta_conocida(df.loc[antes], inicio))
+            df.loc[antes, columnas], etiquetas.etiqueta_conocida(df.loc[antes], inicio)
+        )
         fila = {"mes": str(mes), "fraudes": int(y[en_mes].sum())}
         for nombre, m in (("estatico", estatico), ("reentrenado", reentrenado)):
             p = modelos.puntajes(m, df.loc[en_mes, columnas])

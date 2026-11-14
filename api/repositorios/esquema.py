@@ -1,4 +1,5 @@
 """El esquema de la base y sus migraciones. La migración 1 está CONGELADA (ver migraciones.py y tests/test_migraciones.py): los cambios nuevos van como migración 2, 3…"""
+
 import json
 import sqlite3
 from pathlib import Path
@@ -75,9 +76,18 @@ class Esquema:
             nuevo = id_seguimiento_libre(usados.__contains__)
             usados.add(nuevo)
             huella = fila.get("huella_dispositivo")
-            con.execute("UPDATE evaluaciones SET id_seguimiento=?, ip_codigo=?, disp_codigo=?, monto_cop=? WHERE id=?",
-                        (nuevo, self.seudonimos.codigo_ip(fila.get("ip_huella")), None if not huella or str(huella).startswith("SIN-") else self.seudonimos.codigo_dispositivo(huella),
-                         fila.get("monto_cop"), r["id"]))
+            con.execute(
+                "UPDATE evaluaciones SET id_seguimiento=?, ip_codigo=?, disp_codigo=?, monto_cop=? WHERE id=?",
+                (
+                    nuevo,
+                    self.seudonimos.codigo_ip(fila.get("ip_huella")),
+                    None
+                    if not huella or str(huella).startswith("SIN-")
+                    else self.seudonimos.codigo_dispositivo(huella),
+                    fila.get("monto_cop"),
+                    r["id"],
+                ),
+            )
 
     def migraciones(self) -> List[Migracion]:
         """Los cambios de esquema, en orden. Para agregar uno: una función nueva y un número más al final. Nunca se edita ni se renumera uno ya publicado."""
@@ -99,25 +109,41 @@ class Esquema:
         for sentencia in sentencias(DDL):
             con.execute(sentencia)
         columnas = {r["name"] for r in con.execute("PRAGMA table_info(evaluaciones)")}
-        for nueva in ("red_origen", "estado_origen"):          # bases creadas antes de existir estas columnas
+        for nueva in ("red_origen", "estado_origen"):  # bases creadas antes de existir estas columnas
             if nueva not in columnas:
                 con.execute(f"ALTER TABLE evaluaciones ADD COLUMN {nueva} TEXT NOT NULL DEFAULT 'comercio'")
-        for nueva, tipo in (("id_seguimiento", "TEXT"), ("ip_codigo", "TEXT"), ("disp_codigo", "TEXT"), ("monto_cop", "REAL"), ("no_enviados_json", "TEXT"), ("senales_json", "TEXT")):
+        for nueva, tipo in (
+            ("id_seguimiento", "TEXT"),
+            ("ip_codigo", "TEXT"),
+            ("disp_codigo", "TEXT"),
+            ("monto_cop", "REAL"),
+            ("no_enviados_json", "TEXT"),
+            ("senales_json", "TEXT"),
+        ):
             if nueva not in columnas:
                 con.execute(f"ALTER TABLE evaluaciones ADD COLUMN {nueva} {tipo}")
         self.rellenar_columnas_nuevas(con)
         claves = {r["name"] for r in con.execute("PRAGMA table_info(claves)")}
-        for nueva in ("ultimo_uso", "creada_por"):                      # bases creadas antes de existir estas columnas
+        for nueva in ("ultimo_uso", "creada_por"):  # bases creadas antes de existir estas columnas
             if nueva not in claves:
-                con.execute(f"ALTER TABLE claves ADD COLUMN {nueva} " + ("TEXT" if nueva == "ultimo_uso" else "INTEGER"))
+                con.execute(
+                    f"ALTER TABLE claves ADD COLUMN {nueva} " + ("TEXT" if nueva == "ultimo_uso" else "INTEGER")
+                )
         comercios = {r["name"] for r in con.execute("PRAGMA table_info(comercios)")}
-        for nueva in ("razon_social", "nit", "suspendido_en", "motivo_suspension"):          # bases creadas antes de existir estas columnas
+        for nueva in (
+            "razon_social",
+            "nit",
+            "suspendido_en",
+            "motivo_suspension",
+        ):  # bases creadas antes de existir estas columnas
             if nueva not in comercios:
                 con.execute(f"ALTER TABLE comercios ADD COLUMN {nueva} TEXT")
         for sentencia in sentencias(INDICES_PANEL):
             con.execute(sentencia)
         if con.execute("SELECT 1 FROM comercios WHERE id=?", (PLATAFORMA,)).fetchone() is None:
-            con.execute("INSERT INTO comercios (id, nombre, creado) VALUES (?, 'PLATAFORMA', ?)", (PLATAFORMA, ahora_iso()))
+            con.execute(
+                "INSERT INTO comercios (id, nombre, creado) VALUES (?, 'PLATAFORMA', ?)", (PLATAFORMA, ahora_iso())
+            )
 
     def inicializar(self, migraciones: Optional[Sequence[Migracion]] = None) -> List[int]:
         """Pone la base al día aplicando las migraciones que falten (ver migraciones.py). Devuelve los números de las que aplicó esta vez.
@@ -128,7 +154,13 @@ class Esquema:
             con.execute("PRAGMA journal_mode=WAL")
         finally:
             con.close()
-        return aplicar(self.base.ruta, self.base.abrir, migraciones if migraciones is not None else self.migraciones(), self.hay_datos, ahora_iso)
+        return aplicar(
+            self.base.ruta,
+            self.base.abrir,
+            migraciones if migraciones is not None else self.migraciones(),
+            self.hay_datos,
+            ahora_iso,
+        )
 
     def estado_migraciones(self) -> List[Dict[str, Any]]:
         """Qué migraciones están aplicadas y cuáles faltan, sin tocar la base."""

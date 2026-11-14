@@ -1,4 +1,5 @@
 """Migraciones versionadas: bases de cada forma histórica, fallos a mitad, base más nueva, copia previa, procesos arrancando a la vez y la consola."""
+
 import ast
 import hashlib
 import inspect
@@ -23,14 +24,42 @@ from modelo_ia.api.migraciones import BaseMasNueva, CopiaPreviaFallo, Migracion,
 from modelo_ia.api.repositorios.esquema import Esquema
 
 PEPPER = "p" * 40
-RAIZ = Path(__file__).resolve().parents[2]                       # la carpeta que contiene modelo_ia/ (para lanzar procesos que lo importen)
+RAIZ = Path(__file__).resolve().parents[2]  # la carpeta que contiene modelo_ia/ (para lanzar procesos que lo importen)
 
-BASE = {   # solo las columnas que existieron SIEMPRE: son las que no pueden cambiar al migrar, sea cual sea la forma de la base de partida
+BASE = {  # solo las columnas que existieron SIEMPRE: son las que no pueden cambiar al migrar, sea cual sea la forma de la base de partida
     "comercios": ["id", "nombre", "creado", "activo"],
     "claves": ["id", "hash", "comercio_id", "rol", "etiqueta", "activa", "creada"],
-    "evaluaciones": ["id", "comercio_id", "id_transaccion", "id_cliente", "fecha", "huella", "fila_json", "solicitud_hash", "decision", "decision_modelo", "probabilidad",
-                     "motivos_json", "reglas_json", "modelo_nombre", "modelo_version", "modelo_conjunto", "modo", "latencia_ms", "creada"],
-    "revisiones": ["id_evaluacion", "comercio_id", "estado", "decision_analista", "nota", "clave_analista", "creada", "resuelta"],
+    "evaluaciones": [
+        "id",
+        "comercio_id",
+        "id_transaccion",
+        "id_cliente",
+        "fecha",
+        "huella",
+        "fila_json",
+        "solicitud_hash",
+        "decision",
+        "decision_modelo",
+        "probabilidad",
+        "motivos_json",
+        "reglas_json",
+        "modelo_nombre",
+        "modelo_version",
+        "modelo_conjunto",
+        "modo",
+        "latencia_ms",
+        "creada",
+    ],
+    "revisiones": [
+        "id_evaluacion",
+        "comercio_id",
+        "estado",
+        "decision_analista",
+        "nota",
+        "clave_analista",
+        "creada",
+        "resuelta",
+    ],
     "resultados": ["id_evaluacion", "comercio_id", "resultado", "fecha_confirmacion", "nota", "recibido"],
     "lista_negra": ["comercio_id", "id_cliente", "motivo", "creada"],
     "auditoria": ["id", "momento", "comercio_id", "clave_id", "accion", "id_evaluacion", "detalle"],
@@ -46,24 +75,63 @@ def poblar(alm: Almacen) -> str:
     with alm.transaccion() as con:
         for i in range(5):
             huella, ip = f"FP-{i}", f"abcdef01{i:08d}"
-            fila = {"id_cliente": f"C{i}", "monto_cop": 100000 + 1000 * i, "ip_huella": ip, "huella_dispositivo": huella}
-            con.execute("INSERT INTO evaluaciones (id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, solicitud_hash, decision, decision_modelo, probabilidad, "
-                        "motivos_json, reglas_json, modelo_nombre, modelo_version, modelo_conjunto, modo, latencia_ms, creada, id_seguimiento, ip_codigo, disp_codigo, monto_cop) "
-                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                        (f"11111111-1111-4111-8111-00000000000{i}", a, f"T{i}", f"C{i}", f"2026-11-1{i}T10:00:00", huella, json.dumps(fila), f"h{i}",
-                         "EN_REVISION" if i == 0 else "APROBADA", "APROBADA", 0.1 + i / 10, "[]", "[]", "logistica", "0.3.0", "completo", "normal", 12.5,
-                         f"2026-11-1{i}T10:00:01", f"AF-ABC{i}-DEF{i}", alm.codigo_ip(ip), alm.codigo_dispositivo(huella), fila["monto_cop"]))
-        con.execute("INSERT INTO revisiones (id_evaluacion, comercio_id, estado, creada) VALUES (?,?,?,?)", ("11111111-1111-4111-8111-000000000000", a, "pendiente", "2026-11-10T10:00:02"))
-        con.execute("INSERT INTO resultados (id_evaluacion, comercio_id, resultado, fecha_confirmacion, recibido) VALUES (?,?,?,?,?)",
-                    ("11111111-1111-4111-8111-000000000001", a, "LEGITIMA", "2026-11-11T10:00:00", "2026-11-11T10:00:05"))
-        con.execute("INSERT INTO lista_negra (comercio_id, id_cliente, motivo, creada) VALUES (?,?,?,?)", (a, "C-MALO", "contracargos", "2026-11-12T10:00:00"))
+            fila = {
+                "id_cliente": f"C{i}",
+                "monto_cop": 100000 + 1000 * i,
+                "ip_huella": ip,
+                "huella_dispositivo": huella,
+            }
+            con.execute(
+                "INSERT INTO evaluaciones (id, comercio_id, id_transaccion, id_cliente, fecha, huella, fila_json, solicitud_hash, decision, decision_modelo, probabilidad, "
+                "motivos_json, reglas_json, modelo_nombre, modelo_version, modelo_conjunto, modo, latencia_ms, creada, id_seguimiento, ip_codigo, disp_codigo, monto_cop) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    f"11111111-1111-4111-8111-00000000000{i}",
+                    a,
+                    f"T{i}",
+                    f"C{i}",
+                    f"2026-11-1{i}T10:00:00",
+                    huella,
+                    json.dumps(fila),
+                    f"h{i}",
+                    "EN_REVISION" if i == 0 else "APROBADA",
+                    "APROBADA",
+                    0.1 + i / 10,
+                    "[]",
+                    "[]",
+                    "logistica",
+                    "0.3.0",
+                    "completo",
+                    "normal",
+                    12.5,
+                    f"2026-11-1{i}T10:00:01",
+                    f"AF-ABC{i}-DEF{i}",
+                    alm.codigo_ip(ip),
+                    alm.codigo_dispositivo(huella),
+                    fila["monto_cop"],
+                ),
+            )
+        con.execute(
+            "INSERT INTO revisiones (id_evaluacion, comercio_id, estado, creada) VALUES (?,?,?,?)",
+            ("11111111-1111-4111-8111-000000000000", a, "pendiente", "2026-11-10T10:00:02"),
+        )
+        con.execute(
+            "INSERT INTO resultados (id_evaluacion, comercio_id, resultado, fecha_confirmacion, recibido) VALUES (?,?,?,?,?)",
+            ("11111111-1111-4111-8111-000000000001", a, "LEGITIMA", "2026-11-11T10:00:00", "2026-11-11T10:00:05"),
+        )
+        con.execute(
+            "INSERT INTO lista_negra (comercio_id, id_cliente, motivo, creada) VALUES (?,?,?,?)",
+            (a, "C-MALO", "contracargos", "2026-11-12T10:00:00"),
+        )
     return clave
 
 
 def foto(ruta) -> dict:
     con = sqlite3.connect(ruta)
     try:
-        return {t: con.execute(f"SELECT {', '.join(cols)} FROM {t} ORDER BY 1, 2").fetchall() for t, cols in BASE.items()}
+        return {
+            t: con.execute(f"SELECT {', '.join(cols)} FROM {t} ORDER BY 1, 2").fetchall() for t, cols in BASE.items()
+        }
     finally:
         con.close()
 
@@ -80,7 +148,9 @@ def esquema(ruta):
     con = sqlite3.connect(ruta)
     try:
         objetos = sorted(con.execute("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"))
-        return objetos, {n: sorted(r[1] for r in con.execute(f"PRAGMA table_info({n})")) for t, n in objetos if t == "table"}
+        return objetos, {
+            n: sorted(r[1] for r in con.execute(f"PRAGMA table_info({n})")) for t, n in objetos if t == "table"
+        }
     finally:
         con.close()
 
@@ -88,7 +158,10 @@ def esquema(ruta):
 def sana(ruta) -> bool:
     con = sqlite3.connect(ruta)
     try:
-        return con.execute("PRAGMA integrity_check").fetchone()[0] == "ok" and con.execute("PRAGMA foreign_key_check").fetchall() == []
+        return (
+            con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            and con.execute("PRAGMA foreign_key_check").fetchall() == []
+        )
     finally:
         con.close()
 
@@ -127,7 +200,7 @@ def base_vieja(carpeta: Path, forma: int, nombre: str = "v.sqlite3"):
     clave = poblar(alm)
     antes = foto(ruta)
     volver_vieja(ruta, forma)
-    assert foto(ruta) == antes                                      # envejecerla no tocó lo que debe conservarse
+    assert foto(ruta) == antes  # envejecerla no tocó lo que debe conservarse
     return ruta, clave, antes
 
 
@@ -135,20 +208,30 @@ def base_vieja(carpeta: Path, forma: int, nombre: str = "v.sqlite3"):
 def test_una_base_nueva_se_migra_una_vez_sin_copia_y_reabrirla_no_hace_nada(tmp_path):
     alm = Almacen(tmp_path / "n.sqlite3", PEPPER)
     assert alm.inicializar() == [1] and alm.inicializar() == [] and alm.inicializar() == []
-    assert alm.copias_previas() == []                                # no había nada que proteger
+    assert alm.copias_previas() == []  # no había nada que proteger
     est = alm.estado_migraciones()
-    assert [(e["id"], e["desconocida"]) for e in est] == [(1, False)] and est[0]["aplicada"] and est[0]["nombre"].startswith("Esquema inicial")
+    assert (
+        [(e["id"], e["desconocida"]) for e in est] == [(1, False)]
+        and est[0]["aplicada"]
+        and est[0]["nombre"].startswith("Esquema inicial")
+    )
     con = sqlite3.connect(tmp_path / "n.sqlite3")
-    assert con.execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == 1 and con.execute("SELECT nombre FROM comercios WHERE id=?", (PLATAFORMA,)).fetchone()[0] == "PLATAFORMA"
-    assert sana(tmp_path / "n.sqlite3") and con.execute("PRAGMA journal_mode").fetchone()[0] == "wal"     # y la base queda en modo WAL
+    assert (
+        con.execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == 1
+        and con.execute("SELECT nombre FROM comercios WHERE id=?", (PLATAFORMA,)).fetchone()[0] == "PLATAFORMA"
+    )
+    assert (
+        sana(tmp_path / "n.sqlite3") and con.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    )  # y la base queda en modo WAL
 
 
 def test_los_numeros_de_las_migraciones_son_seguidos_y_el_estado_no_modifica_nada(tmp_path):
     alm = Almacen(tmp_path / "e.sqlite3", PEPPER)
     validar(alm._migraciones())
     assert [m.id for m in alm._migraciones()] == [1]
-    con = sqlite3.connect(tmp_path / "e.sqlite3")                    # una base vacía: el estado dice que falta todo y NO crea la tabla
-    con.execute("CREATE TABLE otra (x INTEGER)"); con.commit()
+    con = sqlite3.connect(tmp_path / "e.sqlite3")  # una base vacía: el estado dice que falta todo y NO crea la tabla
+    con.execute("CREATE TABLE otra (x INTEGER)")
+    con.commit()
     con.row_factory = sqlite3.Row
     assert [(e["id"], e["aplicada"]) for e in mig.estado(con, alm._migraciones())] == [(1, None)]
     assert con.execute("SELECT 1 FROM sqlite_master WHERE name='migraciones'").fetchone() is None
@@ -164,23 +247,33 @@ def test_una_base_de_cada_forma_historica_se_adopta_sin_perder_nada(tmp_path, fo
 
     alm = Almacen(ruta, PEPPER)
     assert alm.inicializar() == [1]
-    assert foto(ruta) == antes                                       # ni una fila ni un valor de lo que existía cambió
-    assert esquema(ruta) == esquema(ref) and sana(ruta)               # y quedó exactamente con el esquema de una base nueva
-    assert alm.autenticar(clave).comercio_id is not None              # las claves siguen entrando
+    assert foto(ruta) == antes  # ni una fila ni un valor de lo que existía cambió
+    assert esquema(ruta) == esquema(ref) and sana(ruta)  # y quedó exactamente con el esquema de una base nueva
+    assert alm.autenticar(clave).comercio_id is not None  # las claves siguen entrando
     if forma < 3:
         assert derivados(ruta) == derivados_antes
     con = sqlite3.connect(ruta)
-    filas = con.execute("SELECT id_seguimiento, ip_codigo, disp_codigo, monto_cop FROM evaluaciones ORDER BY id").fetchall()
-    assert len({f[0] for f in filas}) == 5 and all(f[0] and f[1] and f[2] and f[3] for f in filas)       # los códigos que faltaban se calcularon, sin repetirse
+    filas = con.execute(
+        "SELECT id_seguimiento, ip_codigo, disp_codigo, monto_cop FROM evaluaciones ORDER BY id"
+    ).fetchall()
+    assert len({f[0] for f in filas}) == 5 and all(
+        f[0] and f[1] and f[2] and f[3] for f in filas
+    )  # los códigos que faltaban se calcularon, sin repetirse
     assert [f[1:] for f in filas] == [tuple(d[1:]) for d in derivados(ruta)]
     assert con.execute("SELECT id FROM migraciones").fetchall() == [(1,)]
 
-    copias = alm.copias_previas()                                    # y antes de tocarla se guardó UNA copia de cómo estaba
-    assert len(copias) == 1 and copias[0].name.startswith("v.sqlite3.antes-de-migrar-v1-") and copias[0].parent == tmp_path
+    copias = alm.copias_previas()  # y antes de tocarla se guardó UNA copia de cómo estaba
+    assert (
+        len(copias) == 1 and copias[0].name.startswith("v.sqlite3.antes-de-migrar-v1-") and copias[0].parent == tmp_path
+    )
     assert foto(copias[0]) == antes and sana(copias[0])
-    assert sqlite3.connect(copias[0]).execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == 0   # copia de ANTES de migrar
+    assert (
+        sqlite3.connect(copias[0]).execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == 0
+    )  # copia de ANTES de migrar
     assert stat.S_IMODE(copias[0].stat().st_mode) == 0o600
-    assert sqlite3.connect(copias[0]).execute("PRAGMA journal_mode").fetchone()[0] == "delete"     # un solo archivo, sin -wal ni -shm que arrastrar
+    assert (
+        sqlite3.connect(copias[0]).execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+    )  # un solo archivo, sin -wal ni -shm que arrastrar
 
     assert alm.inicializar() == [] and len(alm.copias_previas()) == 1  # reabrirla no migra ni copia otra vez
 
@@ -188,9 +281,13 @@ def test_una_base_de_cada_forma_historica_se_adopta_sin_perder_nada(tmp_path, fo
 def test_los_codigos_derivados_de_una_base_vieja_coinciden_con_los_que_habria_calculado_el_programa(tmp_path):
     ruta, _, _ = base_vieja(tmp_path, 3)
     ref = tmp_path / "ref2.sqlite3"
-    ref_alm = Almacen(ref, PEPPER); ref_alm.inicializar(); poblar(ref_alm)
+    ref_alm = Almacen(ref, PEPPER)
+    ref_alm.inicializar()
+    poblar(ref_alm)
     Almacen(ruta, PEPPER).inicializar()
-    assert derivados(ruta) == derivados(ref)                          # mismo id, mismo código de IP, mismo de dispositivo, mismo monto: sin «o» que lo suavice
+    assert derivados(ruta) == derivados(
+        ref
+    )  # mismo id, mismo código de IP, mismo de dispositivo, mismo monto: sin «o» que lo suavice
 
 
 # ------------------------------------------------------------------ fallos a mitad
@@ -201,18 +298,24 @@ def test_si_una_migracion_falla_no_queda_nada_a_medias_y_se_puede_reintentar(tmp
     def falla(con):
         con.execute("CREATE TABLE a_medias (x INTEGER)")
         con.execute("INSERT INTO a_medias VALUES (1)")
-        con.execute("INSERT INTO tabla_que_no_existe VALUES (1)")        # falla aquí, con lo anterior ya hecho
+        con.execute("INSERT INTO tabla_que_no_existe VALUES (1)")  # falla aquí, con lo anterior ya hecho
 
     with pytest.raises(sqlite3.OperationalError):
         alm.inicializar(alm._migraciones() + [Migracion(2, "falla a propósito", falla)])
     con = sqlite3.connect(ruta)
-    assert con.execute("SELECT name FROM sqlite_master WHERE name='a_medias'").fetchone() is None          # lo que alcanzó a hacer se deshizo entero
-    assert con.execute("SELECT id FROM migraciones").fetchall() == [(1,)]                                  # la 1 quedó aplicada y la 2 NO se registró
+    assert (
+        con.execute("SELECT name FROM sqlite_master WHERE name='a_medias'").fetchone() is None
+    )  # lo que alcanzó a hacer se deshizo entero
+    assert con.execute("SELECT id FROM migraciones").fetchall() == [(1,)]  # la 1 quedó aplicada y la 2 NO se registró
     assert foto(ruta) == antes and sana(ruta) and len(alm.copias_previas()) == 1
 
-    assert alm.inicializar(alm._migraciones() + [Migracion(2, "arreglada", lambda c: c.execute("CREATE TABLE nueva (x INTEGER)"))]) == [2]
+    assert alm.inicializar(
+        alm._migraciones() + [Migracion(2, "arreglada", lambda c: c.execute("CREATE TABLE nueva (x INTEGER)"))]
+    ) == [2]
     copias = alm.copias_previas()
-    assert len(copias) == 2 and any("-v1-" in c.name for c in copias) and any("-v2-" in c.name for c in copias)       # cada paso, con su copia previa
+    assert (
+        len(copias) == 2 and any("-v1-" in c.name for c in copias) and any("-v2-" in c.name for c in copias)
+    )  # cada paso, con su copia previa
     assert sqlite3.connect(ruta).execute("SELECT id FROM migraciones ORDER BY id").fetchall() == [(1,), (2,)]
 
 
@@ -227,20 +330,24 @@ def test_si_falla_la_migracion_1_a_mitad_no_queda_el_esquema_a_medias(tmp_path, 
 
     def rompe(self, con):
         raise RuntimeError("falla después de crear tablas y columnas")
+
     original = Esquema.rellenar_columnas_nuevas
     monkeypatch.setattr(Esquema, "rellenar_columnas_nuevas", lambda self, con: (original(self, con), rompe(self, con)))
     with pytest.raises(RuntimeError, match="falla después"):
         Almacen(ruta, PEPPER).inicializar()
     con = sqlite3.connect(ruta)
-    assert con.execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == 0                       # no quedó registrada
+    assert con.execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == 0  # no quedó registrada
     nombres = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'")}
     if obj_antes is None:
-        assert nombres == {"migraciones"}                                                           # una base nueva no quedó con tablas sueltas
+        assert nombres == {"migraciones"}  # una base nueva no quedó con tablas sueltas
     else:
-        assert esquema(ruta)[1].keys() - {"migraciones"} == obj_antes[1].keys() and {k: v for k, v in esquema(ruta)[1].items() if k != "migraciones"} == obj_antes[1]
+        assert (
+            esquema(ruta)[1].keys() - {"migraciones"} == obj_antes[1].keys()
+            and {k: v for k, v in esquema(ruta)[1].items() if k != "migraciones"} == obj_antes[1]
+        )
         assert foto(ruta) == antes and sana(ruta)
     monkeypatch.undo()
-    assert Almacen(ruta, PEPPER).inicializar() == [1] and sana(ruta)                                 # y reintentar funciona
+    assert Almacen(ruta, PEPPER).inicializar() == [1] and sana(ruta)  # y reintentar funciona
 
 
 def test_una_migracion_ya_aplicada_no_se_vuelve_a_ejecutar_aunque_cambie(tmp_path):
@@ -248,7 +355,9 @@ def test_una_migracion_ya_aplicada_no_se_vuelve_a_ejecutar_aunque_cambie(tmp_pat
     alm.inicializar()
     llamadas = []
     assert alm.inicializar(alm._migraciones() + [Migracion(2, "paso", lambda c: llamadas.append(1))]) == [2]
-    assert alm.inicializar(alm._migraciones() + [Migracion(2, "paso", lambda c: llamadas.append(1))]) == [] and llamadas == [1]
+    assert alm.inicializar(
+        alm._migraciones() + [Migracion(2, "paso", lambda c: llamadas.append(1))]
+    ) == [] and llamadas == [1]
 
 
 def test_si_no_se_puede_guardar_la_copia_no_se_migra_nada(tmp_path, monkeypatch):
@@ -257,13 +366,16 @@ def test_si_no_se_puede_guardar_la_copia_no_se_migra_nada(tmp_path, monkeypatch)
 
     def sin_espacio(*a, **k):
         raise CopiaPreviaFallo("sin espacio")
+
     monkeypatch.setattr(mig, "copia_previa", sin_espacio)
     with pytest.raises(CopiaPreviaFallo):
         Almacen(ruta, PEPPER).inicializar()
-    assert esquema(ruta)[1].get("migraciones") == ["aplicada", "id", "nombre"]          # solo existe la tabla vacía de control
+    assert esquema(ruta)[1].get("migraciones") == ["aplicada", "id", "nombre"]  # solo existe la tabla vacía de control
     con = sqlite3.connect(ruta)
-    assert con.execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == 0           # no se registró nada
-    assert {k: v for k, v in esquema(ruta)[1].items() if k != "migraciones"} == {k: v for k, v in obj_antes[1].items()}      # y el esquema quedó como estaba
+    assert con.execute("SELECT COUNT(*) FROM migraciones").fetchone()[0] == 0  # no se registró nada
+    assert {k: v for k, v in esquema(ruta)[1].items() if k != "migraciones"} == {
+        k: v for k, v in obj_antes[1].items()
+    }  # y el esquema quedó como estaba
     assert foto(ruta) == antes
 
 
@@ -271,9 +383,15 @@ def test_la_copia_previa_queda_junto_a_la_base_con_permisos_600_y_si_falla_no_de
     carpeta = tmp_path / "b"
     carpeta.mkdir()
     ruta = carpeta / "v.sqlite3"
-    alm = Almacen(ruta, PEPPER); alm.inicializar(); poblar(alm)
+    alm = Almacen(ruta, PEPPER)
+    alm.inicializar()
+    poblar(alm)
     copia = copia_previa(ruta, 5)
-    assert copia.parent == carpeta and copia.name.startswith("v.sqlite3.antes-de-migrar-v5-") and copia.name.endswith(".sqlite3")
+    assert (
+        copia.parent == carpeta
+        and copia.name.startswith("v.sqlite3.antes-de-migrar-v5-")
+        and copia.name.endswith(".sqlite3")
+    )
     assert stat.S_IMODE(copia.stat().st_mode) == 0o600 and sana(copia)
     if os.geteuid() == 0:
         pytest.skip("como administrador del sistema los permisos de carpeta no se aplican")
@@ -284,12 +402,14 @@ def test_la_copia_previa_queda_junto_a_la_base_con_permisos_600_y_si_falla_no_de
             copia_previa(ruta, 6)
     finally:
         os.chmod(carpeta, 0o700)
-    assert sorted(p.name for p in carpeta.iterdir()) == existentes      # no quedó ni un archivo a medias
+    assert sorted(p.name for p in carpeta.iterdir()) == existentes  # no quedó ni un archivo a medias
 
 
 def test_dos_copias_en_el_mismo_segundo_no_se_pisan(tmp_path):
     ruta = tmp_path / "v.sqlite3"
-    alm = Almacen(ruta, PEPPER); alm.inicializar(); poblar(alm)
+    alm = Almacen(ruta, PEPPER)
+    alm.inicializar()
+    poblar(alm)
     fijo = lambda: __import__("datetime").datetime(2026, 11, 14, 10, 0, 0)
     a, b = copia_previa(ruta, 1, fijo), copia_previa(ruta, 1, fijo)
     assert a != b and a.exists() and b.exists()
@@ -297,30 +417,38 @@ def test_dos_copias_en_el_mismo_segundo_no_se_pisan(tmp_path):
 
 def test_se_copia_solo_si_la_base_tiene_algo_que_valga_la_pena(tmp_path):
     def hay(nombre, preparar=None):
-        alm = Almacen(tmp_path / nombre, PEPPER); alm.inicializar()
+        alm = Almacen(tmp_path / nombre, PEPPER)
+        alm.inicializar()
         if preparar:
             preparar(alm)
         with alm.lectura() as con:
             return alm._hay_datos(con)
-    assert hay("a.sqlite3") is False                                                              # solo la plataforma
+
+    assert hay("a.sqlite3") is False  # solo la plataforma
     assert hay("b.sqlite3", lambda a: a.crear_comercio("T")) is True
-    assert hay("c.sqlite3", lambda a: a.crear_usuario("analista", "Ana Pérez")) is True            # solo una clave
-    assert Almacen._hay_datos(sqlite3.connect(":memory:")) is False                                # una base sin tablas
+    assert hay("c.sqlite3", lambda a: a.crear_usuario("analista", "Ana Pérez")) is True  # solo una clave
+    assert Almacen._hay_datos(sqlite3.connect(":memory:")) is False  # una base sin tablas
 
 
 # ------------------------------------------------------------------ una base más nueva que el programa
 def test_una_base_de_una_version_mas_nueva_se_rechaza_sin_tocarla(tmp_path):
     ruta = tmp_path / "f.sqlite3"
-    alm = Almacen(ruta, PEPPER); alm.inicializar(); poblar(alm)
+    alm = Almacen(ruta, PEPPER)
+    alm.inicializar()
+    poblar(alm)
     con = sqlite3.connect(ruta)
-    con.execute("INSERT INTO migraciones (id, nombre, aplicada) VALUES (99, 'cambio del futuro', '2099-01-01T00:00:00')"); con.commit(); con.close()
+    con.execute(
+        "INSERT INTO migraciones (id, nombre, aplicada) VALUES (99, 'cambio del futuro', '2099-01-01T00:00:00')"
+    )
+    con.commit()
+    con.close()
     antes, obj = foto(ruta), esquema(ruta)
     with pytest.raises(BaseMasNueva, match="versión más nueva"):
         Almacen(ruta, PEPPER).inicializar()
     assert foto(ruta) == antes and esquema(ruta) == obj and alm.copias_previas() == []
     assert [(e["id"], e["desconocida"]) for e in alm.estado_migraciones()] == [(1, False), (99, True)]
     with pytest.raises(BaseMasNueva):
-        crear_app(Ajustes(ruta_bd=ruta, pepper=PEPPER))                  # el servicio ni siquiera arranca
+        crear_app(Ajustes(ruta_bd=ruta, pepper=PEPPER))  # el servicio ni siquiera arranca
 
 
 def test_un_archivo_vacio_cuenta_como_base_nueva_y_uno_dañado_falla_con_claridad(tmp_path):
@@ -331,29 +459,39 @@ def test_un_archivo_vacio_cuenta_como_base_nueva_y_uno_dañado_falla_con_clarida
     roto.write_bytes(b"esto no es una base de datos" * 100)
     with pytest.raises(sqlite3.DatabaseError):
         Almacen(roto, PEPPER).inicializar()
-    assert roto.read_bytes() == b"esto no es una base de datos" * 100                              # y no la tocó
+    assert roto.read_bytes() == b"esto no es una base de datos" * 100  # y no la tocó
 
 
 # ------------------------------------------------------------------ las piezas sueltas
 def test_el_cortador_de_sql_respeta_triggers_cadenas_y_comentarios():
     partes = sentencias(DDL)
-    assert sum(p.startswith("CREATE TRIGGER") for p in partes) == 4 and all(sqlite3.complete_statement(p) for p in partes)
+    assert sum(p.startswith("CREATE TRIGGER") for p in partes) == 4 and all(
+        sqlite3.complete_statement(p) for p in partes
+    )
     sql = "CREATE TABLE t (x TEXT); -- comentario; con punto y coma\nINSERT INTO t VALUES ('a;b');\n"
-    assert sentencias(sql) == ["CREATE TABLE t (x TEXT); -- comentario; con punto y coma", "INSERT INTO t VALUES ('a;b');"]
+    assert sentencias(sql) == [
+        "CREATE TABLE t (x TEXT); -- comentario; con punto y coma",
+        "INSERT INTO t VALUES ('a;b');",
+    ]
     con = sqlite3.connect(":memory:")
     for p in sentencias(sql):
         con.execute(p)
-    assert con.execute("SELECT x FROM t").fetchall() == [("a;b",)]                                 # el «;» dentro del texto no cortó nada
+    assert con.execute("SELECT x FROM t").fetchall() == [("a;b",)]  # el «;» dentro del texto no cortó nada
     con = sqlite3.connect(":memory:")
     for p in partes:
-        con.execute(p)                                                                             # todas se pueden ejecutar una a una dentro de una transacción
+        con.execute(p)  # todas se pueden ejecutar una a una dentro de una transacción
     with pytest.raises(ValueError, match="incompleto"):
         sentencias("CREATE TABLE t (x TEXT")
 
 
 def test_una_lista_de_migraciones_mal_numerada_es_un_error_de_programacion():
     ok = lambda c: None
-    for mala in ([Migracion(2, "salta", ok)], [Migracion(1, "a", ok), Migracion(1, "repetida", ok)], [Migracion(1, "a", ok), Migracion(3, "salta", ok)], [Migracion(1, "  ", ok)]):
+    for mala in (
+        [Migracion(2, "salta", ok)],
+        [Migracion(1, "a", ok), Migracion(1, "repetida", ok)],
+        [Migracion(1, "a", ok), Migracion(3, "salta", ok)],
+        [Migracion(1, "  ", ok)],
+    ):
         with pytest.raises(ValueError):
             validar(mala)
     validar([Migracion(1, "a", ok), Migracion(2, "b", ok)])
@@ -363,15 +501,23 @@ def textos_de_la_migracion_1() -> str:
     """Todos los textos fijos de la migración 1 (el SQL y los nombres de columnas que agrega), en orden. Se usan los textos y no el árbol del código porque
     `ast.dump` cambia entre versiones de Python (3.9 y 3.12 darían huellas distintas) y los textos no."""
     fuente = ast.parse(textwrap.dedent(inspect.getsource(Esquema.m1_esquema_inicial))).body[0]
-    cuerpo = fuente.body[1:] if isinstance(fuente.body[0], ast.Expr) and isinstance(getattr(fuente.body[0], "value", None), ast.Constant) else fuente.body   # sin el docstring
-    return "|".join(n.value for c in cuerpo for n in ast.walk(c) if isinstance(n, ast.Constant) and isinstance(n.value, str))
+    cuerpo = (
+        fuente.body[1:]
+        if isinstance(fuente.body[0], ast.Expr) and isinstance(getattr(fuente.body[0], "value", None), ast.Constant)
+        else fuente.body
+    )  # sin el docstring
+    return "|".join(
+        n.value for c in cuerpo for n in ast.walk(c) if isinstance(n, ast.Constant) and isinstance(n.value, str)
+    )
 
 
 def test_la_migracion_1_esta_congelada_para_cambiar_el_esquema_hay_que_agregar_una_nueva():
     """Una base ya migrada no vuelve a ejecutar la 1: editarla cambiaría solo las bases NUEVAS y dejaría las demás distintas sin que nada avise."""
     huella = hashlib.sha256((DDL + "|" + INDICES_PANEL + "|" + textos_de_la_migracion_1()).encode("utf-8")).hexdigest()
-    assert huella == HUELLA_MIGRACION_1, ("Cambiaste el esquema de la migración 1 (DDL, INDICES_PANEL o los textos de su función). No la edites: agrega una migración 2 en "
-                                           f"Almacen._migraciones que haga el cambio sobre las bases existentes. (huella actual: {huella})")
+    assert huella == HUELLA_MIGRACION_1, (
+        "Cambiaste el esquema de la migración 1 (DDL, INDICES_PANEL o los textos de su función). No la edites: agrega una migración 2 en "
+        f"Almacen._migraciones que haga el cambio sobre las bases existentes. (huella actual: {huella})"
+    )
 
 
 HUELLA_MIGRACION_1 = "12545152abbee6fc3481c3a0ff1744a7c631ae477324eb9820d9aa4a3abb3a34"
@@ -395,19 +541,29 @@ def test_concurrencia_30_rondas_tres_procesos_arrancando_a_la_vez_migran_una_sol
     for ronda in range(30):
         ruta = tmp_path / f"r{ronda}.sqlite3"
         destino = sqlite3.connect(ruta)
-        con.backup(destino); destino.close()                          # una copia consistente de la misma base vieja para cada ronda
+        con.backup(destino)
+        destino.close()  # una copia consistente de la misma base vieja para cada ronda
         ir = tmp_path / f"ir{ronda}"
-        procs = [subprocess.Popen([sys.executable, "-W", "ignore", "-c", CODIGO_PROCESO, str(ruta), str(ir)], cwd=str(RAIZ), env=entorno,
-                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for _ in range(3)]
-        time.sleep(0.2)                                                # que los tres lleguen a la línea de salida
+        procs = [
+            subprocess.Popen(
+                [sys.executable, "-W", "ignore", "-c", CODIGO_PROCESO, str(ruta), str(ir)],
+                cwd=str(RAIZ),
+                env=entorno,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            for _ in range(3)
+        ]
+        time.sleep(0.2)  # que los tres lleguen a la línea de salida
         ir.touch()
         salidas = [p.communicate(timeout=120) for p in procs]
         assert [p.returncode for p in procs] == [0, 0, 0], (ronda, [s[1][-300:] for s in salidas])
         aplicadas = sorted(i for out, _ in salidas for i in json.loads(out))
-        assert aplicadas == [1], (ronda, aplicadas)                    # la migración se aplicó UNA sola vez entre los tres
+        assert aplicadas == [1], (ronda, aplicadas)  # la migración se aplicó UNA sola vez entre los tres
         alm = Almacen(ruta, PEPPER)
         assert sqlite3.connect(ruta).execute("SELECT id FROM migraciones").fetchall() == [(1,)]
-        assert len(alm.copias_previas()) == 1, ronda                   # y hay una sola copia previa
+        assert len(alm.copias_previas()) == 1, ronda  # y hay una sola copia previa
         assert foto(ruta) == antes and sana(ruta), ronda
     con.close()
 
@@ -415,22 +571,28 @@ def test_concurrencia_30_rondas_tres_procesos_arrancando_a_la_vez_migran_una_sol
 # ------------------------------------------------------------------ la consola
 @pytest.fixture
 def cli(tmp_path, monkeypatch, capsys):
-    monkeypatch.setenv("MODELO_IA_BD", str(tmp_path / "c.sqlite3")); monkeypatch.setenv("MODELO_IA_PEPPER", "q" * 40)
+    monkeypatch.setenv("MODELO_IA_BD", str(tmp_path / "c.sqlite3"))
+    monkeypatch.setenv("MODELO_IA_PEPPER", "q" * 40)
 
     def correr(*argv):
         try:
-            admin.main(list(argv)); codigo, mensaje = 0, ""
+            admin.main(list(argv))
+            codigo, mensaje = 0, ""
         except SystemExit as e:
-            codigo, mensaje = (e.code if isinstance(e.code, int) else 2 if e.code else 0), (e.code if isinstance(e.code, str) else "")
+            codigo, mensaje = (
+                (e.code if isinstance(e.code, int) else 2 if e.code else 0),
+                (e.code if isinstance(e.code, str) else ""),
+            )
         s = capsys.readouterr()
         return codigo, s.out, s.err + mensaje
+
     return correr
 
 
 def test_la_consola_consulta_sin_modificar_y_migra_cuando_se_le_pide(cli, tmp_path):
     ruta = tmp_path / "c.sqlite3"
     c, salida, _ = cli("migraciones")
-    assert c == 0 and "todavía no existe" in salida and not ruta.exists()                          # consultar no crea la base
+    assert c == 0 and "todavía no existe" in salida and not ruta.exists()  # consultar no crea la base
     c, salida, _ = cli("migrar")
     assert c == 0 and "migraciones aplicadas [1]" in salida
     c, salida, _ = cli("migrar")
@@ -443,9 +605,15 @@ def test_con_una_base_vieja_consultar_no_la_toca_y_cualquier_otro_comando_la_mig
     ruta, _, antes = base_vieja(tmp_path, 1, "c.sqlite3")
     c, salida, _ = cli("migraciones")
     assert c == 0 and "PENDIENTE" in salida and not Almacen(ruta, PEPPER).copias_previas()
-    assert sqlite3.connect(ruta).execute("SELECT 1 FROM sqlite_master WHERE name='migraciones'").fetchone() is None     # consultar no la modificó
+    assert (
+        sqlite3.connect(ruta).execute("SELECT 1 FROM sqlite_master WHERE name='migraciones'").fetchone() is None
+    )  # consultar no la modificó
     c, salida, _ = cli("listar-claves")
-    assert c == 0 and "Base actualizada: migraciones aplicadas [1]" in salida and "Copia previa guardada: c.sqlite3.antes-de-migrar-v1-" in salida
+    assert (
+        c == 0
+        and "Base actualizada: migraciones aplicadas [1]" in salida
+        and "Copia previa guardada: c.sqlite3.antes-de-migrar-v1-" in salida
+    )
     c, salida, _ = cli("migraciones")
     assert "aplicada" in salida and "Copias previas a migrar: 1" in salida and "cuídalas igual" in salida
     assert foto(ruta) == antes
@@ -453,8 +621,12 @@ def test_con_una_base_vieja_consultar_no_la_toca_y_cualquier_otro_comando_la_mig
 
 def test_la_consola_se_niega_con_un_mensaje_claro_ante_una_base_mas_nueva(cli, tmp_path):
     ruta = tmp_path / "c.sqlite3"
-    alm = Almacen(ruta, "q" * 40); alm.inicializar()
-    con = sqlite3.connect(ruta); con.execute("INSERT INTO migraciones VALUES (99, 'futura', '2099-01-01T00:00:00')"); con.commit(); con.close()
+    alm = Almacen(ruta, "q" * 40)
+    alm.inicializar()
+    con = sqlite3.connect(ruta)
+    con.execute("INSERT INTO migraciones VALUES (99, 'futura', '2099-01-01T00:00:00')")
+    con.commit()
+    con.close()
     for orden in ("migrar", "listar-claves", "crear-comercio"):
         c, _, err = cli(orden, *(["--nombre", "T"] if orden == "crear-comercio" else []))
         assert c != 0 and "versión más nueva" in err and "Traceback" not in err, orden

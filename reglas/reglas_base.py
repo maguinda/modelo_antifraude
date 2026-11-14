@@ -9,6 +9,7 @@ OJO: el conjunto de datos no trae 3D Secure, AVS ni CVV. Estas son reglas fijas 
 velocidad, ubicación y dispositivo, no la validación completa de una pasarela.
 Fuente de las reglas de monto, cambio de ciudad y cliente nuevo: entrevista a Giovany Pernet (VISA).
 """
+
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -46,35 +47,79 @@ def construir_reglas(params: Dict) -> List[Regla]:
     p = params
     if p.get("monto_alto") is not None:
         v = p["monto_alto"]
-        reglas.append(Regla("monto_alto", ("monto_cop",), lambda d, v=v: d["monto_cop"] >= v,
-                            "REVISAR", f"Compra de {v:,} COP o más".replace(",", ".")))
+        reglas.append(
+            Regla(
+                "monto_alto",
+                ("monto_cop",),
+                lambda d, v=v: d["monto_cop"] >= v,
+                "REVISAR",
+                f"Compra de {v:,} COP o más".replace(",", "."),
+            )
+        )
     if p.get("compras_24h") is not None:
         v = p["compras_24h"]
-        reglas.append(Regla("muchas_compras_24h", ("transacciones_ultimas_24h",),
-                            lambda d, v=v: d["transacciones_ultimas_24h"] >= v,
-                            "REVISAR", f"{v} o más compras en 24 horas"))
+        reglas.append(
+            Regla(
+                "muchas_compras_24h",
+                ("transacciones_ultimas_24h",),
+                lambda d, v=v: d["transacciones_ultimas_24h"] >= v,
+                "REVISAR",
+                f"{v} o más compras en 24 horas",
+            )
+        )
     if p.get("minutos_cambio_ciudad") is not None:
         v = p["minutos_cambio_ciudad"]
-        reglas.append(Regla("cambio_de_ciudad_rapido", ("ciudad_distinta_anterior", "minutos_desde_anterior"),
-                            lambda d, v=v: (d["ciudad_distinta_anterior"] == 1) & (d["minutos_desde_anterior"] <= v),
-                            "BLOQUEAR", f"Otra ciudad a los {v} minutos o menos de la compra anterior"))
+        reglas.append(
+            Regla(
+                "cambio_de_ciudad_rapido",
+                ("ciudad_distinta_anterior", "minutos_desde_anterior"),
+                lambda d, v=v: (d["ciudad_distinta_anterior"] == 1) & (d["minutos_desde_anterior"] <= v),
+                "BLOQUEAR",
+                f"Otra ciudad a los {v} minutos o menos de la compra anterior",
+            )
+        )
     if p.get("monto_cliente_nuevo") is not None:
         v = p["monto_cliente_nuevo"]
-        reglas.append(Regla("cliente_nuevo_monto_alto", ("n_compras_previas", "monto_cop"),
-                            lambda d, v=v: (d["n_compras_previas"] == 0) & (d["monto_cop"] >= v),
-                            "REVISAR", f"Cliente sin historial con compra de {v:,} COP o más".replace(",", ".")))
+        reglas.append(
+            Regla(
+                "cliente_nuevo_monto_alto",
+                ("n_compras_previas", "monto_cop"),
+                lambda d, v=v: (d["n_compras_previas"] == 0) & (d["monto_cop"] >= v),
+                "REVISAR",
+                f"Cliente sin historial con compra de {v:,} COP o más".replace(",", "."),
+            )
+        )
     if p.get("monto_madrugada") is not None:
         v = p["monto_madrugada"]
-        reglas.append(Regla("madrugada_monto_alto", ("hora", "monto_cop"),
-                            lambda d, v=v: (d["hora"] <= 5) & (d["monto_cop"] >= v),
-                            "REVISAR", f"Compra de madrugada de {v:,} COP o más".replace(",", ".")))
+        reglas.append(
+            Regla(
+                "madrugada_monto_alto",
+                ("hora", "monto_cop"),
+                lambda d, v=v: (d["hora"] <= 5) & (d["monto_cop"] >= v),
+                "REVISAR",
+                f"Compra de madrugada de {v:,} COP o más".replace(",", "."),
+            )
+        )
     if p.get("accion_ip_anonima", "NADA") != "NADA":
-        reglas.append(Regla("ip_anonima", ("tipo_ip",), lambda d: d["tipo_ip"].isin(ANONIMAS),
-                            p["accion_ip_anonima"], "IP anónima (VPN, proxy o desconocida)"))
+        reglas.append(
+            Regla(
+                "ip_anonima",
+                ("tipo_ip",),
+                lambda d: d["tipo_ip"].isin(ANONIMAS),
+                p["accion_ip_anonima"],
+                "IP anónima (VPN, proxy o desconocida)",
+            )
+        )
     if p.get("accion_dispositivo_no_reconocido", "NADA") != "NADA":
-        reglas.append(Regla("dispositivo_no_reconocido", ("estado_dispositivo",),
-                            lambda d: d["estado_dispositivo"] == "No reconocido",
-                            p["accion_dispositivo_no_reconocido"], "Dispositivo no reconocido"))
+        reglas.append(
+            Regla(
+                "dispositivo_no_reconocido",
+                ("estado_dispositivo",),
+                lambda d: d["estado_dispositivo"] == "No reconocido",
+                p["accion_dispositivo_no_reconocido"],
+                "Dispositivo no reconocido",
+            )
+        )
     return reglas
 
 
@@ -84,11 +129,10 @@ def motor_ingenuo() -> MotorReglas:
 
 def _costo(params: Dict, df: pd.DataFrame, reales, montos) -> float:
     sev = MotorReglas(construir_reglas(params)).severidad(df)
-    return evaluacion.costo_total(sev, reales, montos, 1)       # alerta = revisar o bloquear
+    return evaluacion.costo_total(sev, reales, montos, 1)  # alerta = revisar o bloquear
 
 
-def ajustar(df_validacion: pd.DataFrame, rondas: int = 2,
-            inicio: Optional[Dict] = None) -> Tuple[Dict, float, float]:
+def ajustar(df_validacion: pd.DataFrame, rondas: int = 2, inicio: Optional[Dict] = None) -> Tuple[Dict, float, float]:
     """Busca los umbrales con menor costo EN LA VALIDACIÓN (un parámetro a la vez, 2 rondas).
 
     Empieza en los umbrales ingenuos, así que nunca queda peor que ellos en la validación.

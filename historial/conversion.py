@@ -3,6 +3,7 @@
 Regla de privacidad: los motivos de rechazo hablan de CAMPOS y de tipos de error, nunca repiten el valor de un cliente.
 Los identificadores del cliente, del pedido y del equipo se convierten por defecto en códigos irreversibles antes de entrar al sistema.
 """
+
 import hashlib
 import hmac
 import os
@@ -17,7 +18,17 @@ from pydantic import ValidationError
 from ..api import esquemas as es
 from .campos import CAMPOS, POR_RUTA, normalizar
 
-FORMATOS_FECHA = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y", "%d-%m-%Y %H:%M:%S", "%d-%m-%Y")
+FORMATOS_FECHA = (
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d %H:%M",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%d",
+    "%d/%m/%Y %H:%M:%S",
+    "%d/%m/%Y %H:%M",
+    "%d/%m/%Y",
+    "%d-%m-%Y %H:%M:%S",
+    "%d-%m-%Y",
+)
 BOGOTA = ZoneInfo("America/Bogota")
 VERDADERO = {"1", "si", "s", "true", "t", "yes", "y", "verdadero", "x"}
 FALSO = {"0", "no", "n", "false", "f", "falso"}
@@ -28,16 +39,16 @@ class Fila:
     numero: int
     solicitud: Optional[Dict[str, Any]] = None
     motivo: Optional[str] = None
-    fraude: Optional[bool] = None                     # None = sin etiqueta
+    fraude: Optional[bool] = None  # None = sin etiqueta
     fecha: Optional[datetime] = None
     monto: int = 0
-    avisos: List[str] = field(default_factory=list)   # campos que se descartaron pero no impidieron usar la fila
+    avisos: List[str] = field(default_factory=list)  # campos que se descartaron pero no impidieron usar la fila
 
 
 class Convertidor:
     def __init__(self, mapeo: Dict, seudonimizar: bool = True):
         self.m, self.seud = mapeo, seudonimizar
-        self.clave = os.urandom(32)                   # solo vive durante esta ejecución: los códigos no se pueden reconstruir después
+        self.clave = os.urandom(32)  # solo vive durante esta ejecución: los códigos no se pueden reconstruir después
         self.f = mapeo["formato"]
         self.valores_sin_traducir: Dict[str, Dict[str, int]] = {}
         self.res = mapeo["resultado"]
@@ -52,7 +63,8 @@ class Convertidor:
         n = int.from_bytes(hmac.new(self.clave, valor.encode("utf-8"), hashlib.sha256).digest(), "big")
         letras = ""
         for _ in range(largo):
-            n, r = divmod(n, 26); letras += chr(65 + r)
+            n, r = divmod(n, 26)
+            letras += chr(65 + r)
         return prefijo + letras
 
     def _fecha(self, t: str) -> Optional[datetime]:
@@ -63,7 +75,8 @@ class Convertidor:
         d = None
         for fmt in candidatos:
             try:
-                d = datetime.strptime(t, fmt); break
+                d = datetime.strptime(t, fmt)
+                break
             except ValueError:
                 continue
         if d is None:
@@ -122,14 +135,17 @@ class Convertidor:
 
         def poner(ruta: str, valor):
             if "." in ruta:
-                g, k = ruta.split(".", 1); s[g][k] = valor
+                g, k = ruta.split(".", 1)
+                s[g][k] = valor
             else:
                 s[ruta] = valor
+
         for campo in CAMPOS:
             t = self._leer(fila, campo.ruta)
             if t is None:
                 if campo.requerido and campo.ruta != "red.ip":
-                    out.motivo = f"falta {campo.ruta}"; return out
+                    out.motivo = f"falta {campo.ruta}"
+                    return out
                 continue
             if campo.tipo == "texto":
                 if campo.ruta == "id_transaccion":
@@ -142,29 +158,37 @@ class Convertidor:
             elif campo.tipo == "fecha":
                 d = self._fecha(t)
                 if d is None:
-                    out.motivo = "fecha no válida"; return out
-                s["fecha_pago"] = d.isoformat(); out.fecha = d
+                    out.motivo = "fecha no válida"
+                    return out
+                s["fecha_pago"] = d.isoformat()
+                out.fecha = d
             elif campo.tipo == "monto":
                 x = self._numero(t)
                 if x is None or x * float(self.f.get("escala_monto", 1)) < 1:
-                    out.motivo = "monto no válido"; return out
-                out.monto = int(x * float(self.f.get("escala_monto", 1)) + 0.5); s["monto_cop"] = out.monto             # redondeo normal (Python redondea 0,5 hacia el par)
+                    out.motivo = "monto no válido"
+                    return out
+                out.monto = int(x * float(self.f.get("escala_monto", 1)) + 0.5)
+                s["monto_cop"] = out.monto  # redondeo normal (Python redondea 0,5 hacia el par)
             elif campo.tipo == "enum":
                 v = self._enum(campo.ruta, t)
                 if v is None:
                     if campo.requerido:
-                        out.motivo = f"valor no reconocido en {campo.ruta}"; return out
-                    out.avisos.append(campo.ruta); continue
+                        out.motivo = f"valor no reconocido en {campo.ruta}"
+                        return out
+                    out.avisos.append(campo.ruta)
+                    continue
                 poner(campo.ruta, v)
             elif campo.tipo == "bool":
                 b = self._booleano(t)
                 if b is None:
-                    out.avisos.append(campo.ruta); continue
+                    out.avisos.append(campo.ruta)
+                    continue
                 poner(campo.ruta, b)
             elif campo.tipo in ("entero", "decimal"):
                 x = self._numero(t)
                 if x is None:
-                    out.avisos.append(campo.ruta); continue
+                    out.avisos.append(campo.ruta)
+                    continue
                 poner(campo.ruta, int(round(x)) if campo.tipo == "entero" else x)
             elif campo.tipo == "ip":
                 poner(campo.ruta, t)
@@ -184,14 +208,20 @@ class Convertidor:
             if any(es.MENSAJE_TARJETA[:30] in str(err.get("msg", "")) for err in e.errors()):
                 out.motivo = "contiene un número de tarjeta"
                 return out
-            if "red.ip" in rutas and (s["red"].get("tipo_ip") or s["red"].get("pais")):         # IP inválida pero hay otra información de red: se descarta la IP
-                s["red"].pop("ip", None); out.avisos.append("red.ip")
+            if "red.ip" in rutas and (
+                s["red"].get("tipo_ip") or s["red"].get("pais")
+            ):  # IP inválida pero hay otra información de red: se descarta la IP
+                s["red"].pop("ip", None)
+                out.avisos.append("red.ip")
                 try:
-                    es.SolicitudEvaluacion.model_validate(s); out.solicitud = s; return out
+                    es.SolicitudEvaluacion.model_validate(s)
+                    out.solicitud = s
+                    return out
                 except ValidationError:
                     pass
             if "red.ip" in rutas or "red" in rutas:
-                s["red"].pop("ip", None); out.avisos.append("red.ip")
+                s["red"].pop("ip", None)
+                out.avisos.append("red.ip")
                 out.motivo = "sin datos de red utilizables"
                 return out
             out.motivo = "datos inválidos en: " + ", ".join(rutas)[:120]

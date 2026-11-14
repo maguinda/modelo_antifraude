@@ -1,11 +1,12 @@
 """Textos y respuestas documentadas de la API (lo que se ve en Swagger), el formato de error estándar y las constantes compartidas."""
+
 from fastapi.responses import JSONResponse
 
 from . import esquemas as es
 
 VERSION_API = "1.0.0"
 MEDIA_PROBLEMA = "application/problem+json"
-PATRON_UUID = r"^(?:[0-9a-fA-F\-]{36}|[Aa][Ff]-[0-9A-Za-z]{4}-[0-9A-Za-z]{4})$"        # el identificador interno o el de seguimiento (AF-XXXX-XXXX)
+PATRON_UUID = r"^(?:[0-9a-fA-F\-]{36}|[Aa][Ff]-[0-9A-Za-z]{4}-[0-9A-Za-z]{4})$"  # el identificador interno o el de seguimiento (AF-XXXX-XXXX)
 
 DESCRIPCION = """
 API para decidir, **antes de aprobar un pago**, si una transacción se **aprueba**, se **rechaza** o queda **en revisión**.
@@ -50,9 +51,15 @@ ETIQUETAS = [
 
 RESPUESTAS_ERROR = {
     401: {"model": es.Problema, "description": "Falta la clave de API o no es válida."},
-    403: {"model": es.Problema, "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente)."},
+    403: {
+        "model": es.Problema,
+        "description": "La clave no tiene permiso para esta operación, o su comercio está suspendido (o, si el servicio lo exige, no tiene acuerdo de datos vigente).",
+    },
     404: {"model": es.Problema, "description": "No existe (o no pertenece a tu comercio)."},
-    409: {"model": es.Problema, "description": "Conflicto: el recurso ya existe con datos distintos o ya fue resuelto."},
+    409: {
+        "model": es.Problema,
+        "description": "Conflicto: el recurso ya existe con datos distintos o ya fue resuelto.",
+    },
     413: {"model": es.Problema, "description": "La petición es demasiado grande."},
     422: {"model": es.Problema, "description": "Datos inválidos (incluye el envío de datos de tarjeta)."},
     429: {"model": es.Problema, "description": "Demasiadas peticiones. Respeta la cabecera `Retry-After`."},
@@ -68,22 +75,70 @@ def problema(status: int, titulo: str, detalle: str, instancia: str, errores=Non
 
 
 EJEMPLOS_RESPUESTA = {
-    "aprobada": {"summary": "Aprobada", "value": {
-        "id_evaluacion": "3f1c9a52-8e0b-4d1f-9a54-0c6f6c2a7b11", "id_seguimiento": "AF-7K3Q-9M2X", "id_transaccion": "PED-100234", "decision": "APROBADA",
-        "decision_final": "APROBADA", "puntaje_riesgo": 0.053, "motivos": [], "reglas_activadas": [], "modo": "normal",
-        "modelo": {"nombre": "gradient_boosting", "version": "0.2.0", "conjunto_variables": "completo"}, "revision": None,
-        "resultado_informado": None, "evaluada_en": "2026-11-12T18:30:00.123456", "latencia_ms": 18.4, "repetida": False}},
-    "rechazada": {"summary": "Rechazada por el modelo y una regla de seguridad", "value": {
-        "id_evaluacion": "7a2d41f0-1b7c-4b0e-8d2a-52e2f5b3c9aa", "id_seguimiento": "AF-4H8D-2WZN", "id_transaccion": "PED-100235", "decision": "RECHAZADA",
-        "decision_final": "RECHAZADA", "puntaje_riesgo": 0.997, "motivos": [],
-        "reglas_activadas": [{"regla": "dispositivo_no_reconocido_con_ip_anonima", "accion": "BLOQUEAR",
-                              "motivo": "Dispositivo no reconocido y desde una IP anónima"}], "modo": "normal",
-        "modelo": {"nombre": "gradient_boosting", "version": "0.2.0", "conjunto_variables": "completo"}, "revision": None,
-        "resultado_informado": None, "evaluada_en": "2026-11-12T03:12:01.004211", "latencia_ms": 21.7, "repetida": False}},
-    "en_revision": {"summary": "En revisión: espera la decisión de un analista", "value": {
-        "id_evaluacion": "b9e0c8d3-5a64-49c1-b0a7-1f3d2e4c5d66", "id_seguimiento": "AF-B6TC-0R5J", "id_transaccion": "PED-100237", "decision": "EN_REVISION",
-        "decision_final": None, "puntaje_riesgo": 0.41, "motivos": [], "reglas_activadas": [], "modo": "normal",
-        "modelo": {"nombre": "gradient_boosting", "version": "0.2.0", "conjunto_variables": "completo"},
-        "revision": {"estado": "pendiente", "decision_analista": None, "nota": None, "resuelta_en": None},
-        "resultado_informado": None, "evaluada_en": "2026-11-12T18:31:00.000000", "latencia_ms": 19.9, "repetida": False}},
+    "aprobada": {
+        "summary": "Aprobada",
+        "value": {
+            "id_evaluacion": "3f1c9a52-8e0b-4d1f-9a54-0c6f6c2a7b11",
+            "id_seguimiento": "AF-7K3Q-9M2X",
+            "id_transaccion": "PED-100234",
+            "decision": "APROBADA",
+            "decision_final": "APROBADA",
+            "puntaje_riesgo": 0.053,
+            "motivos": [],
+            "reglas_activadas": [],
+            "modo": "normal",
+            "modelo": {"nombre": "gradient_boosting", "version": "0.2.0", "conjunto_variables": "completo"},
+            "revision": None,
+            "resultado_informado": None,
+            "evaluada_en": "2026-11-12T18:30:00.123456",
+            "latencia_ms": 18.4,
+            "repetida": False,
+        },
+    },
+    "rechazada": {
+        "summary": "Rechazada por el modelo y una regla de seguridad",
+        "value": {
+            "id_evaluacion": "7a2d41f0-1b7c-4b0e-8d2a-52e2f5b3c9aa",
+            "id_seguimiento": "AF-4H8D-2WZN",
+            "id_transaccion": "PED-100235",
+            "decision": "RECHAZADA",
+            "decision_final": "RECHAZADA",
+            "puntaje_riesgo": 0.997,
+            "motivos": [],
+            "reglas_activadas": [
+                {
+                    "regla": "dispositivo_no_reconocido_con_ip_anonima",
+                    "accion": "BLOQUEAR",
+                    "motivo": "Dispositivo no reconocido y desde una IP anónima",
+                }
+            ],
+            "modo": "normal",
+            "modelo": {"nombre": "gradient_boosting", "version": "0.2.0", "conjunto_variables": "completo"},
+            "revision": None,
+            "resultado_informado": None,
+            "evaluada_en": "2026-11-12T03:12:01.004211",
+            "latencia_ms": 21.7,
+            "repetida": False,
+        },
+    },
+    "en_revision": {
+        "summary": "En revisión: espera la decisión de un analista",
+        "value": {
+            "id_evaluacion": "b9e0c8d3-5a64-49c1-b0a7-1f3d2e4c5d66",
+            "id_seguimiento": "AF-B6TC-0R5J",
+            "id_transaccion": "PED-100237",
+            "decision": "EN_REVISION",
+            "decision_final": None,
+            "puntaje_riesgo": 0.41,
+            "motivos": [],
+            "reglas_activadas": [],
+            "modo": "normal",
+            "modelo": {"nombre": "gradient_boosting", "version": "0.2.0", "conjunto_variables": "completo"},
+            "revision": {"estado": "pendiente", "decision_analista": None, "nota": None, "resuelta_en": None},
+            "resultado_informado": None,
+            "evaluada_en": "2026-11-12T18:31:00.000000",
+            "latencia_ms": 19.9,
+            "repetida": False,
+        },
+    },
 }

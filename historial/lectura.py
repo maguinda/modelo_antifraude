@@ -1,4 +1,5 @@
 """Lectura de archivos de pagos: CSV (cualquier separador común) y Excel (.xlsx)."""
+
 import csv
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
@@ -36,7 +37,8 @@ def leer(ruta: Path, formato: Dict, solo_encabezado: bool = False) -> Iterator[T
     codificacion = formato.get("codificacion", "utf-8-sig")
     try:
         with open(ruta, "r", encoding=codificacion, newline="") as f:
-            muestra = f.read(8192); f.seek(0)
+            muestra = f.read(8192)
+            f.seek(0)
             lector = csv.DictReader(f, delimiter=_separador(muestra, formato.get("separador", "auto")))
             if not lector.fieldnames:
                 raise ErrorDeArchivo("El archivo está vacío o no tiene encabezados.")
@@ -46,14 +48,18 @@ def leer(ruta: Path, formato: Dict, solo_encabezado: bool = False) -> Iterator[T
             for i, fila in enumerate(lector, start=2):
                 yield i, {k: ("" if v is None else str(v)) for k, v in fila.items() if k is not None}
     except UnicodeDecodeError:
-        raise ErrorDeArchivo(f"El archivo no está en la codificación «{codificacion}». Prueba con \"codificacion\": \"latin-1\" en el mapeo.")
+        raise ErrorDeArchivo(
+            f'El archivo no está en la codificación «{codificacion}». Prueba con "codificacion": "latin-1" en el mapeo.'
+        )
 
 
 def _leer_excel(ruta: Path, formato: Dict, solo_encabezado: bool):
     try:
         import openpyxl
     except ImportError:
-        raise ErrorDeArchivo("Para leer Excel hace falta instalar openpyxl:  pip install openpyxl  (o guarda el archivo como CSV).")
+        raise ErrorDeArchivo(
+            "Para leer Excel hace falta instalar openpyxl:  pip install openpyxl  (o guarda el archivo como CSV)."
+        )
     libro = openpyxl.load_workbook(ruta, read_only=True, data_only=True)
     hoja = libro[formato["hoja"]] if formato.get("hoja") else libro.worksheets[0]
     filas = hoja.iter_rows(values_only=True)
@@ -67,4 +73,11 @@ def _leer_excel(ruta: Path, formato: Dict, solo_encabezado: bool):
     for i, fila in enumerate(filas, start=2):
         if fila is None or not any(v is not None and str(v).strip() for v in fila):
             continue
-        yield i, {cab[j]: ("" if v is None else (v.isoformat(sep=" ") if hasattr(v, "isoformat") else str(v))) for j, v in enumerate(fila) if j < len(cab) and cab[j]}
+        yield (
+            i,
+            {
+                cab[j]: ("" if v is None else (v.isoformat(sep=" ") if hasattr(v, "isoformat") else str(v)))
+                for j, v in enumerate(fila)
+                if j < len(cab) and cab[j]
+            },
+        )

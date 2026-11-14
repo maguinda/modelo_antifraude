@@ -1,4 +1,5 @@
 """Bitácora de experimentos: cada entrenamiento deja una fila para ver cómo mejora el modelo."""
+
 from datetime import datetime
 from typing import Dict
 

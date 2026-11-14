@@ -2,6 +2,7 @@
 
 `Almacen` es una fachada sobre los repositorios (`api/repositorios/`): sus métodos conservan nombre, parámetros y valores por defecto aunque el código viva en otro lugar.
 Se comparan nombres y valores por defecto, no los textos de los tipos (esos cambian de nombre completo al mover una clase de archivo)."""
+
 import inspect
 import sqlite3
 from datetime import date
@@ -39,20 +40,43 @@ FIRMAS = {
     "transaccion": "(self)",
     "verificar_comercio": "(self, con, comercio_id, exigir_acuerdo=False, hoy=None)",
 }
-ESTATICOS = ['_hay_datos', 'auditar']
-IMPORTABLES = ["Almacen", "ComercioInexistente", "ComercioNoAutorizado", "DDL", "INDICES_PANEL", "OperacionNoPermitida", "PLATAFORMA", "Principal", "ahora_iso", "estado_acuerdo",
-               "id_seguimiento_libre", "normalizar_nombre"]
+ESTATICOS = ["_hay_datos", "auditar"]
+IMPORTABLES = [
+    "Almacen",
+    "ComercioInexistente",
+    "ComercioNoAutorizado",
+    "DDL",
+    "INDICES_PANEL",
+    "OperacionNoPermitida",
+    "PLATAFORMA",
+    "Principal",
+    "ahora_iso",
+    "estado_acuerdo",
+    "id_seguimiento_libre",
+    "normalizar_nombre",
+]
 
 
 def firma(f) -> str:
-    return "(" + ", ".join(p.name + ("=" + repr(p.default) if p.default is not inspect.Parameter.empty else "") for p in inspect.signature(f).parameters.values()) + ")"
+    return (
+        "("
+        + ", ".join(
+            p.name + ("=" + repr(p.default) if p.default is not inspect.Parameter.empty else "")
+            for p in inspect.signature(f).parameters.values()
+        )
+        + ")"
+    )
 
 
 def test_cada_metodo_publico_de_almacen_sigue_existiendo_con_los_mismos_parametros():
     for nombre, esperada in FIRMAS.items():
         assert hasattr(Almacen, nombre), f"Almacen ya no tiene {nombre}"
-        assert firma(getattr(Almacen, nombre)) == esperada, f"{nombre}: {firma(getattr(Almacen, nombre))} (esperado {esperada})"
-    nuevos = sorted(n for n in dir(Almacen) if not n.startswith("_") and callable(getattr(Almacen, n)) and n not in FIRMAS)
+        assert firma(getattr(Almacen, nombre)) == esperada, (
+            f"{nombre}: {firma(getattr(Almacen, nombre))} (esperado {esperada})"
+        )
+    nuevos = sorted(
+        n for n in dir(Almacen) if not n.startswith("_") and callable(getattr(Almacen, n)) and n not in FIRMAS
+    )
     assert not nuevos, f"Métodos públicos nuevos en Almacen: {nuevos}. Si es a propósito, agrégalos a FIRMAS."
 
 
@@ -83,15 +107,17 @@ def espera_al_candado(a: Almacen, accion) -> bool:
         with a.transaccion():
             ocupado.set()
             soltar.wait(10)
+
     t = threading.Thread(target=sujetar)
     t.start()
     assert ocupado.wait(5)
     h = threading.Thread(target=lambda: (accion(), hecho.set()))
     h.start()
-    esperando = not hecho.wait(0.3)                                  # mientras la otra transacción sigue abierta, no debe poder terminar
+    esperando = not hecho.wait(0.3)  # mientras la otra transacción sigue abierta, no debe poder terminar
     soltar.set()
-    t.join(10); h.join(10)
-    return esperando and hecho.is_set()                              # y al soltarse, termina
+    t.join(10)
+    h.join(10)
+    return esperando and hecho.is_set()  # y al soltarse, termina
 
 
 def test_todos_los_repositorios_comparten_la_misma_base_y_el_mismo_candado(tmp_path):
@@ -102,10 +128,16 @@ def test_todos_los_repositorios_comparten_la_misma_base_y_el_mismo_candado(tmp_p
     id_usuario, _ = a.crear_usuario("analista", "Ana Pérez")
     assert a.comercios.base is a.claves.base is a.esquema.base is a.base
     assert a.seudonimos is a.claves.seudonimos is a.esquema.seudonimos
-    acciones = {"comercios.crear_comercio": lambda: a.comercios.crear_comercio("Tienda X"), "comercios.suspender_comercio": lambda: a.comercios.suspender_comercio(idc, "motivo de prueba"),
-                "comercios.registrar_acuerdo": lambda: a.comercios.registrar_acuerdo(idc, "v1", date(2026, 11, 1), None, "a.pdf"),
-                "claves.crear_usuario": lambda: a.claves.crear_usuario("admin", "Beto Ruiz"), "claves.desactivar_clave": lambda: a.claves.desactivar_clave(id_usuario),
-                "fachada.crear_comercio": lambda: a.crear_comercio("Tienda Y")}
+    acciones = {
+        "comercios.crear_comercio": lambda: a.comercios.crear_comercio("Tienda X"),
+        "comercios.suspender_comercio": lambda: a.comercios.suspender_comercio(idc, "motivo de prueba"),
+        "comercios.registrar_acuerdo": lambda: a.comercios.registrar_acuerdo(
+            idc, "v1", date(2026, 11, 1), None, "a.pdf"
+        ),
+        "claves.crear_usuario": lambda: a.claves.crear_usuario("admin", "Beto Ruiz"),
+        "claves.desactivar_clave": lambda: a.claves.desactivar_clave(id_usuario),
+        "fachada.crear_comercio": lambda: a.crear_comercio("Tienda Y"),
+    }
     for nombre, accion in acciones.items():
         assert espera_al_candado(a, accion), f"{nombre} no esperó al candado: tiene el suyo propio"
 
@@ -115,7 +147,9 @@ def test_los_repositorios_no_dependen_de_la_fachada_y_la_fachada_no_tiene_sql():
         for nodo in ast.walk(ast.parse(archivo.read_text(encoding="utf-8"))):
             if isinstance(nodo, ast.ImportFrom) and nodo.module:
                 nombres = {a.name for a in nodo.names}
-                importa_la_fachada = (nodo.module or "").split(".")[-1] == "almacen" or (not nodo.module and "almacen" in nombres)         # «from ..almacen import x» y «from .. import almacen»
+                importa_la_fachada = (nodo.module or "").split(".")[-1] == "almacen" or (
+                    not nodo.module and "almacen" in nombres
+                )  # «from ..almacen import x» y «from .. import almacen»
                 assert not importa_la_fachada, f"{archivo.name} importa la fachada"
     fuente = inspect.getsource(modulo)
     for palabra in ("SELECT ", "INSERT ", "UPDATE ", "DELETE ", "CREATE ", "ALTER ", "PRAGMA "):
@@ -125,12 +159,24 @@ def test_los_repositorios_no_dependen_de_la_fachada_y_la_fachada_no_tiene_sql():
 def test_las_derivaciones_con_el_secreto_dan_siempre_los_mismos_valores():
     """Si estas cambian, TODAS las claves y huellas ya guardadas dejan de coincidir: nadie podría entrar. Los valores se calcularon aparte, con hmac de la biblioteca estándar."""
     from tempfile import mkdtemp
+
     a = Almacen(Path(mkdtemp()) / "k.sqlite3", "p" * 40)
-    assert a.seudonimos.hash_clave("mia_comercio_ejemplo") == "4a8333810ab93f439716a7945c2ed40658a2a507dc99256a749049fa96b0d501"
-    assert a.huella_ip("192.0.2.1") == "577177ca935572a9" and a.codigo_ip("577177ca935572a9") == "577177CA" and a.codigo_dispositivo("FP-1") == "90986733"
-    assert a.huella_ip("2001:db8:0:0:0:0:0:1") == a.huella_ip("2001:db8::1") == a.huella_ip("2001:0DB8::0001")                      # la misma IP escrita de tres formas
+    assert (
+        a.seudonimos.hash_clave("mia_comercio_ejemplo")
+        == "4a8333810ab93f439716a7945c2ed40658a2a507dc99256a749049fa96b0d501"
+    )
+    assert (
+        a.huella_ip("192.0.2.1") == "577177ca935572a9"
+        and a.codigo_ip("577177ca935572a9") == "577177CA"
+        and a.codigo_dispositivo("FP-1") == "90986733"
+    )
+    assert (
+        a.huella_ip("2001:db8:0:0:0:0:0:1") == a.huella_ip("2001:db8::1") == a.huella_ip("2001:0DB8::0001")
+    )  # la misma IP escrita de tres formas
     assert a.huella_ip("2001:db8::1") != a.huella_ip("2001:db8::2")
-    assert Almacen(Path(mkdtemp()) / "k2.sqlite3", "otro" * 10).huella_ip("192.0.2.1") != a.huella_ip("192.0.2.1")                   # y con otro secreto, otro valor
+    assert Almacen(Path(mkdtemp()) / "k2.sqlite3", "otro" * 10).huella_ip("192.0.2.1") != a.huella_ip(
+        "192.0.2.1"
+    )  # y con otro secreto, otro valor
 
 
 # ------------------------------------------------------------------ comportamiento que la fachada debe conservar (huecos que ninguna prueba cubría)
@@ -140,10 +186,11 @@ def test_verificar_comercio_usa_el_dia_que_se_le_pasa_no_el_de_hoy(tmp_path):
     c = a.crear_comercio("Tienda V")
     a.registrar_acuerdo(c, "v1", date(2020, 1, 1), date(2020, 12, 31), "a.pdf", hoy=date(2020, 6, 1))
     from modelo_ia.api.almacen import ComercioNoAutorizado
+
     with a.transaccion() as con:
-        a.verificar_comercio(con, c, True, date(2020, 6, 1))                       # ese día el acuerdo estaba vigente: no falla
+        a.verificar_comercio(con, c, True, date(2020, 6, 1))  # ese día el acuerdo estaba vigente: no falla
         with pytest.raises(ComercioNoAutorizado) as e:
-            a.verificar_comercio(con, c, True, date(2021, 6, 1))                   # un año después ya había vencido
+            a.verificar_comercio(con, c, True, date(2021, 6, 1))  # un año después ya había vencido
         assert e.value.codigo == "sin_acuerdo"
 
 
@@ -152,9 +199,11 @@ def test_una_lectura_instantanea_ve_una_foto_y_una_normal_ve_lo_nuevo(tmp_path):
     a.inicializar()
     with a.lectura(instantanea=True) as foto, a.lectura() as viva:
         antes = foto.execute("SELECT COUNT(*) FROM comercios").fetchone()[0]
-        a.crear_comercio("Tienda nueva")                                           # alguien escribe mientras las dos lecturas están abiertas
-        assert foto.execute("SELECT COUNT(*) FROM comercios").fetchone()[0] == antes           # la instantánea sigue viendo lo de antes
-        assert viva.execute("SELECT COUNT(*) FROM comercios").fetchone()[0] == antes + 1       # la normal ve lo nuevo
+        a.crear_comercio("Tienda nueva")  # alguien escribe mientras las dos lecturas están abiertas
+        assert (
+            foto.execute("SELECT COUNT(*) FROM comercios").fetchone()[0] == antes
+        )  # la instantánea sigue viendo lo de antes
+        assert viva.execute("SELECT COUNT(*) FROM comercios").fetchone()[0] == antes + 1  # la normal ve lo nuevo
 
 
 def test_rotar_una_clave_deja_escrito_quien_la_roto_y_apaga_la_anterior(tmp_path):
@@ -164,7 +213,11 @@ def test_rotar_una_clave_deja_escrito_quien_la_roto_y_apaga_la_anterior(tmp_path
     ana_id, ana = a.crear_usuario("analista", "Ana Pérez")
     nueva_id, nueva = a.rotar_clave(ana_id, creada_por=admin_id)
     assert a.autenticar(ana) is None and a.autenticar(nueva).usuario == "Ana Pérez"
-    fila = sqlite3.connect(a.ruta).execute("SELECT creada_por, activa, etiqueta FROM claves WHERE id=?", (nueva_id,)).fetchone()
+    fila = (
+        sqlite3.connect(a.ruta)
+        .execute("SELECT creada_por, activa, etiqueta FROM claves WHERE id=?", (nueva_id,))
+        .fetchone()
+    )
     assert fila == (admin_id, 1, "Ana Pérez")
 
 

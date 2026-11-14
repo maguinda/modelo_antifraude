@@ -5,6 +5,7 @@ El modelo y los datos son los mismos; solo cambia con qué compras se arma el hi
 
 Uso:  python -m modelo_ia.comparar_alcance --datos modelo_ia/datos/dataset_antifraude_1000000_transacciones_v2.csv.gz
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -15,8 +16,13 @@ import pandas as pd
 from . import config, entrenar
 
 
-def ejecutar(ruta: Optional[Path] = None, modelos: Sequence[str] = ("gradient_boosting",), conjunto: str = "completo",
-             etiquetas_conocidas: bool = True, registrar: bool = True) -> Dict:
+def ejecutar(
+    ruta: Optional[Path] = None,
+    modelos: Sequence[str] = ("gradient_boosting",),
+    conjunto: str = "completo",
+    etiquetas_conocidas: bool = True,
+    registrar: bool = True,
+) -> Dict:
     filas, patrones = [], {}
     for alcance in config.ALCANCES_HISTORIAL:
         df, mascaras = entrenar.preparar_datos(ruta, conjunto, alcance)
@@ -24,14 +30,28 @@ def ejecutar(ruta: Optional[Path] = None, modelos: Sequence[str] = ("gradient_bo
             r = entrenar.ajustar_y_evaluar(df, mascaras, modelo, conjunto, etiquetas_conocidas)
             r["alcance_historial"] = alcance
             m = r["metricas_prueba"]
-            filas.append({"alcance": alcance, "modelo": modelo, "recall": m["recall"], "precision": m["precision"], "ranking_ap": m["ranking_ap"],
-                          "falsas_alarmas": m["falsas_alarmas"], "fraudes_que_escapan": m["fraudes_que_escapan"],
-                          "costo_millones": m["costo_cop"] / 1e6, "umbral": m["umbral"]})
+            filas.append(
+                {
+                    "alcance": alcance,
+                    "modelo": modelo,
+                    "recall": m["recall"],
+                    "precision": m["precision"],
+                    "ranking_ap": m["ranking_ap"],
+                    "falsas_alarmas": m["falsas_alarmas"],
+                    "fraudes_que_escapan": m["fraudes_que_escapan"],
+                    "costo_millones": m["costo_cop"] / 1e6,
+                    "umbral": m["umbral"],
+                }
+            )
             patrones[f"{modelo}|{alcance}"] = r["recall_por_patron_prueba"]
             if registrar:
                 entrenar.registrar_experimento(r, f"alcance del historial: {alcance}")
     tabla = pd.DataFrame(filas)
-    salida = {"datos_sinteticos": True, "tabla": tabla.round(4).to_dict(orient="records"), "recall_por_patron": patrones}
+    salida = {
+        "datos_sinteticos": True,
+        "tabla": tabla.round(4).to_dict(orient="records"),
+        "recall_por_patron": patrones,
+    }
     if registrar:
         ruta_json = config.RAIZ / "resultados" / "alcance_resultado.json"
         ruta_json.parent.mkdir(parents=True, exist_ok=True)

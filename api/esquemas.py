@@ -1,4 +1,5 @@
 """Contrato de la API: lo que recibe y lo que responde (de aquí sale el OpenAPI y la página Swagger)."""
+
 import ipaddress
 import re
 from datetime import date, datetime
@@ -9,8 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 PATRON_ID = r"^[A-Za-z0-9_\-:.]{1,64}$"
 _CLAVES_DE_TARJETA = ("tarjeta", "card", "cvv", "cvc", "pan", "expir", "vencimiento")
-MENSAJE_TARJETA = ("No envíes datos de tarjeta (número, vencimiento ni CVV): esta API no los acepta ni los guarda. "
-                   "Identifica al cliente con un código tuyo, no con datos de la tarjeta.")
+MENSAJE_TARJETA = (
+    "No envíes datos de tarjeta (número, vencimiento ni CVV): esta API no los acepta ni los guarda. "
+    "Identifica al cliente con un código tuyo, no con datos de la tarjeta."
+)
 
 
 def _luhn(digitos: str) -> bool:
@@ -32,14 +35,19 @@ def contiene_numero_de_tarjeta(texto: str) -> bool:
     return False
 
 
-CAMPOS_PERMITIDOS = {"pego_numero_tarjeta"}      # lleva la palabra «tarjeta» pero es solo un sí/no
+CAMPOS_PERMITIDOS = {"pego_numero_tarjeta"}  # lleva la palabra «tarjeta» pero es solo un sí/no
 
 
 def _revisar_tarjeta(dato: Any) -> None:
     if isinstance(dato, dict):
         for k, v in dato.items():
-            if str(k) not in CAMPOS_PERMITIDOS and any(p == str(k).lower() or str(k).lower().startswith(p + "_") or str(k).lower().endswith("_" + p)
-                   or (len(p) > 3 and p in str(k).lower()) for p in _CLAVES_DE_TARJETA):
+            if str(k) not in CAMPOS_PERMITIDOS and any(
+                p == str(k).lower()
+                or str(k).lower().startswith(p + "_")
+                or str(k).lower().endswith("_" + p)
+                or (len(p) > 3 and p in str(k).lower())
+                for p in _CLAVES_DE_TARJETA
+            ):
                 raise ValueError(MENSAJE_TARJETA)
             _revisar_tarjeta(v)
     elif isinstance(dato, (list, tuple)):
@@ -57,39 +65,70 @@ class Decision(str, Enum):
 
 
 class Canal(str, Enum):
-    WEB = "WEB"; APP_MOVIL = "APP_MOVIL"; POS = "POS"; API = "API"
+    WEB = "WEB"
+    APP_MOVIL = "APP_MOVIL"
+    POS = "POS"
+    API = "API"
 
 
 class MetodoPago(str, Enum):
-    VISA = "VISA"; MASTERCARD = "MASTERCARD"; PSE = "PSE"; NEQUI = "NEQUI"; DAVIPLATA = "DAVIPLATA"; PAYPAL = "PAYPAL"
+    VISA = "VISA"
+    MASTERCARD = "MASTERCARD"
+    PSE = "PSE"
+    NEQUI = "NEQUI"
+    DAVIPLATA = "DAVIPLATA"
+    PAYPAL = "PAYPAL"
 
 
 class Categoria(str, Enum):
-    ELECTRONICA = "ELECTRONICA"; FARMACIA = "FARMACIA"; HOTEL = "HOTEL"; RESTAURANTE = "RESTAURANTE"; ROPA = "ROPA"
-    SERVICIOS_PUBLICOS = "SERVICIOS_PUBLICOS"; SUPERMERCADO = "SUPERMERCADO"
-    SUSCRIPCION_DIGITAL = "SUSCRIPCION_DIGITAL"; TIENDA_ONLINE = "TIENDA_ONLINE"; TRANSPORTE = "TRANSPORTE"; OTRA = "OTRA"
+    ELECTRONICA = "ELECTRONICA"
+    FARMACIA = "FARMACIA"
+    HOTEL = "HOTEL"
+    RESTAURANTE = "RESTAURANTE"
+    ROPA = "ROPA"
+    SERVICIOS_PUBLICOS = "SERVICIOS_PUBLICOS"
+    SUPERMERCADO = "SUPERMERCADO"
+    SUSCRIPCION_DIGITAL = "SUSCRIPCION_DIGITAL"
+    TIENDA_ONLINE = "TIENDA_ONLINE"
+    TRANSPORTE = "TRANSPORTE"
+    OTRA = "OTRA"
 
 
 class TipoIp(str, Enum):
-    RESIDENCIAL = "RESIDENCIAL"; MOVIL = "MOVIL"; EMPRESARIAL = "EMPRESARIAL"; VPN = "VPN"; PROXY = "PROXY"
+    RESIDENCIAL = "RESIDENCIAL"
+    MOVIL = "MOVIL"
+    EMPRESARIAL = "EMPRESARIAL"
+    VPN = "VPN"
+    PROXY = "PROXY"
     DESCONOCIDA = "DESCONOCIDA"
 
 
 class EstadoDispositivo(str, Enum):
-    CONOCIDO = "CONOCIDO"; NUEVO = "NUEVO"; NO_RECONOCIDO = "NO_RECONOCIDO"
+    CONOCIDO = "CONOCIDO"
+    NUEVO = "NUEVO"
+    NO_RECONOCIDO = "NO_RECONOCIDO"
 
 
 class TipoDispositivo(str, Enum):
-    IPHONE = "IPHONE"; ANDROID = "ANDROID"; TABLET_ANDROID = "TABLET_ANDROID"; WINDOWS_PC = "WINDOWS_PC"; MACBOOK = "MACBOOK"
+    IPHONE = "IPHONE"
+    ANDROID = "ANDROID"
+    TABLET_ANDROID = "TABLET_ANDROID"
+    WINDOWS_PC = "WINDOWS_PC"
+    MACBOOK = "MACBOOK"
 
 
 class NivelKyc(str, Enum):
-    COMPLETO = "COMPLETO"; BASICO = "BASICO"; SIN_VERIFICAR = "SIN_VERIFICAR"
+    COMPLETO = "COMPLETO"
+    BASICO = "BASICO"
+    SIN_VERIFICAR = "SIN_VERIFICAR"
 
 
 class Autenticacion2fa(str, Enum):
-    NO_EXIGIDA = "NO_EXIGIDA"; EXIGIDA_APROBADA = "EXIGIDA_APROBADA"; EXIGIDA_FALLIDA = "EXIGIDA_FALLIDA"
-    NO_DISPONIBLE = "NO_DISPONIBLE"; NO_APLICA = "NO_APLICA"
+    NO_EXIGIDA = "NO_EXIGIDA"
+    EXIGIDA_APROBADA = "EXIGIDA_APROBADA"
+    EXIGIDA_FALLIDA = "EXIGIDA_FALLIDA"
+    NO_DISPONIBLE = "NO_DISPONIBLE"
+    NO_APLICA = "NO_APLICA"
 
 
 class ResultadoPago(str, Enum):
@@ -110,25 +149,45 @@ class _Base(BaseModel):
 # ------------------------------------------------------------ solicitud
 class DispositivoEntrada(_Base):
     tipo: TipoDispositivo = Field(description="Tipo de equipo desde el que se paga.")
-    estado: Optional[EstadoDispositivo] = Field(None, description="Si el comercio ya conocía este dispositivo para el cliente (lo sabe el sistema de cuentas del comercio). "
-                                                "**Opcional:** si no lo envías, la API usa un modelo entrenado sin este dato (algo menos preciso) y lo indica en `estado_origen`.")
-    huella: Optional[str] = Field(None, max_length=64, pattern=r"^[A-Za-z0-9_\-:.]+$",
-                                  description="Huella (identificador) del dispositivo que calcula tu SDK. No uses el IMEI ni datos personales.")
+    estado: Optional[EstadoDispositivo] = Field(
+        None,
+        description="Si el comercio ya conocía este dispositivo para el cliente (lo sabe el sistema de cuentas del comercio). "
+        "**Opcional:** si no lo envías, la API usa un modelo entrenado sin este dato (algo menos preciso) y lo indica en `estado_origen`.",
+    )
+    huella: Optional[str] = Field(
+        None,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9_\-:.]+$",
+        description="Huella (identificador) del dispositivo que calcula tu SDK. No uses el IMEI ni datos personales.",
+    )
     sistema_operativo: Optional[str] = Field(None, max_length=30)
     navegador: Optional[str] = Field(None, max_length=40)
     resolucion_pantalla: Optional[str] = Field(None, pattern=r"^\d{3,5}x\d{3,5}$", examples=["390x844"])
-    zona_horaria: Optional[str] = Field(None, max_length=40, pattern=r"^[A-Za-z0-9_/+\-]+$", examples=["America/Bogota"])
+    zona_horaria: Optional[str] = Field(
+        None, max_length=40, pattern=r"^[A-Za-z0-9_/+\-]+$", examples=["America/Bogota"]
+    )
     es_emulador: Optional[bool] = None
 
 
 class RedEntrada(_Base):
-    ip: Optional[str] = Field(None, max_length=45, description="IP del comprador (IPv4 o IPv6) tal como la ve TU servidor (p. ej. la cabecera X-Forwarded-For). "
-                              "La API la ubica y la evalúa y **no la guarda, no la devuelve ni la registra**. Si la envías, el resto del bloque `red` es opcional.",
-                              examples=["190.24.10.55"])
-    tipo_ip: Optional[TipoIp] = Field(None, description="Clasificación de la IP. Opcional si envías `ip`; si lo envías, **manda sobre** lo que diga el proveedor.")
-    pais: Optional[str] = Field(None, min_length=2, max_length=40, description="País donde se ubica la IP.", examples=["Colombia"])
+    ip: Optional[str] = Field(
+        None,
+        max_length=45,
+        description="IP del comprador (IPv4 o IPv6) tal como la ve TU servidor (p. ej. la cabecera X-Forwarded-For). "
+        "La API la ubica y la evalúa y **no la guarda, no la devuelve ni la registra**. Si la envías, el resto del bloque `red` es opcional.",
+        examples=["190.24.10.55"],
+    )
+    tipo_ip: Optional[TipoIp] = Field(
+        None,
+        description="Clasificación de la IP. Opcional si envías `ip`; si lo envías, **manda sobre** lo que diga el proveedor.",
+    )
+    pais: Optional[str] = Field(
+        None, min_length=2, max_length=40, description="País donde se ubica la IP.", examples=["Colombia"]
+    )
     ciudad_estimada: Optional[str] = Field(None, max_length=60)
-    distancia_a_ciudad_km: Optional[float] = Field(None, ge=0, le=25000, description="Distancia entre la ubicación de la IP y la ciudad declarada.")
+    distancia_a_ciudad_km: Optional[float] = Field(
+        None, ge=0, le=25000, description="Distancia entre la ubicación de la IP y la ciudad declarada."
+    )
     es_datacenter: Optional[bool] = None
     reputacion: Optional[int] = Field(None, ge=0, le=100, description="Reputación de la IP (100 = muy buena).")
 
@@ -138,14 +197,16 @@ class RedEntrada(_Base):
         if v is None:
             return v
         try:
-            return str(ipaddress.ip_address(v.strip()))              # forma canónica (IPv6 siempre igual)
+            return str(ipaddress.ip_address(v.strip()))  # forma canónica (IPv6 siempre igual)
         except ValueError:
             raise ValueError("`ip` no es una dirección IPv4 o IPv6 válida.")
 
     @model_validator(mode="after")
     def _ip_o_tipo(self):
         if self.ip is None and self.tipo_ip is None:
-            raise ValueError("En `red` envía la `ip` (la API la ubica y la evalúa) o, al menos, su clasificación `tipo_ip`.")
+            raise ValueError(
+                "En `red` envía la `ip` (la API la ubica y la evalúa) o, al menos, su clasificación `tipo_ip`."
+            )
         return self
 
 
@@ -160,14 +221,28 @@ class IdentidadEntrada(_Base):
 class ComportamientoEntrada(_Base):
     tiempo_formulario_seg: Optional[float] = Field(None, ge=0, le=86400)
     velocidad_tecleo_ms: Optional[float] = Field(None, ge=0, le=100000)
-    pego_numero_tarjeta: Optional[bool] = Field(None, description="Si el comprador pegó (no tecleó) el número de tarjeta. Solo el hecho de pegar; nunca el número.")
-    mouse_natural: Optional[float] = Field(None, ge=0, le=1, description="0 = movimiento de bot, 1 = movimiento humano. Solo se mide en web.")
+    pego_numero_tarjeta: Optional[bool] = Field(
+        None,
+        description="Si el comprador pegó (no tecleó) el número de tarjeta. Solo el hecho de pegar; nunca el número.",
+    )
+    mouse_natural: Optional[float] = Field(
+        None, ge=0, le=1, description="0 = movimiento de bot, 1 = movimiento humano. Solo se mide en web."
+    )
 
 
 class SolicitudEvaluacion(_Base):
-    id_transaccion: str = Field(pattern=PATRON_ID, description="Identificador de la transacción en TU sistema. Sirve para que un reintento no se cuente dos veces.")
-    id_cliente: str = Field(pattern=PATRON_ID, description="Código de tu cliente (un identificador tuyo; no uses documento, correo ni teléfono).")
-    fecha_pago: Optional[datetime] = Field(None, description="Momento del pago (ISO 8601). Si no se envía, se usa la hora del servidor. Una fecha sin zona se toma como hora de Bogotá.")
+    id_transaccion: str = Field(
+        pattern=PATRON_ID,
+        description="Identificador de la transacción en TU sistema. Sirve para que un reintento no se cuente dos veces.",
+    )
+    id_cliente: str = Field(
+        pattern=PATRON_ID,
+        description="Código de tu cliente (un identificador tuyo; no uses documento, correo ni teléfono).",
+    )
+    fecha_pago: Optional[datetime] = Field(
+        None,
+        description="Momento del pago (ISO 8601). Si no se envía, se usa la hora del servidor. Una fecha sin zona se toma como hora de Bogotá.",
+    )
     monto_cop: int = Field(gt=0, description="Monto en pesos colombianos, sin decimales.", examples=[250000])
     moneda: str = Field("COP", pattern=r"^COP$", description="Por ahora solo COP.")
     metodo_pago: MetodoPago
@@ -211,8 +286,14 @@ class SolicitudResolverRevision(_Base):
 
 class SolicitudComercio(_Base):
     nombre: str = Field(min_length=2, max_length=80)
-    razon_social: Optional[str] = Field(None, min_length=2, max_length=120, description="Opcional. Nombre legal del comercio.")
-    nit: Optional[str] = Field(None, pattern=r"^[0-9][0-9.\-]{3,18}[0-9]$", description="Opcional. Ojo: en una persona natural el NIT es su cédula (dato personal); solo lo ve un administrador.")
+    razon_social: Optional[str] = Field(
+        None, min_length=2, max_length=120, description="Opcional. Nombre legal del comercio."
+    )
+    nit: Optional[str] = Field(
+        None,
+        pattern=r"^[0-9][0-9.\-]{3,18}[0-9]$",
+        description="Opcional. Ojo: en una persona natural el NIT es su cédula (dato personal); solo lo ve un administrador.",
+    )
 
 
 class SolicitudSuspension(_Base):
@@ -223,7 +304,11 @@ class SolicitudAcuerdo(_Base):
     version: str = Field(min_length=1, max_length=40, description="Versión del documento, por ejemplo `v1.2`.")
     firmado_en: date = Field(description="Fecha de firma (AAAA-MM-DD). No puede ser futura.")
     vigente_hasta: Optional[date] = Field(None, description="Opcional. Si no se pone, no vence.")
-    referencia: str = Field(min_length=1, max_length=120, description="Cómo encontrar el archivo firmado (su nombre o su huella SHA-256). El documento NO se guarda en el sistema.")
+    referencia: str = Field(
+        min_length=1,
+        max_length=120,
+        description="Cómo encontrar el archivo firmado (su nombre o su huella SHA-256). El documento NO se guarda en el sistema.",
+    )
 
 
 class SolicitudListaNegra(_Base):
@@ -258,35 +343,58 @@ class InfoRevision(BaseModel):
 
 class RespuestaEvaluacion(BaseModel):
     id_evaluacion: str
-    id_seguimiento: str = Field(description="Identificador de seguimiento que asigna ESTE sistema a cada pago, legible (p. ej. `AF-7K3Q-9M2X`). Guárdalo junto a tu `id_transaccion`: "
-                                            "sirve para rastrear el pago en el panel y para hablar de él con soporte. También llega en la cabecera `X-Id-Seguimiento`.")
+    id_seguimiento: str = Field(
+        description="Identificador de seguimiento que asigna ESTE sistema a cada pago, legible (p. ej. `AF-7K3Q-9M2X`). Guárdalo junto a tu `id_transaccion`: "
+        "sirve para rastrear el pago en el panel y para hablar de él con soporte. También llega en la cabecera `X-Id-Seguimiento`."
+    )
     id_transaccion: str
     decision: Decision = Field(description="Decisión inicial: APROBADA, RECHAZADA o EN_REVISION.")
-    decision_final: Optional[Decision] = Field(None, description="La decisión que debes aplicar. Es igual a `decision` salvo en revisión: vale null mientras un analista no resuelve y luego APROBADA o RECHAZADA.")
-    puntaje_riesgo: Optional[float] = Field(None, ge=0, le=1, description="Probabilidad estimada de fraude (0 a 1). Null si no se pudo puntuar.")
+    decision_final: Optional[Decision] = Field(
+        None,
+        description="La decisión que debes aplicar. Es igual a `decision` salvo en revisión: vale null mientras un analista no resuelve y luego APROBADA o RECHAZADA.",
+    )
+    puntaje_riesgo: Optional[float] = Field(
+        None, ge=0, le=1, description="Probabilidad estimada de fraude (0 a 1). Null si no se pudo puntuar."
+    )
     motivos: List[str] = []
     reglas_activadas: List[ReglaActivada] = []
-    modo: str = Field(description="`normal`, o `degradado` si no se pudo usar el modelo (queda en revisión salvo que una regla de seguridad rechace).")
+    modo: str = Field(
+        description="`normal`, o `degradado` si no se pudo usar el modelo (queda en revisión salvo que una regla de seguridad rechace)."
+    )
     modelo: InfoModelo
     revision: Optional[InfoRevision] = None
     resultado_informado: Optional[ResultadoPago] = None
-    estado_origen: str = Field("comercio", description="`comercio` si mandaste `dispositivo.estado`; `no_enviado` si no lo mandaste (en ese caso se usó el modelo que no lo necesita).")
-    red_origen: str = Field("comercio", description="De dónde salieron los datos de red: `comercio` (los mandaste tú), `proveedor:<nombre>` (la API ubicó tu `ip`) o `proveedor_fallo` (el proveedor no respondió: se usó solo lo que mandaste).")
+    estado_origen: str = Field(
+        "comercio",
+        description="`comercio` si mandaste `dispositivo.estado`; `no_enviado` si no lo mandaste (en ese caso se usó el modelo que no lo necesita).",
+    )
+    red_origen: str = Field(
+        "comercio",
+        description="De dónde salieron los datos de red: `comercio` (los mandaste tú), `proveedor:<nombre>` (la API ubicó tu `ip`) o `proveedor_fallo` (el proveedor no respondió: se usó solo lo que mandaste).",
+    )
     evaluada_en: datetime
     latencia_ms: float
-    repetida: bool = Field(False, description="True si es la respuesta guardada de una solicitud repetida (mismo `id_transaccion`).")
+    repetida: bool = Field(
+        False, description="True si es la respuesta guardada de una solicitud repetida (mismo `id_transaccion`)."
+    )
 
 
 class Senal(BaseModel):
     clave: str
-    texto: str = Field(description="La señal en palabras, por ejemplo «El monto ($ 800.000) es 4,2 veces el promedio de este cliente».")
-    puntos: float = Field(description="Cuántos puntos de probabilidad de fraude movió esa señal (positivo: empujó hacia fraude; negativo: a favor).")
+    texto: str = Field(
+        description="La señal en palabras, por ejemplo «El monto ($ 800.000) es 4,2 veces el promedio de este cliente»."
+    )
+    puntos: float = Field(
+        description="Cuántos puntos de probabilidad de fraude movió esa señal (positivo: empujó hacia fraude; negativo: a favor)."
+    )
 
 
 class Senales(BaseModel):
     suben: List[Senal] = Field([], description="Las señales que más empujaron el riesgo hacia arriba.")
     bajan: List[Senal] = Field([], description="Las señales que más lo bajaron (a favor del pago).")
-    puntaje_tipico: Optional[float] = Field(None, description="La probabilidad de fraude que tendría un pago típico (la referencia contra la que se mide).")
+    puntaje_tipico: Optional[float] = Field(
+        None, description="La probabilidad de fraude que tendría un pago típico (la referencia contra la que se mide)."
+    )
 
 
 class FilaRevision(BaseModel):
@@ -301,9 +409,16 @@ class FilaRevision(BaseModel):
     creada_en: datetime
     estado: str
     resuelta_en: Optional[datetime] = None
-    resuelta_por: Optional[str] = Field(None, description="Quién resolvió la revisión (nombre de la persona). Solo lo ven analistas y administradores.")
-    senales: Senales = Field(Senales(), description="Las señales que más pesaron en el puntaje (solo para pagos que no se aprobaron). Explican al modelo, no prueban fraude.")
-    resumen_pago: Dict[str, Any] = Field({}, description="Datos del pago que el analista necesita para decidir (sin datos de tarjeta ni huella).")
+    resuelta_por: Optional[str] = Field(
+        None, description="Quién resolvió la revisión (nombre de la persona). Solo lo ven analistas y administradores."
+    )
+    senales: Senales = Field(
+        Senales(),
+        description="Las señales que más pesaron en el puntaje (solo para pagos que no se aprobaron). Explican al modelo, no prueban fraude.",
+    )
+    resumen_pago: Dict[str, Any] = Field(
+        {}, description="Datos del pago que el analista necesita para decidir (sin datos de tarjeta ni huella)."
+    )
 
 
 class ListaRevisiones(BaseModel):
@@ -314,12 +429,18 @@ class ListaRevisiones(BaseModel):
 
 class RespuestaYo(BaseModel):
     rol: str = Field(description="`comercio`, `analista` o `admin`.")
-    usuario: Optional[str] = Field(None, description="Para analistas y administradores: el nombre de la persona dueña de la clave.")
-    comercio: str = Field(description="El comercio al que pertenece la clave (para analistas y administradores, la plataforma).")
+    usuario: Optional[str] = Field(
+        None, description="Para analistas y administradores: el nombre de la persona dueña de la clave."
+    )
+    comercio: str = Field(
+        description="El comercio al que pertenece la clave (para analistas y administradores, la plataforma)."
+    )
 
 
 class EstadoAcuerdo(BaseModel):
-    estado: str = Field(description="`sin_acuerdo`, `vigente`, `vence_pronto` (30 días o menos), `vencido` o `reemplazado` (uno más nuevo lo sustituyó).")
+    estado: str = Field(
+        description="`sin_acuerdo`, `vigente`, `vence_pronto` (30 días o menos), `vencido` o `reemplazado` (uno más nuevo lo sustituyó)."
+    )
     version: Optional[str] = None
     firmado_en: Optional[str] = None
     vigente_hasta: Optional[str] = None
@@ -373,12 +494,18 @@ class RespuestaSalud(BaseModel):
     estado: str
     version_api: str
     modelo: InfoModelo
-    configuracion_insegura: bool = Field(description="True si el servicio corre con el secreto de desarrollo (no usar así en producción).")
-    advertencias: List[str] = Field([], description="Avisos de configuración (por ejemplo, si el modelo se entrenó de una forma distinta a como la API calcula sus variables).")
+    configuracion_insegura: bool = Field(
+        description="True si el servicio corre con el secreto de desarrollo (no usar así en producción)."
+    )
+    advertencias: List[str] = Field(
+        [],
+        description="Avisos de configuración (por ejemplo, si el modelo se entrenó de una forma distinta a como la API calcula sus variables).",
+    )
 
 
 class Problema(BaseModel):
     """Formato de error (RFC 7807)."""
+
     type: str = "about:blank"
     title: str
     status: int

@@ -64,10 +64,12 @@ def test_particion_con_dos_anos_no_mezcla_2025_con_2026(df_crudo):
     """Con datos de 2025 y 2026, un mismo mes de años distintos NO puede caer en conjuntos distintos por error."""
     d = df_crudo.copy()
     antes = d.copy()
-    antes["fecha_pago"] = (pd.to_datetime(antes["fecha_pago"]) - pd.DateOffset(years=1)).dt.strftime("%Y-%m-%d %H:%M:%S")
+    antes["fecha_pago"] = (pd.to_datetime(antes["fecha_pago"]) - pd.DateOffset(years=1)).dt.strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
     todo = datos.agregar_columnas_basicas(pd.concat([antes, d], ignore_index=True).sort_values("fecha_pago"))
     m = particion.dividir(todo)
-    assert (todo.loc[m["entrenamiento"], "fecha"].dt.year == 2025).any()          # todo 2025 entrena
+    assert (todo.loc[m["entrenamiento"], "fecha"].dt.year == 2025).any()  # todo 2025 entrena
     assert (todo.loc[m["prueba"], "fecha"].dt.year == 2026).all()
     assert (todo.loc[todo["fecha"].dt.year == 2025].index.isin(todo.index[m["entrenamiento"]])).all()
 
@@ -88,7 +90,13 @@ def test_cargar_lee_un_csv_comprimido(tmp_path, df_crudo):
 
 def test_las_columnas_de_despues_del_pago_estan_prohibidas_como_entrada():
     """Revisión manual y contracargos se saben DESPUÉS del pago: usarlas sería mirar el futuro."""
-    despues = ["revision_manual", "resultado_revision", "minutos_revision", "contracargo",
-               "dias_hasta_contracargo", "fecha_confirmacion_fraude"]
+    despues = [
+        "revision_manual",
+        "resultado_revision",
+        "minutos_revision",
+        "contracargo",
+        "dias_hasta_contracargo",
+        "fecha_confirmacion_fraude",
+    ]
     identificadores = ["id_comercio", "huella_dispositivo"]
     assert set(despues + identificadores) <= set(config.COLUMNAS_PROHIBIDAS)

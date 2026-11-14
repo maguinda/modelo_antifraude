@@ -7,6 +7,7 @@ Para usar un proveedor real, se escribe una clase con `nombre` y `consultar(ip) 
 MODELO_IA_PROVEEDOR_IP. El que viene aquí (`simulado`) es de DEMOSTRACIÓN: reconoce unos rangos de IP reservados para documentación y
 no sabe nada de IPs reales de internet.
 """
+
 import ipaddress
 import math
 import unicodedata
@@ -18,11 +19,11 @@ TIPOS = ("RESIDENCIAL", "MOVIL", "EMPRESARIAL", "VPN", "PROXY", "DESCONOCIDA")
 
 @dataclass(frozen=True)
 class InfoIP:
-    tipo_ip: str                         # uno de TIPOS
+    tipo_ip: str  # uno de TIPOS
     pais: str
     ciudad_estimada: Optional[str]
     es_datacenter: bool
-    reputacion: int                      # 0 a 100 (100 = muy buena)
+    reputacion: int  # 0 a 100 (100 = muy buena)
     latitud: Optional[float] = None
     longitud: Optional[float] = None
 
@@ -30,15 +31,21 @@ class InfoIP:
 class ProveedorIP(Protocol):
     nombre: str
 
-    def consultar(self, ip: str) -> InfoIP:
-        ...
+    def consultar(self, ip: str) -> InfoIP: ...
 
 
 # Coordenadas para calcular la distancia entre la ciudad declarada por el comprador y la ciudad donde se ubica su IP
 CIUDADES: Dict[str, Tuple[float, float]] = {
-    "bogota": (4.711, -74.072), "medellin": (6.244, -75.581), "cali": (3.451, -76.532), "barranquilla": (10.968, -74.781),
-    "cartagena": (10.391, -75.479), "bucaramanga": (7.119, -73.122), "pereira": (4.814, -75.696), "manizales": (5.070, -75.514),
-    "santa marta": (11.241, -74.199), "ibague": (4.438, -75.232),
+    "bogota": (4.711, -74.072),
+    "medellin": (6.244, -75.581),
+    "cali": (3.451, -76.532),
+    "barranquilla": (10.968, -74.781),
+    "cartagena": (10.391, -75.479),
+    "bucaramanga": (7.119, -73.122),
+    "pereira": (4.814, -75.696),
+    "manizales": (5.070, -75.514),
+    "santa marta": (11.241, -74.199),
+    "ibague": (4.438, -75.232),
 }
 
 
@@ -62,6 +69,7 @@ def distancia_km(ciudad_declarada: str, info: InfoIP) -> Optional[int]:
 
 class ProveedorSimulado:
     """DEMOSTRACIÓN. Reconoce solo los rangos de IP reservados para documentación (RFC 5737) y las redes privadas."""
+
     nombre = "simulado"
 
     def consultar(self, ip: str) -> InfoIP:
@@ -82,15 +90,16 @@ class ProveedorSimulado:
                 return InfoIP("VPN", "Rusia", "Moscú", True, 35, 55.76, 37.62)
         if a.is_private or a.is_loopback or a.is_link_local or a.is_reserved or a.is_unspecified:
             return InfoIP("DESCONOCIDA", "Desconocido", None, False, 30)
-        return InfoIP("DESCONOCIDA", "Desconocido", None, False, 30)          # IP pública que el simulador no conoce
+        return InfoIP("DESCONOCIDA", "Desconocido", None, False, 30)  # IP pública que el simulador no conoce
 
 
 PROVEEDORES = {"simulado": ProveedorSimulado}
 
 
 def crear_proveedor(nombre: str) -> ProveedorIP:
-    if nombre == "propio":                                      # se importa aquí: así quien usa el simulado no necesita las bases ni la librería
+    if nombre == "propio":  # se importa aquí: así quien usa el simulado no necesita las bases ni la librería
         from .ip_propia import ProveedorPropio
+
         return ProveedorPropio()
     if nombre not in PROVEEDORES:
         raise ValueError(f"Proveedor de IP desconocido '{nombre}'. Opciones: {list(PROVEEDORES) + ['propio']}")

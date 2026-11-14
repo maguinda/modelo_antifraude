@@ -1,10 +1,11 @@
 """Piezas pequeñas que comparten todos los repositorios."""
+
 import re
 import secrets
 from datetime import datetime
 from typing import Any, Callable
 
-PLATAFORMA = 1          # id del «comercio» al que pertenecen las claves de analistas y administradores
+PLATAFORMA = 1  # id del «comercio» al que pertenecen las claves de analistas y administradores
 
 
 def texto_limpio(valor: Any, minimo: int, maximo: int, nombre: str) -> str:
@@ -19,7 +20,7 @@ def ahora_iso() -> str:
     return datetime.now().isoformat(timespec="microseconds")
 
 
-ALFABETO_SEGUIMIENTO = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"        # sin I, L, O, U: no se confunden al leerlos por teléfono
+ALFABETO_SEGUIMIENTO = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  # sin I, L, O, U: no se confunden al leerlos por teléfono
 
 
 def id_seguimiento_libre(ya_existe: Callable[[str], bool]) -> str:

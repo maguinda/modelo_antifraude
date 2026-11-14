@@ -2,12 +2,15 @@
 
 Pasar a PostgreSQL es traducir esos archivos; esta prueba evita que se escape SQL nuevo a otro lado sin que nadie lo note.
 """
+
 import re
 from pathlib import Path
 
 API = Path(__file__).resolve().parent.parent / "api"
 PERMITIDOS = ("repositorios", "migraciones.py")
-PROPIO_DE_SQLITE = re.compile(r"\browid\b|INSERT OR REPLACE|julianday|json_each|json_extract|\bsubstr\(|PRAGMA|AUTOINCREMENT|lastrowid|\.execute\(|sqlite3\.connect")
+PROPIO_DE_SQLITE = re.compile(
+    r"\browid\b|INSERT OR REPLACE|julianday|json_each|json_extract|\bsubstr\(|PRAGMA|AUTOINCREMENT|lastrowid|\.execute\(|sqlite3\.connect"
+)
 
 
 def sin_comentarios(texto):

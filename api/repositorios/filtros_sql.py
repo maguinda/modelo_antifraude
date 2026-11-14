@@ -3,6 +3,7 @@
 Es lo que antes hacía el propio `Filtros`. Vive en los repositorios porque el SQL es de la base de datos: el resto del programa solo conoce los filtros.
 Nunca pone texto del usuario dentro del SQL: todo valor viaja como parámetro.
 """
+
 from datetime import timedelta
 from typing import Any, List, Tuple
 
@@ -15,6 +16,7 @@ def condiciones_de(f: Any) -> Tuple[List[str], tuple]:
     def agregar(sql: str, *valores: Any) -> None:
         cond.append(sql)
         par.extend(valores)
+
     if f.comercio_id is not None:
         agregar("e.comercio_id = ?", f.comercio_id)
     if f.desde:
@@ -38,7 +40,9 @@ def condiciones_de(f: Any) -> Tuple[List[str], tuple]:
     if f.regla:
         agregar("EXISTS (SELECT 1 FROM json_each(e.reglas_json) j WHERE json_extract(j.value, '$.regla') = ?)", f.regla)
     if f.riesgo_min is not None:
-        agregar("e.probabilidad >= ?", f.riesgo_min)               # los pagos sin puntaje (modo degradado) no entran en un filtro de riesgo
+        agregar(
+            "e.probabilidad >= ?", f.riesgo_min
+        )  # los pagos sin puntaje (modo degradado) no entran en un filtro de riesgo
     if f.riesgo_max is not None:
         agregar("e.probabilidad <= ?", f.riesgo_max)
     if f.q:

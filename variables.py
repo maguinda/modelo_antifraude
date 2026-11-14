@@ -3,6 +3,7 @@
 Regla de oro: lo que depende del pasado (historial, perfil habitual, huella compartida) se calcula
 SOLO con compras anteriores o con la fila actual. Nada de lo que pase después puede entrar en una fila.
 """
+
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -10,24 +11,51 @@ import pandas as pd
 
 from . import config
 
-SO_DE_DISPOSITIVO = {"iPhone": "iOS", "Android": "Android", "Tablet Android": "Android",
-                     "Windows PC": "Windows", "MacBook": "macOS"}
+SO_DE_DISPOSITIVO = {
+    "iPhone": "iOS",
+    "Android": "Android",
+    "Tablet Android": "Android",
+    "Windows PC": "Windows",
+    "MacBook": "macOS",
+}
 # Zonas horarias que se esperan según el país de la IP (si no coincide, algo no cuadra)
-TZ_ESPERADAS = {"Colombia": {"America/Bogota"}, "Estados Unidos": {"America/New_York"},
-                "España": {"Europe/Madrid"}, "México": {"America/Mexico_City", "America/Cancun"},
-                "Panamá": {"America/Panama"}, "Ecuador": {"America/Guayaquil"},
-                "Países Bajos": {"Europe/Amsterdam"}, "Alemania": {"Europe/Berlin"},
-                "Rusia": {"Europe/Moscow"}, "Nigeria": {"Africa/Lagos"}, "Vietnam": {"Asia/Ho_Chi_Minh"}}
+TZ_ESPERADAS = {
+    "Colombia": {"America/Bogota"},
+    "Estados Unidos": {"America/New_York"},
+    "España": {"Europe/Madrid"},
+    "México": {"America/Mexico_City", "America/Cancun"},
+    "Panamá": {"America/Panama"},
+    "Ecuador": {"America/Guayaquil"},
+    "Países Bajos": {"Europe/Amsterdam"},
+    "Alemania": {"Europe/Berlin"},
+    "Rusia": {"Europe/Moscow"},
+    "Nigeria": {"Africa/Lagos"},
+    "Vietnam": {"Asia/Ho_Chi_Minh"},
+}
 
 # Columnas crudas que necesita cada grupo
 REQUIERE: Dict[str, List[str]] = {
     "hora": ["hora", "fecha"],
     "historial": ["fecha", "id_cliente", "localizacion", "monto_cop", "dispositivo"],
     "perfil": ["id_cliente", "tipo_ip", "hora"],
-    "huella": ["huella_dispositivo", "id_cliente", "sistema_operativo", "navegador", "resolucion_pantalla",
-               "zona_horaria_dispositivo", "es_emulador", "dispositivo"],
+    "huella": [
+        "huella_dispositivo",
+        "id_cliente",
+        "sistema_operativo",
+        "navegador",
+        "resolucion_pantalla",
+        "zona_horaria_dispositivo",
+        "es_emulador",
+        "dispositivo",
+    ],
     "geo_ip": ["ip_pais", "distancia_ip_ciudad_km", "ip_es_datacenter", "ip_reputacion", "zona_horaria_dispositivo"],
-    "identidad": ["kyc_nivel", "edad_cuenta_dias", "autenticacion_2fa", "intentos_fallidos_24h", "cambio_credenciales_7d"],
+    "identidad": [
+        "kyc_nivel",
+        "edad_cuenta_dias",
+        "autenticacion_2fa",
+        "intentos_fallidos_24h",
+        "cambio_credenciales_7d",
+    ],
     "comportamiento": ["tiempo_formulario_seg", "velocidad_tecleo_ms", "pego_numero_tarjeta", "mouse_natural"],
 }
 
@@ -59,17 +87,19 @@ def agregar_historial(df: pd.DataFrame, alcance: Optional[str] = None) -> pd.Dat
     d["n_compras_previas"] = g.cumcount()
     minutos = (d["fecha"] - g["fecha"].shift(1)).dt.total_seconds() / 60
     d["minutos_desde_anterior"] = minutos.fillna(config.TOPE_MINUTOS_HISTORIAL).clip(
-        upper=config.TOPE_MINUTOS_HISTORIAL)
-    d["ciudad_distinta_anterior"] = ((d["localizacion"] != g["localizacion"].shift(1))
-                                     & (d["n_compras_previas"] > 0)).astype(int)
+        upper=config.TOPE_MINUTOS_HISTORIAL
+    )
+    d["ciudad_distinta_anterior"] = (
+        (d["localizacion"] != g["localizacion"].shift(1)) & (d["n_compras_previas"] > 0)
+    ).astype(int)
 
-    suma_previa = g["monto_cop"].cumsum() - d["monto_cop"]          # sin contar la compra actual
+    suma_previa = g["monto_cop"].cumsum() - d["monto_cop"]  # sin contar la compra actual
     promedio_previo = suma_previa / d["n_compras_previas"].replace(0, np.nan)
     d["monto_vs_promedio"] = (d["monto_cop"] / promedio_previo).fillna(1).clip(upper=20)
 
     primera_vez = d.groupby(_claves(d, ["id_cliente", "dispositivo"], alcance)).cumcount() == 0
     d["dispositivo_nuevo_cliente"] = (primera_vez & (d["n_compras_previas"] > 0)).astype(int)
-    return d.loc[df.index]          # mismo orden que llegó
+    return d.loc[df.index]  # mismo orden que llegó
 
 
 def agregar_perfil(df: pd.DataFrame, alcance: Optional[str] = None) -> pd.DataFrame:
@@ -81,7 +111,9 @@ def agregar_perfil(df: pd.DataFrame, alcance: Optional[str] = None) -> pd.DataFr
     n = d["n_compras_previas"].replace(0, np.nan)
     d["_franja"] = d["hora"] // 4
     d["ip_frecuencia_previa"] = (d.groupby(_claves(d, ["id_cliente", "tipo_ip"], alcance)).cumcount() / n).fillna(0.5)
-    d["franja_frecuencia_previa"] = (d.groupby(_claves(d, ["id_cliente", "_franja"], alcance)).cumcount() / n).fillna(0.5)
+    d["franja_frecuencia_previa"] = (d.groupby(_claves(d, ["id_cliente", "_franja"], alcance)).cumcount() / n).fillna(
+        0.5
+    )
     return d.drop(columns="_franja").loc[df.index]
 
 
@@ -90,7 +122,9 @@ def agregar_huella(df: pd.DataFrame, alcance: Optional[str] = None) -> pd.DataFr
     d = df.sort_values("fecha", kind="stable").copy()
     nuevo_par = ~d.duplicated(_claves(d, ["huella_dispositivo", "id_cliente"], alcance))
     d["_nuevo_par"] = nuevo_par.astype(int)
-    d["huella_clientes_distintos"] = d.groupby(_claves(d, ["huella_dispositivo"], alcance))["_nuevo_par"].cumsum()   # hasta esta fila
+    d["huella_clientes_distintos"] = d.groupby(_claves(d, ["huella_dispositivo"], alcance))[
+        "_nuevo_par"
+    ].cumsum()  # hasta esta fila
     d["huella_compras_previas"] = d.groupby(_claves(d, ["huella_dispositivo"], alcance)).cumcount()
     d["es_emulador"] = d["es_emulador"].astype(int)
     d["so_distinto_del_dispositivo"] = (d["sistema_operativo"] != d["dispositivo"].map(SO_DE_DISPOSITIVO)).astype(int)
@@ -103,11 +137,13 @@ def agregar_geo_ip(df: pd.DataFrame) -> pd.DataFrame:
     d = df.copy()
     d["ip_sin_ubicacion"] = (d["ip_pais"] == "Desconocido").astype(int)
     d["ip_fuera_de_colombia"] = ((d["ip_pais"] != "Colombia") & (d["ip_sin_ubicacion"] == 0)).astype(int)
-    d["distancia_ip_ciudad_km"] = d["distancia_ip_ciudad_km"].fillna(0)            # con la marca ip_sin_ubicacion
+    d["distancia_ip_ciudad_km"] = d["distancia_ip_ciudad_km"].fillna(0)  # con la marca ip_sin_ubicacion
     d["ip_es_datacenter"] = d["ip_es_datacenter"].astype(int)
     pares = d[["ip_pais", "zona_horaria_dispositivo"]].drop_duplicates().copy()
     pares["zona_horaria_no_coincide_ip"] = [
-        int(p in TZ_ESPERADAS and z not in TZ_ESPERADAS[p]) for p, z in zip(pares["ip_pais"], pares["zona_horaria_dispositivo"])]
+        int(p in TZ_ESPERADAS and z not in TZ_ESPERADAS[p])
+        for p, z in zip(pares["ip_pais"], pares["zona_horaria_dispositivo"])
+    ]
     return d.merge(pares, on=["ip_pais", "zona_horaria_dispositivo"], how="left").set_index(d.index)
 
 
@@ -129,9 +165,15 @@ def agregar_comportamiento(df: pd.DataFrame) -> pd.DataFrame:
     return d
 
 
-FUNCIONES = {"hora": agregar_hora, "historial": agregar_historial, "perfil": agregar_perfil,
-             "huella": agregar_huella, "geo_ip": agregar_geo_ip, "identidad": agregar_identidad,
-             "comportamiento": agregar_comportamiento}
+FUNCIONES = {
+    "hora": agregar_hora,
+    "historial": agregar_historial,
+    "perfil": agregar_perfil,
+    "huella": agregar_huella,
+    "geo_ip": agregar_geo_ip,
+    "identidad": agregar_identidad,
+    "comportamiento": agregar_comportamiento,
+}
 
 
 def registrar_conjunto(nombre: str, grupos: Sequence[str]) -> None:
@@ -161,7 +203,9 @@ def columnas_de(conjunto: str) -> Tuple[List[str], List[str]]:
     return numericas, categoricas
 
 
-def derivar_estado_dispositivo(df: pd.DataFrame, alcance: Optional[str] = None, primer_pago: str = "Nuevo") -> pd.Series:
+def derivar_estado_dispositivo(
+    df: pd.DataFrame, alcance: Optional[str] = None, primer_pago: str = "Nuevo"
+) -> pd.Series:
     """Estado del dispositivo deducido del historial (para cuando el comercio no lo manda).
 
     - «Conocido»: este cliente ya había pagado con esta misma huella (en este comercio, si el alcance es 'comercio').
@@ -170,22 +214,26 @@ def derivar_estado_dispositivo(df: pd.DataFrame, alcance: Optional[str] = None, 
     Nunca devuelve «No reconocido»: eso solo lo puede saber el sistema de cuentas del comercio. Usa solo compras anteriores.
     """
     d = df.sort_values("fecha", kind="stable")
-    antes_cliente = d.groupby(_claves(d, ["id_cliente"], alcance)).cumcount()                       # compras previas del cliente
-    antes_con_huella = d.groupby(_claves(d, ["id_cliente", "huella_dispositivo"], alcance)).cumcount()   # previas con esta misma huella
+    antes_cliente = d.groupby(_claves(d, ["id_cliente"], alcance)).cumcount()  # compras previas del cliente
+    antes_con_huella = d.groupby(
+        _claves(d, ["id_cliente", "huella_dispositivo"], alcance)
+    ).cumcount()  # previas con esta misma huella
     estado = pd.Series("Nuevo", index=d.index)
     estado[antes_con_huella > 0] = "Conocido"
     estado[antes_cliente == 0] = primer_pago
     return estado.loc[df.index]
 
 
-CON_ALCANCE = ("historial", "perfil", "huella")        # los grupos que dependen de a quién se le mira el pasado
+CON_ALCANCE = ("historial", "perfil", "huella")  # los grupos que dependen de a quién se le mira el pasado
 
 
-def construir(df: pd.DataFrame, conjunto: str = config.CONJUNTO_POR_DEFECTO, alcance: Optional[str] = None) -> pd.DataFrame:
+def construir(
+    df: pd.DataFrame, conjunto: str = config.CONJUNTO_POR_DEFECTO, alcance: Optional[str] = None
+) -> pd.DataFrame:
     """Agrega todo lo que necesita el conjunto elegido (falla con un mensaje claro si faltan columnas).
 
     `alcance`: 'plataforma' (historial con todos los comercios juntos) o 'comercio' (cada comercio, el suyo). Por defecto, config.ALCANCE_HISTORIAL."""
-    columnas_de(conjunto)                       # valida el nombre y que no haya columnas prohibidas
+    columnas_de(conjunto)  # valida el nombre y que no haya columnas prohibidas
     d = df
     for grupo in config.CONJUNTOS_GRUPOS[conjunto]:
         faltan = [c for c in REQUIERE[grupo] if c not in d.columns]

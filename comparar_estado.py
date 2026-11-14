@@ -10,6 +10,7 @@ más información que cualquier derivación. Con datos reales la comparación po
 
 Uso:  python -m modelo_ia.comparar_estado --datos modelo_ia/datos/dataset_antifraude_1000000_transacciones_v2_mov30.csv.gz
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -20,8 +21,13 @@ import pandas as pd
 from . import config, entrenar, evaluacion, modelos, variables
 
 
-def ejecutar(ruta: Optional[Path] = None, modelo: str = "gradient_boosting", conjunto: str = "completo", alcance: str = "comercio",
-             registrar: bool = False) -> Dict:
+def ejecutar(
+    ruta: Optional[Path] = None,
+    modelo: str = "gradient_boosting",
+    conjunto: str = "completo",
+    alcance: str = "comercio",
+    registrar: bool = False,
+) -> Dict:
     df, mascaras = entrenar.preparar_datos(ruta, conjunto, alcance)
     original = df["estado_dispositivo"].copy()
     filas, patrones = [], {}
@@ -31,18 +37,35 @@ def ejecutar(ruta: Optional[Path] = None, modelo: str = "gradient_boosting", con
         d["estado_dispositivo"] = columna
         if entrenado_con is None:
             r = entrenar.ajustar_y_evaluar(d, mascaras, modelo, conjunto, etiquetas_conocidas=True)
-        else:                                                           # modelo ya entrenado con otra versión de la variable
+        else:  # modelo ya entrenado con otra versión de la variable
             numericas, categoricas = variables.columnas_de(conjunto)
             cols = numericas + categoricas
             pv = modelos.puntajes(entrenado_con["pipeline"], d.loc[mascaras["validacion"], cols])
             pp = modelos.puntajes(entrenado_con["pipeline"], d.loc[mascaras["prueba"], cols])
             y = d[config.COLUMNA_OBJETIVO]
-            umbral, _ = evaluacion.elegir_umbral(pv, y[mascaras["validacion"]].values, d.loc[mascaras["validacion"], "monto_cop"].values)
-            r = {"metricas_prueba": evaluacion.metricas(pp, y[mascaras["prueba"]].values, d.loc[mascaras["prueba"], "monto_cop"].values, umbral),
-                 "recall_por_patron_prueba": evaluacion.recall_por_patron(d.loc[mascaras["prueba"]], pp, umbral).to_dict()}
+            umbral, _ = evaluacion.elegir_umbral(
+                pv, y[mascaras["validacion"]].values, d.loc[mascaras["validacion"], "monto_cop"].values
+            )
+            r = {
+                "metricas_prueba": evaluacion.metricas(
+                    pp, y[mascaras["prueba"]].values, d.loc[mascaras["prueba"], "monto_cop"].values, umbral
+                ),
+                "recall_por_patron_prueba": evaluacion.recall_por_patron(
+                    d.loc[mascaras["prueba"]], pp, umbral
+                ).to_dict(),
+            }
         m = r["metricas_prueba"]
-        filas.append({"estado": nombre, "recall": m["recall"], "precision": m["precision"], "ranking_ap": m["ranking_ap"],
-                      "falsas_alarmas": m["falsas_alarmas"], "fraudes_que_escapan": m["fraudes_que_escapan"], "costo_millones": m["costo_cop"] / 1e6})
+        filas.append(
+            {
+                "estado": nombre,
+                "recall": m["recall"],
+                "precision": m["precision"],
+                "ranking_ap": m["ranking_ap"],
+                "falsas_alarmas": m["falsas_alarmas"],
+                "fraudes_que_escapan": m["fraudes_que_escapan"],
+                "costo_millones": m["costo_cop"] / 1e6,
+            }
+        )
         patrones[nombre] = r["recall_por_patron_prueba"]
         return r
 
@@ -54,13 +77,28 @@ def ejecutar(ruta: Optional[Path] = None, modelo: str = "gradient_boosting", con
     medir("sin la variable", pd.Series("Conocido", index=df.index))
     medir("sin reentrenar: modelo original + derivado", derivado_nuevo, entrenado_con=base)
     tabla = pd.DataFrame(filas)
-    reparto = pd.DataFrame({"original": original.value_counts(normalize=True), "derivado (primer pago = Nuevo)": derivado_nuevo.value_counts(normalize=True)}).fillna(0)
-    return {"tabla": tabla, "patrones": patrones, "reparto": reparto,
-            "salida": {"datos_sinteticos": True, "tabla": tabla.round(4).to_dict(orient="records"), "reparto": reparto.round(4).to_dict()}}
+    reparto = pd.DataFrame(
+        {
+            "original": original.value_counts(normalize=True),
+            "derivado (primer pago = Nuevo)": derivado_nuevo.value_counts(normalize=True),
+        }
+    ).fillna(0)
+    return {
+        "tabla": tabla,
+        "patrones": patrones,
+        "reparto": reparto,
+        "salida": {
+            "datos_sinteticos": True,
+            "tabla": tabla.round(4).to_dict(orient="records"),
+            "reparto": reparto.round(4).to_dict(),
+        },
+    }
 
 
 def main(argv=None) -> None:
-    ap = argparse.ArgumentParser(description="Estado del dispositivo: enviado por el comercio frente a derivado del historial.")
+    ap = argparse.ArgumentParser(
+        description="Estado del dispositivo: enviado por el comercio frente a derivado del historial."
+    )
     ap.add_argument("--datos", type=Path, default=None)
     ap.add_argument("--alcance", default="comercio", choices=list(config.ALCANCES_HISTORIAL))
     a = ap.parse_args(argv)

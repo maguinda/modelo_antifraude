@@ -4,6 +4,7 @@ A diferencia del modelo (que aprende), aquí las reglas se le dicen. Sirven para
   1. Línea base de la hipótesis H1 (reglas fijas de validación estándar).
   2. Red de seguridad en producción (reglas duras que mandan sobre el modelo).
 """
+
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Sequence, Tuple
 
@@ -17,10 +18,10 @@ NOMBRE_SEVERIDAD = {v: k for k, v in SEVERIDAD.items()}
 @dataclass(frozen=True)
 class Regla:
     nombre: str
-    requiere: Tuple[str, ...]                      # columnas que necesita; si faltan, la regla no se aplica
+    requiere: Tuple[str, ...]  # columnas que necesita; si faltan, la regla no se aplica
     condicion: Callable[[pd.DataFrame], pd.Series]  # recibe una tabla y devuelve verdadero/falso por fila
-    accion: str                                    # REVISAR o BLOQUEAR
-    motivo: str                                    # frase que se muestra al analista
+    accion: str  # REVISAR o BLOQUEAR
+    motivo: str  # frase que se muestra al analista
 
     def __post_init__(self):
         if self.accion not in ("REVISAR", "BLOQUEAR"):
@@ -59,7 +60,10 @@ class MotorReglas:
         """Para un solo pago: decisión y las reglas que se activaron."""
         fila = pd.DataFrame([pago])
         activadas = self.activadas(fila).iloc[0]
-        lista = [{"regla": r.nombre, "accion": r.accion, "motivo": r.motivo}
-                 for r in self.reglas if bool(activadas[r.nombre])]
+        lista = [
+            {"regla": r.nombre, "accion": r.accion, "motivo": r.motivo}
+            for r in self.reglas
+            if bool(activadas[r.nombre])
+        ]
         sev = max([SEVERIDAD[x["accion"]] for x in lista], default=0)
         return {"decision": NOMBRE_SEVERIDAD[sev], "reglas_activadas": lista}
