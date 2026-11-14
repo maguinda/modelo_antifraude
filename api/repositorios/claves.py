@@ -116,7 +116,10 @@ class ClavesRepositorio:
             v = con.execute("SELECT * FROM claves WHERE id=? AND activa=1", (clave_id,)).fetchone()
             if v is None:
                 raise ValueError("No existe una clave activa con ese número.")
-            con.execute("UPDATE claves SET activa=0 WHERE id=?", (clave_id,))
+            con.execute(
+                "UPDATE claves SET activa=0, mfa_secreto=NULL, mfa_confirmada=0, mfa_ultimo_paso=0, mfa_fallos=0, mfa_bloqueo_hasta=NULL WHERE id=?",
+                (clave_id,),
+            )  # su secreto TOTP no se queda huérfano
             auditar(con, v["comercio_id"], clave_id, "clave_desactivada", None, {"motivo": "rotación"})
             return self._crear_clave(v["comercio_id"], v["rol"], v["etiqueta"] or "", creada_por, con)
 
@@ -161,7 +164,10 @@ class ClavesRepositorio:
 
     def desactivar_clave(self, clave_id: int) -> None:
         with self.base.transaccion() as con:
-            con.execute("UPDATE claves SET activa = 0 WHERE id = ?", (clave_id,))
+            con.execute(
+                "UPDATE claves SET activa = 0, mfa_secreto=NULL, mfa_confirmada=0, mfa_ultimo_paso=0, mfa_fallos=0, mfa_bloqueo_hasta=NULL WHERE id = ?",
+                (clave_id,),
+            )  # su secreto TOTP no se queda huérfano
             auditar(con, None, clave_id, "clave_desactivada", None, {})
 
     # ------------------------------------------------------------------ segundo factor (TOTP) del administrador

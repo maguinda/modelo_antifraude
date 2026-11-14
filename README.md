@@ -737,6 +737,11 @@ copiarlo no deja a nadie fuera).
 - **5 códigos malos seguidos bloquean esa clave 15 minutos** (`429` con `Retry-After`); un acierto
   pone la cuenta en cero. El estado va en la base, así vale entre procesos.
 - Un comercio o un analista que llame a esas rutas recibe `403` sin ninguna pista del segundo factor.
+- **Qué NO pide el segundo factor:** las lecturas del administrador y las acciones de **analista**,
+  como resolver una revisión (`POST /v1/revisiones/{id}/resolver`): un administrador también puede
+  hacerlas con la clave sola, porque son trabajo de analista y no de administración.
+- Al **desactivar** o **rotar** una clave se borra su secreto TOTP (no queda uno huérfano en la base
+  ni en los respaldos).
 - El secreto, los códigos y los fallos **nunca** salen en registros, métricas, errores ni en el
   detalle de la auditoría (sí queda constancia de `mfa_activado`, `mfa_fallido`, `mfa_bloqueada`…).
 - Apagado por defecto (`MODELO_IA_EXIGIR_MFA`), como el acuerdo de datos; en producción el servicio
