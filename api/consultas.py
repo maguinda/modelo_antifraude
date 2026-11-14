@@ -495,7 +495,7 @@ class ConsultasPanel:
             return [dict(r) for r in self.alm.consultas.comercios_con_pagos(con)]
 
     # ------------------------------------------------------------------ deriva del modelo y modelos registrados
-    def _calculo_deriva(self, ventana_dias: int, minimo: int) -> Dict:
+    def _calculo_deriva(self, ventana_dias: int, minimo: int, info_principal: Optional[Dict] = None) -> Dict:
         meta = self.srv.meta
         desde = (datetime.now() - timedelta(days=ventana_dias)).isoformat(
             timespec="microseconds"
@@ -504,7 +504,14 @@ class ConsultasPanel:
             cuentas = self.alm.consultas.distribucion_puntaje(
                 con, meta["modelo"], meta["version"], meta["conjunto"], desde
             )
-        registro = self.alm.registro_modelos.en_uso("principal")
+        # la referencia es la del modelo que REALMENTE corre (por su número); si se promovió otro y aún no se reinició, no se compara contra la referencia del nuevo.
+        # Sin número (modelo dado a mano o sin registro) se usa el que esté en uso.
+        id_ejecucion = (info_principal or {}).get("id")
+        registro = (
+            self.alm.registro_modelos.por_id(id_ejecucion)
+            if id_ejecucion
+            else self.alm.registro_modelos.en_uso("principal")
+        )
         ref = (registro or {}).get("referencia") or meta.get(
             "referencia_puntaje"
         )  # primero la del registro (la que se verificó), luego la que trae el propio modelo
@@ -530,8 +537,9 @@ class ConsultasPanel:
             "estado": estado,
         }
 
-    def deriva(self, ventana_dias: int, minimo: int, huella_verificada: bool) -> Dict:
-        c = self._calculo_deriva(ventana_dias, minimo)
+    def deriva(self, ventana_dias: int, minimo: int, info_principal: Optional[Dict] = None) -> Dict:
+        c = self._calculo_deriva(ventana_dias, minimo, info_principal)
+        huella_verificada = bool((info_principal or {}).get("verificado"))
         cubetas = [
             {
                 "desde": i / deriva.CUBETAS,
@@ -566,9 +574,9 @@ class ConsultasPanel:
             + " Mide si los PUNTAJES cambiaron, no si el modelo acierta; con datos sintéticos solo demuestra el mecanismo.",
         }
 
-    def lineas_deriva_prometheus(self, ventana_dias: int, minimo: int) -> str:
+    def lineas_deriva_prometheus(self, ventana_dias: int, minimo: int, info_principal: Optional[Dict] = None) -> str:
         """Dos series en el formato de texto de Prometheus (se calculan al leer, con la base: valen igual con varios procesos)."""
-        c = self._calculo_deriva(ventana_dias, minimo)
+        c = self._calculo_deriva(ventana_dias, minimo, info_principal)
         salida = [
             "# HELP antifraude_deriva_pagos Pagos evaluados por el modelo en uso en la ventana de deriva.",
             "# TYPE antifraude_deriva_pagos gauge",

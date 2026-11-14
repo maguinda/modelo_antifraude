@@ -128,6 +128,12 @@ def adoptar_actuales(almacen: Any) -> List[Tuple[str, int, str]]:
             raise ValueError(
                 f"{nombre} no es idéntico a ningún modelo versionado de la carpeta: no se sabe de qué versión viene. Registra el modelo versionado a mano."
             )
+        en_uso = almacen.registro_modelos.en_uso(rol)
+        if en_uso is not None and en_uso["sha256"] != huella:
+            raise ValueError(
+                f"Ya hay un modelo en uso para el rol «{rol}» (número {en_uso['id']}, {en_uso['archivo']}) y es distinto de {nombre}: adoptar lo reemplazaría. "
+                f"Si quieres volver a {gemelo.name}, regístralo y usa «modelo-promover»."
+            )
         existente = next(
             (m for m in almacen.registro_modelos.listar() if m["rol"] == rol and m["sha256"] == huella), None
         )
@@ -140,17 +146,22 @@ def adoptar_actuales(almacen: Any) -> List[Tuple[str, int, str]]:
     return adoptados
 
 
-def _cargar_de_registro(almacen: Any, rol: str) -> Optional[Tuple[Dict[str, Any], Dict[str, Any]]]:
-    fila = almacen.registro_modelos.en_uso(rol)
-    if fila is None:
-        return None
+def _cargar_de_registro(fila: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Carga el modelo de una fila del registro: verifica su huella ANTES de deserializar y, ya cargado, que sus propios datos coincidan con los registrados
+    (el .json con que se registró no está protegido por la huella: así se detecta uno que no corresponda al modelo)."""
     datos = leer_verificado(ruta_del_modelo(fila["archivo"]), fila["sha256"])
-    return joblib.load(io.BytesIO(datos)), {
-        "id": fila["id"],
-        "huella": fila["sha256"][:12],
-        "version": fila["version"],
-        "verificado": True,
-    }
+    artefacto = joblib.load(io.BytesIO(datos))
+    meta = artefacto.get("meta") or {}
+    if (meta.get("modelo"), meta.get("version"), meta.get("conjunto")) != (
+        fila["nombre"],
+        fila["version"],
+        fila["conjunto"],
+    ):
+        raise ModeloAlterado(
+            f"Los datos del modelo {fila['archivo']} (modelo, versión y conjunto de variables) no coinciden con los que se registraron: "
+            "el archivo de trazabilidad (.json) con que se registró no corresponde a este modelo. No se usa."
+        )
+    return artefacto, {"id": fila["id"], "huella": fila["sha256"][:12], "version": fila["version"], "verificado": True}
 
 
 def preparar(
@@ -168,16 +179,20 @@ def preparar(
 
 
 def cargar_para_servicio(almacen: Any, ajustes: Any) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]], Dict[str, Any]]:
-    """(modelo principal, modelo sin estado o None, qué se verificó). Falla (ModeloAlterado, RegistroIncompleto) en vez de usar un modelo que no se pudo verificar
-    cuando hay registro; sin registro y sin exigirlo, usa el de siempre con un aviso."""
+    """(modelo principal, modelo sin estado o None, qué se verificó).
+
+    Regla: si el registro tiene ALGÚN modelo en uso, todo lo que se deserializa se verifica por su huella, y lo que no está registrado NO se carga (el modelo
+    sin estado queda desactivado con un aviso; un principal sin registrar es un error). Solo con el registro totalmente vacío y sin exigirlo se usa el modelo
+    de siempre sin verificar, con un aviso. `MODELO_IA_MODELO` (un modelo elegido a mano) solo se acepta con el registro vacío y sin exigirlo."""
     exigir = bool(getattr(ajustes, "exigir_registro_modelos", False))
     sin_verificar = {"id": None, "huella": None, "version": None, "verificado": False}
-    if (
-        getattr(ajustes, "ruta_modelo", None) is not None
-    ):  # un modelo elegido a mano (MODELO_IA_MODELO): no pasa por el registro
-        if exigir:
+    filas = {rol: almacen.registro_modelos.en_uso(rol) for rol in ROLES}
+    hay_registro = any(filas.values())
+    if getattr(ajustes, "ruta_modelo", None) is not None:  # un modelo elegido a mano (MODELO_IA_MODELO)
+        if exigir or hay_registro:
+            motivo = "MODELO_IA_EXIGIR_REGISTRO está activo." if exigir else "ya hay modelos en uso en el registro."
             raise RegistroIncompleto(
-                "MODELO_IA_MODELO elige un modelo a mano y se salta el registro, pero MODELO_IA_EXIGIR_REGISTRO está activo."
+                f"MODELO_IA_MODELO elige un modelo a mano y se salta el registro, pero {motivo} Quita MODELO_IA_MODELO para usar el modelo verificado."
             )
         log.warning("Se usa el modelo indicado en MODELO_IA_MODELO: NO se verifica contra el registro.")
         return (
@@ -185,30 +200,32 @@ def cargar_para_servicio(almacen: Any, ajustes: Any) -> Tuple[Dict[str, Any], Op
             predecir.cargar_artefacto_sin_estado(),
             {"principal": sin_verificar, "sin_estado": sin_verificar},
         )
-    info: Dict[str, Any] = {}
-    principal = _cargar_de_registro(almacen, "principal")
-    if principal is not None:
-        artefacto, info["principal"] = principal
-    elif exigir:
+    if hay_registro:
+        if filas["principal"] is None:
+            raise RegistroIncompleto(
+                "El registro tiene modelos en uso pero ninguno para el rol «principal»: no se carga modelo_actual.joblib sin verificar. Usa «admin modelo-adoptar» o «modelo-promover»."
+            )
+        artefacto, info_principal = _cargar_de_registro(filas["principal"])
+        if filas["sin_estado"] is not None:
+            artefacto_sin_estado, info_sin_estado = _cargar_de_registro(filas["sin_estado"])
+        else:
+            log.warning(
+                "El modelo «sin_estado» no está registrado: se desactiva esa variante (no se carga un archivo sin verificar). Regístralo con «admin modelo-adoptar»."
+            )
+            artefacto_sin_estado, info_sin_estado = None, sin_verificar
+        return artefacto, artefacto_sin_estado, {"principal": info_principal, "sin_estado": info_sin_estado}
+    if exigir:
         raise RegistroIncompleto(
             "No hay un modelo EN USO en el registro (MODELO_IA_EXIGIR_REGISTRO está activo). Usa «admin modelo-adoptar» o «modelo-registrar» y «modelo-promover»."
         )
-    else:
-        log.warning(
-            "No hay un modelo en el registro: se usa modelo_actual.joblib SIN verificar su huella. Usa «admin modelo-adoptar»."
-        )
-        artefacto, info["principal"] = predecir.cargar_artefacto(None), sin_verificar
-    sin_estado = _cargar_de_registro(almacen, "sin_estado")
-    if sin_estado is not None:
-        artefacto_sin_estado, info["sin_estado"] = sin_estado
-    elif exigir:
-        artefacto_sin_estado, info["sin_estado"] = (
-            None,
-            sin_verificar,
-        )  # con registro exigido no se carga uno sin verificar
-    else:
-        artefacto_sin_estado, info["sin_estado"] = predecir.cargar_artefacto_sin_estado(), sin_verificar
-    return artefacto, artefacto_sin_estado, info
+    log.warning(
+        "No hay modelos en el registro: se usa modelo_actual.joblib SIN verificar su huella. Usa «admin modelo-adoptar»."
+    )
+    return (
+        predecir.cargar_artefacto(None),
+        predecir.cargar_artefacto_sin_estado(),
+        {"principal": sin_verificar, "sin_estado": sin_verificar},
+    )
 
 
 def verificar_en_uso(almacen: Any) -> List[Tuple[str, str, str]]:

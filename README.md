@@ -751,13 +751,19 @@ admin modelo-verificar      # comprueba la huella de los que están en uso (sin 
 Promover y revertir son una sola transacción (nunca quedan dos modelos en uso ni ninguno a medias) y
 quedan en la auditoría. Hay que **reiniciar el servicio** para que cargue el modelo nuevo.
 
-**Verificación al arrancar.** Si hay un modelo en uso en el registro, el archivo se lee **una sola
-vez**, se calcula su SHA-256 sobre esos mismos bytes y solo si coincide se deserializa desde esos
-bytes (no hay una ventana entre «verificar» y «cargar» para cambiarlo). Si no coincide, o el archivo
-ya no está, **el servicio no arranca** y dice por qué. Sin registro todavía, se usa
+**Verificación al arrancar.** Si el registro tiene **algún** modelo en uso, todo lo que se deserializa
+se verifica: el archivo se lee **una sola vez**, se calcula su SHA-256 sobre esos mismos bytes y solo
+si coincide se deserializa desde esos bytes (no hay una ventana entre «verificar» y «cargar»). Ya
+cargado, se comprueba además que sus propios datos (modelo, versión y conjunto de variables)
+coincidan con los registrados, porque el `.json` con que se registra no está protegido por la huella.
+Si algo no coincide, o el archivo ya no está, **el servicio no arranca** y dice por qué. Lo que **no
+está registrado no se carga**: sin modelo `sin_estado` registrado esa variante queda desactivada (con
+un aviso), y un principal sin registrar es un error. Con el registro **totalmente vacío** se usa
 `modelo_actual.joblib` como antes, con un aviso en el registro de eventos; con
 `MODELO_IA_EXIGIR_REGISTRO=1` el servicio exige un modelo registrado (en producción avisa mientras
-esté apagado). `MODELO_IA_MODELO` (un modelo elegido a mano) se salta el registro.
+esté apagado). `MODELO_IA_MODELO` (un modelo elegido a mano) solo se acepta con el registro vacío y
+sin exigirlo: con modelos en uso se rechaza (quita la variable para usar el modelo verificado).
+`admin modelo-adoptar` no reemplaza un modelo que ya esté en uso y sea otro.
 
 **Deriva.** `GET /v1/panel/deriva` (solo personal) compara la distribución de los **puntajes** de los
 pagos de los últimos N días (7 por defecto) con la de la validación del modelo, en 10 cubetas de 0,1,
@@ -772,7 +778,11 @@ La referencia (los puntajes de validación) la guarda `entrenar` en el `.json` d
 modelos ya entrenados se les calcula con `admin modelo-referencia --id N --datos <archivo>`, que
 puntúa su conjunto de validación con el modelo (antes verificado).
 
-**Límites.** Mide si los **puntajes cambiaron**, no si el modelo acierta (eso exige las etiquetas, que
+**Límites.** La referencia de la deriva es la del modelo que **está corriendo** (por su número en el
+registro), no la del último promovido: tras `modelo-promover` y antes de reiniciar, la deriva sigue
+midiendo el modelo viejo. La consulta de deriva recorre las evaluaciones del periodo en cada
+petición y en cada lectura de `/v1/metricas`; con millones de filas habrá que agregar un índice o
+guardar el resultado unos segundos (pendiente). Mide si los **puntajes cambiaron**, no si el modelo acierta (eso exige las etiquetas, que
 llegan tarde). Con datos sintéticos solo demuestra el mecanismo. No mide deriva por comercio (muestras
 muy chicas) ni de cada variable de entrada. No reentrena solo. La huella protege de cambios
 accidentales o de un archivo sustituido, **no** si alguien controla el servidor entero (podría cambiar

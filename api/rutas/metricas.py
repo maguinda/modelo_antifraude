@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 from .. import metricas
 from ..ajustes import Ajustes
@@ -30,13 +30,16 @@ log = logging.getLogger("modelo_ia.api")
     response_class=Response,
 )
 def leer_metricas(
+    request: Request,
     p: Principal = Depends(exigir("admin")),
     consultas: ConsultasPanel = Depends(obtener_consultas),
     ajustes: Ajustes = Depends(obtener_ajustes),
 ):
     cuerpo, tipo = metricas.texto()
     try:  # la deriva sale de la base; si algo falla ahí, las demás métricas se entregan igual
-        cuerpo += consultas.lineas_deriva_prometheus(7, ajustes.deriva_min_muestra).encode("utf-8")
+        cuerpo += consultas.lineas_deriva_prometheus(
+            7, ajustes.deriva_min_muestra, request.app.state.info_modelos.get("principal")
+        ).encode("utf-8")
     except Exception:
         log.warning("No se pudieron calcular las métricas de deriva.", exc_info=True)
     return Response(content=cuerpo, media_type=tipo)

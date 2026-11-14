@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import sqlite3
+from pathlib import Path
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -327,15 +328,77 @@ def test_sin_registro_se_usa_el_modelo_de_siempre_con_un_aviso_salvo_que_se_exij
         rm.cargar_para_servicio(alm, Ajustes(exigir_registro_modelos=True))
 
 
-def test_con_el_registro_exigido_el_modelo_sin_estado_no_se_carga_si_no_esta_registrado(carpeta, alm, artefacto):  # noqa: F811
+def test_con_registro_el_modelo_sin_estado_no_registrado_no_se_carga_nunca_exijas_o_no_el_registro(
+    carpeta, alm, artefacto, monkeypatch, caplog
+):
+    """El hueco que encontró la revisión: con un principal registrado, el sin_estado se cargaba del archivo de siempre SIN verificar."""
     registrado_y_en_uso(alm, carpeta, artefacto)
     (carpeta / "modelo_actual_sin_estado.joblib").write_bytes(
         guardar(carpeta, artefacto, "sin_v1", sin_estado=True, version="0.8.0").read_bytes()
     )
-    _, sin_exigido, info = rm.cargar_para_servicio(alm, Ajustes(exigir_registro_modelos=True))
-    assert sin_exigido is None and info["sin_estado"]["verificado"] is False  # un archivo sin verificar no se usa
-    _, sin_libre, _ = rm.cargar_para_servicio(alm, Ajustes())
-    assert sin_libre is not None  # sin exigirlo, el de siempre sigue funcionando
+    monkeypatch.setattr(
+        rm.predecir,
+        "cargar_artefacto_sin_estado",
+        lambda: pytest.fail("no debe deserializarse un modelo sin_estado que no está en el registro"),
+    )
+    for exigir in (True, False):
+        with caplog.at_level(logging.WARNING, logger="modelo_ia.modelos"):
+            caplog.clear()
+            art, sin, info = rm.cargar_para_servicio(alm, Ajustes(exigir_registro_modelos=exigir))
+        assert art["meta"]["version"] == "0.9.0" and sin is None and info["sin_estado"]["verificado"] is False, exigir
+        assert "se desactiva esa variante" in caplog.text
+
+
+def test_con_registro_un_principal_sin_registrar_es_un_error_y_no_se_carga_el_de_siempre(
+    carpeta, alm, artefacto, monkeypatch
+):
+    """El caso inverso: solo el sin_estado está registrado. El principal NO se carga de modelo_actual.joblib sin verificar."""
+    registrado_y_en_uso(alm, carpeta, artefacto, "sin_v1", sin_estado=True)
+    (carpeta / "modelo_actual.joblib").write_bytes(guardar(carpeta, artefacto, "pri_v1", version="0.8.0").read_bytes())
+    monkeypatch.setattr(
+        rm.predecir,
+        "cargar_artefacto",
+        lambda *a, **k: pytest.fail("no debe deserializarse un principal que no está en el registro"),
+    )
+    for exigir in (True, False):
+        with pytest.raises(RegistroIncompleto, match="ninguno para el rol «principal»"):
+            rm.cargar_para_servicio(alm, Ajustes(exigir_registro_modelos=exigir))
+
+
+def test_un_modelo_elegido_a_mano_se_rechaza_cuando_el_registro_ya_tiene_modelos_en_uso(
+    carpeta, alm, artefacto, monkeypatch
+):
+    a_mano = guardar(carpeta, artefacto, "a_mano")
+    registrado_y_en_uso(alm, carpeta, artefacto, "registrado", version="1.0.0")
+    monkeypatch.setattr(rm.predecir, "cargar_artefacto", lambda *a, **k: pytest.fail("no debe cargarse"))
+    with pytest.raises(RegistroIncompleto, match="ya hay modelos en uso en el registro"):
+        rm.cargar_para_servicio(alm, Ajustes(ruta_modelo=a_mano))
+    with pytest.raises(RegistroIncompleto, match="Quita MODELO_IA_MODELO"):
+        crear_app(
+            Ajustes(ruta_bd=alm.base.ruta, pepper=PEPPER, ruta_modelo=a_mano)
+        )  # y el servicio tampoco arranca así
+
+
+def test_los_datos_registrados_deben_coincidir_con_los_del_propio_modelo(carpeta, alm, artefacto):
+    """El .json con que se registra no está protegido por la huella: un .json que no corresponda al modelo se detecta al cargar."""
+    ruta = guardar(carpeta, artefacto, "gb_v1", version="0.9.0")
+    id_ = alm.registro_modelos.registrar(
+        ruta.name, rm.sha256_de(ruta), "otro_modelo", "9.9.9", "completo", "principal"
+    )  # huella buena, datos que no son
+    alm.registro_modelos.promover(id_)
+    with pytest.raises(ModeloAlterado, match="no coinciden con los que se registraron"):
+        rm.cargar_para_servicio(alm, Ajustes())
+
+
+def test_adoptar_no_reemplaza_un_modelo_que_ya_esta_en_uso_y_es_otro(carpeta, alm, artefacto):
+    viejo = guardar(carpeta, artefacto, "gb_v1", version="1.0.0")
+    (carpeta / "modelo_actual.joblib").write_bytes(viejo.read_bytes())
+    rm.adoptar_actuales(alm)
+    nuevo = rm.registrar_archivo(alm, guardar(carpeta, artefacto, "gb_v2", version="2.0.0"))
+    alm.registro_modelos.promover(nuevo)  # alguien promovió un modelo nuevo a mano
+    with pytest.raises(ValueError, match="Ya hay un modelo en uso para el rol «principal»"):
+        rm.adoptar_actuales(alm)  # repetir «adoptar» no debe hacer retroceder al modelo viejo
+    assert alm.registro_modelos.en_uso("principal")["id"] == nuevo
 
 
 def test_un_modelo_elegido_a_mano_se_salta_el_registro_salvo_que_se_exija(carpeta, alm, artefacto, caplog):  # noqa: F811
@@ -809,3 +872,48 @@ def test_revertir_vuelve_al_modelo_que_estaba_en_uso_justo_antes_aunque_haya_var
     assert estados == {ids[0]: "archivado", ids[1]: "archivado", ids[2]: "en_uso", ids[3]: "candidato"}
     assert r.revertir("principal")["id"] == ids[1]  # vuelve a 2 (el de justo antes), NO a 1
     assert r.en_uso("principal")["id"] == ids[1] and sum(m["estado"] == "en_uso" for m in r.listar()) == 1
+
+
+def test_la_deriva_usa_la_referencia_del_modelo_que_corre_aunque_se_promueva_otro_antes_de_reiniciar(ctx):
+    r = ctx.app.state.almacen.registro_modelos
+    corriendo = r.registrar(
+        "a.joblib", "a" * 64, "logistica", "0.9.0", "completo", "principal", REF
+    )  # referencia de 1000 pagos
+    r.promover(corriendo)
+    ctx.app.state.info_modelos = {
+        "principal": {"id": corriendo, "huella": "a" * 12, "version": "0.9.0", "verificado": True}
+    }  # lo que verificó el arranque
+    nuevo = r.registrar(
+        "b.joblib", "b" * 64, "logistica", "1.0.0", "completo", "principal", {"n": 7, "proporciones": [0.1] * 10}
+    )
+    r.promover(nuevo)  # se promovió otro, pero el servicio sigue ejecutando el primero
+    resp = deriva_de(ctx).json()
+    assert resp["referencia"] == {"disponible": True, "pagos": 1000} and resp["modelo"]["huella_verificada"] is True
+    assert "antifraude_deriva" in ctx.cliente.get("/v1/metricas", headers=ctx.h("admin")).text
+
+
+def test_dos_procesos_reales_promoviendo_a_la_vez_nunca_dejan_dos_modelos_en_uso(tmp_path):
+    """Con hilos del mismo proceso el candado de Python ya ordena todo; aquí son PROCESOS distintos: lo único que los ordena es SQLite."""
+    import subprocess
+    import sys
+
+    raiz = Path(__file__).resolve().parents[2]
+    codigo = "import sys\nfrom modelo_ia.api.almacen import Almacen\na = Almacen(sys.argv[1], 'pepper-de-prueba')\ntry:\n    a.registro_modelos.promover(int(sys.argv[2]))\nexcept ValueError:\n    pass\n"
+    env = {**__import__("os").environ, "PYTHONPATH": str(raiz)}
+    for ronda in range(15):
+        ruta = tmp_path / f"p{ronda}.sqlite3"
+        base = Almacen(ruta, PEPPER)
+        base.inicializar()
+        ids = [
+            base.registro_modelos.registrar(f"m{i}.joblib", str(i) * 64, "gb", f"{i}", "c", "principal")
+            for i in range(1, 4)
+        ]
+        hijos = [
+            subprocess.Popen([sys.executable, "-c", codigo, str(ruta), str(i)], env=env, cwd=str(raiz)) for i in ids
+        ]
+        assert [h.wait(timeout=120) for h in hijos] == [0, 0, 0]
+        estados = sorted(m["estado"] for m in base.registro_modelos.listar())
+        assert estados == ["archivado", "archivado", "en_uso"], (
+            ronda,
+            estados,
+        )  # los tres se promovieron en algún orden: uno en uso y dos archivados

@@ -34,8 +34,7 @@ def deriva_del_modelo(
     consultas: ConsultasPanel = Depends(obtener_consultas),
     ajustes: Ajustes = Depends(obtener_ajustes),
 ):
-    verificado = bool((request.app.state.info_modelos.get("principal") or {}).get("verificado"))
-    return consultas.deriva(ventana_dias, ajustes.deriva_min_muestra, verificado)
+    return consultas.deriva(ventana_dias, ajustes.deriva_min_muestra, request.app.state.info_modelos.get("principal"))
 
 
 @router.get(
