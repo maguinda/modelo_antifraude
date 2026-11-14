@@ -9,6 +9,13 @@ Uso:
     python -m modelo_ia.api.admin activar-mfa --id 3                                         # segundo factor (código de 6 dígitos) de UN administrador: muestra el secreto UNA vez
     python -m modelo_ia.api.admin confirmar-mfa --id 3 --codigo 123456                       # lo activa de verdad, con el primer código de su app de autenticación
     python -m modelo_ia.api.admin desactivar-mfa --id 3                                      # si perdió el teléfono (se anota en la auditoría)
+    python -m modelo_ia.api.admin modelo-adoptar                                             # registra y pone EN USO los modelo_actual*.joblib de siempre (con su huella)
+    python -m modelo_ia.api.admin modelo-listar                                              # modelos registrados: huella, estado y cuál está en uso
+    python -m modelo_ia.api.admin modelo-registrar --archivo gradient_boosting_completo_v0.3.0.joblib      # un modelo nuevo (queda candidato)
+    python -m modelo_ia.api.admin modelo-promover --id 4                                     # lo pone en uso (el anterior queda archivado); reinicia el servicio
+    python -m modelo_ia.api.admin modelo-revertir --rol principal                            # vuelve al modelo anterior
+    python -m modelo_ia.api.admin modelo-verificar                                           # comprueba la huella de los que están en uso
+    python -m modelo_ia.api.admin modelo-referencia --id 4 --datos datos/dataset.csv.gz      # calcula la referencia de deriva de un modelo ya entrenado
     python -m modelo_ia.api.admin rotar-clave --id 3                                         # cambia la clave de una persona (la anterior se apaga)
     python -m modelo_ia.api.admin desactivar-clave --id 3                                    # cuando alguien deja de trabajar con el sistema
     python -m modelo_ia.api.admin migraciones                                                # qué cambios de la base están aplicados y cuáles faltan (no toca nada)
@@ -26,6 +33,52 @@ from . import totp
 from .ajustes import Ajustes
 from .almacen import Almacen, ComercioInexistente, OperacionNoPermitida
 from .migraciones import BaseMasNueva, CopiaPreviaFallo
+
+
+def _modelos(almacen, a) -> None:
+    """Los comandos del registro de modelos (se importan aquí: cargar scikit-learn y pandas es lento y los demás comandos no lo necesitan)."""
+    from . import registro_modelos as rm
+
+    if a.orden == "modelo-adoptar":
+        for rol, id_, archivo in rm.adoptar_actuales(almacen):
+            print(f"Rol {rol}: modelo {id_} ({archivo}) registrado y EN USO.")
+        print("Reinicia el servicio para que use el modelo verificado.")
+    elif a.orden == "modelo-listar":
+        filas = almacen.registro_modelos.listar()
+        print(f"{'id':>3}  {'rol':10} {'estado':9} {'versión':8} {'modelo':18} {'huella':12} {'referencia':10} archivo")
+        for m in filas:
+            print(
+                f"{m['id']:>3}  {m['rol']:10} {m['estado']:9} {m['version']:8} {m['nombre'][:18]:18} {m['sha256'][:12]:12} {'sí' if m['referencia'] else 'no':10} {m['archivo']}"
+            )
+        if not filas:
+            print("(no hay modelos registrados: usa «modelo-adoptar» o «modelo-registrar»)")
+    elif a.orden == "modelo-registrar":
+        from .. import config
+
+        ruta = Path(a.archivo)
+        id_ = rm.registrar_archivo(
+            almacen, ruta if ruta.parent != Path(".") else config.CARPETA_MODELOS / ruta.name, a.rol
+        )
+        print(f"Modelo registrado con el número {id_} (candidato). Para usarlo: modelo-promover --id {id_}")
+    elif a.orden == "modelo-promover":
+        m = almacen.registro_modelos.promover(a.id)
+        print(
+            f"Modelo {m['id']} ({m['archivo']}) EN USO para el rol {m['rol']}. Reinicia el servicio para que lo cargue (verificando su huella)."
+        )
+    elif a.orden == "modelo-revertir":
+        m = almacen.registro_modelos.revertir(a.rol)
+        print(f"Vuelto al modelo {m['id']} ({m['archivo']}) para el rol {a.rol}. Reinicia el servicio.")
+    elif a.orden == "modelo-verificar":
+        resultados = rm.verificar_en_uso(almacen)
+        for rol, archivo, estado in resultados:
+            print(f"{rol:10} {archivo}: {estado}")
+        if not resultados:
+            print("No hay modelos en uso en el registro.")
+        if any(estado != "ok" for _, _, estado in resultados):
+            raise SystemExit("ERROR: algún modelo en uso NO coincide con su huella registrada.")
+    elif a.orden == "modelo-referencia":
+        ref = rm.calcular_referencia(almacen, a.id, Path(a.datos) if a.datos else None)
+        print(f"Referencia guardada para el modelo {a.id}: {ref['n']} puntajes de validación en 10 cubetas.")
 
 
 def main(argv=None) -> None:
@@ -73,6 +126,21 @@ def main(argv=None) -> None:
     m2.add_argument("--codigo", required=True, help="los 6 dígitos que muestra la app")
     m3 = sub.add_parser("desactivar-mfa", help="quita el segundo factor de una clave (p. ej. si se perdió el teléfono)")
     m3.add_argument("--id", type=int, required=True)
+    sub.add_parser("modelo-adoptar", help="registra y pone en uso los modelo_actual*.joblib que el servicio ya usaba")
+    sub.add_parser("modelo-listar", help="los modelos registrados")
+    r1 = sub.add_parser("modelo-registrar", help="registra un modelo de la carpeta de modelos como candidato")
+    r1.add_argument("--archivo", required=True, help="el nombre del .joblib dentro de la carpeta de modelos")
+    r1.add_argument(
+        "--rol", choices=["principal", "sin_estado"], default=None, help="por defecto se deduce de los datos del modelo"
+    )
+    r2 = sub.add_parser("modelo-promover", help="pone un modelo en uso (el que estaba en uso queda archivado)")
+    r2.add_argument("--id", type=int, required=True)
+    r3 = sub.add_parser("modelo-revertir", help="vuelve al modelo que estaba en uso antes")
+    r3.add_argument("--rol", choices=["principal", "sin_estado"], default="principal")
+    sub.add_parser("modelo-verificar", help="comprueba la huella de los modelos en uso (sin cargarlos)")
+    r4 = sub.add_parser("modelo-referencia", help="calcula la referencia de deriva de un modelo ya entrenado")
+    r4.add_argument("--id", type=int, required=True)
+    r4.add_argument("--datos", default=None, help="el archivo de datos de entrenamiento (por defecto, el de siempre)")
     d = sub.add_parser("desactivar-clave")
     d.add_argument("--id", type=int, required=True)
     a = ap.parse_args(argv)
@@ -222,6 +290,8 @@ def main(argv=None) -> None:
             print(
                 f"Segundo factor de la clave {a.id} desactivado (queda anotado en la auditoría). Para volver a tenerlo: activar-mfa."
             )
+        elif a.orden.startswith("modelo-"):
+            _modelos(almacen, a)
         elif a.orden == "rotar-clave":
             nuevo, clave = almacen.rotar_clave(a.id)
             print(f"La clave {a.id} quedó apagada. Clave nueva número {nuevo} (se muestra UNA sola vez):")

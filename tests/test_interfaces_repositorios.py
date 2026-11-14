@@ -13,9 +13,11 @@ from modelo_ia.api.repositorios import interfaces as ifaz
 from modelo_ia.api.repositorios.consultas import ConsultasRepositorio
 from modelo_ia.api.repositorios.evaluaciones import EvaluacionesRepositorio
 from modelo_ia.api.repositorios.lista_negra import ListaNegraRepositorio
+from modelo_ia.api.repositorios.modelos_registro import ModelosRegistroRepositorio
 from modelo_ia.api.repositorios.resultados import ResultadosRepositorio
 from modelo_ia.api.repositorios.revisiones import RevisionesRepositorio
 from modelo_ia.tests.test_consultas_sin_base import FalsasConsultas
+from modelo_ia.tests.test_registro_modelos import FalsoRegistroModelos
 from modelo_ia.tests.test_servicio_sin_base import (
     FalsaListaNegra,
     FalsasEvaluaciones,
@@ -30,7 +32,10 @@ PARES = [
     ("lista_negra", ifaz.ListaNegraRepo, ListaNegraRepositorio, FalsaListaNegra),
 ]
 PARES_DEL_SERVICIO = PARES  # los que usa servicio.py (las lecturas del panel las usa consultas.py)
-PARES = PARES + [("consultas", ifaz.ConsultasRepo, ConsultasRepositorio, FalsasConsultas)]
+PARES = PARES + [
+    ("consultas", ifaz.ConsultasRepo, ConsultasRepositorio, FalsasConsultas),
+    ("registro_modelos", ifaz.ModelosRegistroRepo, ModelosRegistroRepositorio, FalsoRegistroModelos),
+]
 
 
 def metodos(clase):

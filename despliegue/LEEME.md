@@ -144,6 +144,18 @@ las copias NO debe estar junto a ellas.**
   (`curl -H "X-API-Key: $CLAVE_ADMIN" …`) devuelve el formato Prometheus, sumando los 2 procesos de
   la API. No hay alertas ni tableros todavía: son los datos listos para conectarlos.
 
+## Registro de modelos y deriva
+
+Un modelo `.joblib` se carga ejecutando código, así que el servicio lo **verifica por su huella** antes de cargarlo. Antes del primer arranque en producción:
+
+1. `docker compose exec api python -m modelo_ia.api.admin modelo-adoptar` registra y pone en uso los modelos de siempre. Comprueba con `… modelo-listar`.
+2. Reinicia la API (`docker compose restart api`): ahora carga el modelo verificado.
+3. En `.env` pon `MODELO_IA_EXIGIR_REGISTRO=1` y `docker compose up -d`: sin un modelo registrado con huella válida, el servicio **no arranca**.
+
+Para cambiar de modelo: copia el `.joblib` y su `.json` a la carpeta de modelos, `modelo-registrar`, `modelo-promover --id N` y reinicia. Si algo sale mal,
+`modelo-revertir` y reinicia. La **deriva** (`GET /v1/panel/deriva`, y las métricas `antifraude_deriva_*`) necesita la referencia del modelo: `entrenar` la guarda;
+a los modelos viejos se les calcula con `modelo-referencia --id N --datos <archivo de entrenamiento>`. Con menos de 500 pagos en la ventana no se da estado.
+
 ## Segundo factor del administrador
 
 Con una sola clave de API, quien la robe puede crear, suspender o reactivar comercios y registrar acuerdos. El segundo factor pide además un **código de

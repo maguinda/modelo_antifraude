@@ -11,7 +11,7 @@ from typing import Dict, Optional
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .. import predecir
+from . import registro_modelos
 from .ajustes import Ajustes
 from .almacen import Almacen
 from .consultas import ConsultasPanel
@@ -22,7 +22,7 @@ from .metadatos import DESCRIPCION, ETIQUETAS, VERSION_API
 from .observabilidad import ObservabilidadMiddleware, configurar_logs
 from .panel import registrar_panel
 from .proveedores_ip import crear_proveedor
-from .rutas import comercios, estado, evaluaciones, lista_negra, metricas, panel_datos, revisiones
+from .rutas import comercios, estado, evaluaciones, lista_negra, metricas, modelos, panel_datos, revisiones
 from .seguridad import LimitadorClavesInvalidas, LimitadorTasa
 from .servicio import ServicioEvaluacion
 
@@ -34,6 +34,7 @@ RUTAS = (
     comercios,
     estado,
     metricas,
+    modelos,
 )  # en este orden aparecen en el contrato OpenAPI
 
 
@@ -55,10 +56,10 @@ def crear_app(
             logging.getLogger("antifraude").warning("Producción: %s", aviso)
     almacen = Almacen(ajustes.ruta_bd, ajustes.pepper, ajustes.durabilidad)
     almacen.inicializar()
-    if artefacto is None:
-        artefacto = predecir.cargar_artefacto(ajustes.ruta_modelo)
-        if artefacto_sin_estado is None:
-            artefacto_sin_estado = predecir.cargar_artefacto_sin_estado()
+    # el modelo se carga SOLO después de verificar su huella contra el registro (ver registro_modelos.py)
+    artefacto, artefacto_sin_estado, info_modelos = registro_modelos.preparar(
+        almacen, ajustes, artefacto, artefacto_sin_estado
+    )
     servicio = ServicioEvaluacion(
         almacen, artefacto, ajustes, reloj, proveedor_ip or crear_proveedor(ajustes.proveedor_ip), artefacto_sin_estado
     )
@@ -83,6 +84,7 @@ def crear_app(
         ajustes,
         consultas,
     )
+    app.state.info_modelos = info_modelos  # qué modelo se verificó con qué huella (lo muestra GET /v1/panel/modelos)
     app.state.limitador = LimitadorTasa(ajustes.limite_peticiones_por_minuto)
     if ajustes.limite_claves_invalidas < 1:
         raise RuntimeError("MODELO_IA_LIMITE_INVALIDAS debe ser 1 o más.")

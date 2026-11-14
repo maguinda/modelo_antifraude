@@ -114,6 +114,10 @@ class FalsasConsultas:
     def comercios_con_pagos(self, con):
         return self.comercios
 
+    def distribucion_puntaje(self, con, nombre, version, conjunto, desde_iso):
+        self.llamadas.append(("distribucion_puntaje", nombre, version, conjunto, desde_iso))
+        return getattr(self, "cuentas", [0] * 10)
+
 
 def montar(e=None):
     consultas = FalsasConsultas()

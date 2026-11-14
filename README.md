@@ -24,6 +24,7 @@ que se va mejorando, etapa por etapa.
 - [Proveedor de IP propio (bases públicas, sin enviar la IP a nadie)](#proveedor-de-ip-propio-bases-públicas-sin-enviar-la-ip-a-nadie)
 - [Comercios: alta, suspensión y acuerdo de datos](#comercios-alta-suspensión-y-acuerdo-de-datos)
 - [Panel de control: ver todo, filtrar y rastrear (API de solo lectura)](#panel-de-control-ver-todo-filtrar-y-rastrear-api-de-solo-lectura)
+- [Registro de modelos y deriva](#registro-de-modelos-y-deriva)
 - [Seguridad de la cuenta de administrador: segundo factor y claves inválidas](#seguridad-de-la-cuenta-de-administrador-segundo-factor-y-claves-inválidas)
 - [Observabilidad: identificador de petición, registros y métricas](#observabilidad-identificador-de-petición-registros-y-métricas)
 - [Despliegue en un servidor real (preparado, todavía no desplegado)](#despliegue-en-un-servidor-real-preparado-todavía-no-desplegado)
@@ -192,6 +193,8 @@ registrada en la tabla `migraciones`.
   los piden como dependencias, así se pueden probar solas.
 - `manejo.py` — Errores en `application/problem+json`, límite de tamaño y cabeceras de seguridad de
   todas las respuestas.
+- `registro_modelos.py` · `deriva.py` (en la carpeta de arriba) · `rutas/modelos.py` — La huella de
+  cada modelo, la carga verificada y la medición de deriva (ver «Registro de modelos y deriva»).
 - `totp.py` · `ip_cliente.py` · `seguridad.py` — El segundo factor (TOTP, RFC 6238, sin dependencias),
   la IP real detrás de un proxy y los límites de peticiones (ver «Seguridad de la cuenta de
   administrador»).
@@ -234,7 +237,7 @@ los constructos que habría que traducir, con su archivo:
 | `json_each` · `json_extract` | `repositorios/filtros_sql.py`, `repositorios/consultas.py` | Filtrar y contar por regla activada (las reglas se guardan como JSON en texto). |
 | `julianday` | `repositorios/consultas.py` | Minutos promedio que tarda cada analista en resolver. |
 | `substr(fecha,1,10)` | `repositorios/consultas.py` | Agrupar por día (las fechas son texto ISO). |
-| `AUTOINCREMENT` · `lastrowid` | `repositorios/esquema.py`, `comercios.py`, `claves.py` | Identificadores numéricos nuevos. |
+| `AUTOINCREMENT` · `lastrowid` | `repositorios/esquema.py`, `comercios.py`, `claves.py`, `modelos_registro.py` | Identificadores numéricos nuevos. |
 | `PRAGMA` · `BEGIN IMMEDIATE` · WAL | `repositorios/base.py`, `esquema.py`, `migraciones.py` | Conexión, un solo escritor y copias de seguridad. |
 | Sumas de condiciones (`SUM(decision='X')`) y `GROUP BY` por alias | `repositorios/consultas.py` | Conteos del resumen: PostgreSQL pide `CASE WHEN` y repetir la expresión. |
 
@@ -723,6 +726,67 @@ cliente con muchas IPs, viaje imposible, ráfagas, proxy). Todo es inventado.
 la decisión de la Ley 1581: aquí lo ve el analista, no el comercio. Las ráfagas usan una ventana
 fija de 10 minutos. Con millones de filas habrá que medir el rendimiento de los resúmenes (hoy hay
 índices, pero se probó con unos miles).
+
+## Registro de modelos y deriva
+
+**El problema.** Un modelo (`.joblib`) se carga con `joblib.load`, que **ejecuta código**: si
+alguien cambia el archivo, ese código correría al arrancar la API. Y «el modelo en uso» era solo una
+copia con el nombre `modelo_actual.joblib`: sin historia de quién lo cambió ni cuándo, y sin forma de
+volver atrás.
+
+**El registro** (tabla `modelos_registro`, migración 3). Cada modelo tiene su **huella SHA-256**, su
+versión y un estado: `candidato` → `en_uso` → `archivado`. Hay **dos roles** (el modelo `principal` y
+el `sin_estado`, para pagos donde el comercio no manda el estado del dispositivo) y, como mucho, un
+modelo en uso por rol (lo garantiza un índice único de la base). Se administra desde la consola:
+
+```
+admin modelo-adoptar        # registra y pone EN USO los modelo_actual*.joblib de siempre
+admin modelo-listar         # huella, estado y cuál está en uso
+admin modelo-registrar --archivo gradient_boosting_completo_v0.3.0.joblib
+admin modelo-promover --id 4    # lo pone en uso; el anterior queda archivado
+admin modelo-revertir --rol principal   # vuelve al modelo anterior
+admin modelo-verificar      # comprueba la huella de los que están en uso (sin cargarlos)
+```
+
+Promover y revertir son una sola transacción (nunca quedan dos modelos en uso ni ninguno a medias) y
+quedan en la auditoría. Hay que **reiniciar el servicio** para que cargue el modelo nuevo.
+
+**Verificación al arrancar.** Si el registro tiene **algún** modelo en uso, todo lo que se deserializa
+se verifica: el archivo se lee **una sola vez**, se calcula su SHA-256 sobre esos mismos bytes y solo
+si coincide se deserializa desde esos bytes (no hay una ventana entre «verificar» y «cargar»). Ya
+cargado, se comprueba además que sus propios datos (modelo, versión y conjunto de variables)
+coincidan con los registrados, porque el `.json` con que se registra no está protegido por la huella.
+Si algo no coincide, o el archivo ya no está, **el servicio no arranca** y dice por qué. Lo que **no
+está registrado no se carga**: sin modelo `sin_estado` registrado esa variante queda desactivada (con
+un aviso), y un principal sin registrar es un error. Con el registro **totalmente vacío** se usa
+`modelo_actual.joblib` como antes, con un aviso en el registro de eventos; con
+`MODELO_IA_EXIGIR_REGISTRO=1` el servicio exige un modelo registrado (en producción avisa mientras
+esté apagado). `MODELO_IA_MODELO` (un modelo elegido a mano) solo se acepta con el registro vacío y
+sin exigirlo: con modelos en uso se rechaza (quita la variable para usar el modelo verificado).
+`admin modelo-adoptar` no reemplaza un modelo que ya esté en uso y sea otro.
+
+**Deriva.** `GET /v1/panel/deriva` (solo personal) compara la distribución de los **puntajes** de los
+pagos de los últimos N días (7 por defecto) con la de la validación del modelo, en 10 cubetas de 0,1,
+con el **PSI** (índice de estabilidad de la población): menos de 0,10 estable, de 0,10 a 0,25
+atención, más de 0,25 alerta. Con menos de 500 pagos en la ventana
+(`MODELO_IA_DERIVA_MIN_MUESTRA`) no se da estado, porque el PSI sería ruido. Solo cuentan los pagos
+del modelo en uso, con puntaje, de la variante con estado del dispositivo. `/v1/metricas` suma
+`antifraude_deriva_psi` y `antifraude_deriva_pagos`. `GET /v1/panel/modelos` lista el registro y marca
+cuál se está ejecutando con la huella verificada.
+
+La referencia (los puntajes de validación) la guarda `entrenar` en el `.json` del modelo. A los
+modelos ya entrenados se les calcula con `admin modelo-referencia --id N --datos <archivo>`, que
+puntúa su conjunto de validación con el modelo (antes verificado).
+
+**Límites.** La referencia de la deriva es la del modelo que **está corriendo** (por su número en el
+registro), no la del último promovido: tras `modelo-promover` y antes de reiniciar, la deriva sigue
+midiendo el modelo viejo. La consulta de deriva recorre las evaluaciones del periodo en cada
+petición y en cada lectura de `/v1/metricas`; con millones de filas habrá que agregar un índice o
+guardar el resultado unos segundos (pendiente). Mide si los **puntajes cambiaron**, no si el modelo acierta (eso exige las etiquetas, que
+llegan tarde). Con datos sintéticos solo demuestra el mecanismo. No mide deriva por comercio (muestras
+muy chicas) ni de cada variable de entrada. No reentrena solo. La huella protege de cambios
+accidentales o de un archivo sustituido, **no** si alguien controla el servidor entero (podría cambiar
+también la base). Tampoco cambia el modelo en caliente: hay que reiniciar.
 
 ## Seguridad de la cuenta de administrador: segundo factor y claves inválidas
 

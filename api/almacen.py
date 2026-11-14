@@ -28,8 +28,16 @@ from .repositorios.comunes import PLATAFORMA, ahora_iso, id_seguimiento_libre, n
 from .repositorios.esquema import DDL, INDICES_PANEL, Esquema
 from .repositorios.evaluaciones import EvaluacionesRepositorio
 from .repositorios.consultas import ConsultasRepositorio
-from .repositorios.interfaces import ConsultasRepo, EvaluacionesRepo, ListaNegraRepo, ResultadosRepo, RevisionesRepo
+from .repositorios.interfaces import (
+    ConsultasRepo,
+    EvaluacionesRepo,
+    ListaNegraRepo,
+    ModelosRegistroRepo,
+    ResultadosRepo,
+    RevisionesRepo,
+)
 from .repositorios.lista_negra import ListaNegraRepositorio
+from .repositorios.modelos_registro import ModelosRegistroRepositorio
 from .repositorios.resultados import ResultadosRepositorio
 from .repositorios.revisiones import RevisionesRepositorio
 from .repositorios.seudonimos import Seudonimizador
@@ -68,6 +76,7 @@ class Almacen:
         self.resultados: ResultadosRepo = ResultadosRepositorio()
         self.lista_negra: ListaNegraRepo = ListaNegraRepositorio()
         self.consultas: ConsultasRepo = ConsultasRepositorio()
+        self.registro_modelos: ModelosRegistroRepo = ModelosRegistroRepositorio(self.base)
 
     # ------------------------------------------------------------ conexión y transacciones
     def abrir(self) -> sqlite3.Connection:

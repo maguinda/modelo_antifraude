@@ -10,9 +10,10 @@ Reglas que se cumplen aquí (y que las pruebas vigilan):
 import json
 import re
 import sqlite3
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from .. import deriva
 from .almacen import Almacen, Principal
 from .repositorios.interfaces import ORDENES_PANEL
 from .servicio import ErrorAPI, ServicioEvaluacion
@@ -492,3 +493,122 @@ class ConsultasPanel:
     def comercios(self) -> List[Dict]:
         with self.alm.lectura() as con:
             return [dict(r) for r in self.alm.consultas.comercios_con_pagos(con)]
+
+    # ------------------------------------------------------------------ deriva del modelo y modelos registrados
+    def _calculo_deriva(self, ventana_dias: int, minimo: int, info_principal: Optional[Dict] = None) -> Dict:
+        meta = self.srv.meta
+        desde = (datetime.now() - timedelta(days=ventana_dias)).isoformat(
+            timespec="microseconds"
+        )  # `creada` se escribe con la hora real del servidor
+        with self.alm.lectura(instantanea=True) as con:
+            cuentas = self.alm.consultas.distribucion_puntaje(
+                con, meta["modelo"], meta["version"], meta["conjunto"], desde
+            )
+        # la referencia es la del modelo que REALMENTE corre (por su número); si se promovió otro y aún no se reinició, no se compara contra la referencia del nuevo.
+        # Sin número (modelo dado a mano o sin registro) se usa el que esté en uso.
+        id_ejecucion = (info_principal or {}).get("id")
+        registro = (
+            self.alm.registro_modelos.por_id(id_ejecucion)
+            if id_ejecucion
+            else self.alm.registro_modelos.en_uso("principal")
+        )
+        ref = (registro or {}).get("referencia") or meta.get(
+            "referencia_puntaje"
+        )  # primero la del registro (la que se verificó), luego la que trae el propio modelo
+        ref_props = ref["proporciones"] if ref and len(ref.get("proporciones") or []) == deriva.CUBETAS else None
+        pagos = sum(cuentas)
+        obs_props = deriva.proporciones(cuentas) if pagos else None
+        valor = deriva.psi(ref_props, obs_props) if ref_props and obs_props else None
+        if ref_props is None:
+            estado = "sin_referencia"
+        elif pagos == 0:
+            estado = "sin_pagos"
+        else:
+            estado = deriva.estado(valor, pagos, minimo)
+        return {
+            "meta": meta,
+            "desde": desde,
+            "cuentas": cuentas,
+            "pagos": pagos,
+            "ref": ref,
+            "ref_props": ref_props,
+            "obs_props": obs_props,
+            "psi": valor,
+            "estado": estado,
+        }
+
+    def deriva(self, ventana_dias: int, minimo: int, info_principal: Optional[Dict] = None) -> Dict:
+        c = self._calculo_deriva(ventana_dias, minimo, info_principal)
+        huella_verificada = bool((info_principal or {}).get("verificado"))
+        cubetas = [
+            {
+                "desde": i / deriva.CUBETAS,
+                "hasta": (i + 1) / deriva.CUBETAS,
+                "referencia": c["ref_props"][i] if c["ref_props"] else None,
+                "observada": c["obs_props"][i] if c["obs_props"] else None,
+            }
+            for i in range(deriva.CUBETAS)
+        ]
+        notas = {
+            "sin_referencia": "Este modelo no trae la distribución de referencia de sus puntajes (se guarda al entrenar). Calcúlala con «admin modelo-referencia».",
+            "sin_pagos": "Todavía no hay pagos evaluados por este modelo en la ventana.",
+            "muestra_insuficiente": f"Hay menos de {minimo} pagos en la ventana: el PSI todavía es ruido y no se da un estado.",
+            "estable": "Los puntajes se parecen a los de la validación.",
+            "atencion": "Los puntajes empiezan a diferir de los de la validación: conviene mirarlo.",
+            "alerta": "Los puntajes cambiaron bastante frente a la validación: revisa los datos de entrada y considera reentrenar.",
+        }
+        return {
+            "modelo": {
+                "nombre": c["meta"]["modelo"],
+                "version": c["meta"]["version"],
+                "conjunto": c["meta"]["conjunto"],
+                "huella_verificada": huella_verificada,
+            },
+            "referencia": {"disponible": c["ref_props"] is not None, "pagos": (c["ref"] or {}).get("n")},
+            "ventana": {"dias": ventana_dias, "desde": c["desde"], "pagos": c["pagos"], "minimo_requerido": minimo},
+            "psi": c["psi"],
+            "estado": c["estado"],
+            "umbrales": {"atencion": deriva.UMBRAL_ATENCION, "alerta": deriva.UMBRAL_ALERTA},
+            "cubetas": cubetas,
+            "nota": notas[c["estado"]]
+            + " Mide si los PUNTAJES cambiaron, no si el modelo acierta; con datos sintéticos solo demuestra el mecanismo.",
+        }
+
+    def lineas_deriva_prometheus(self, ventana_dias: int, minimo: int, info_principal: Optional[Dict] = None) -> str:
+        """Dos series en el formato de texto de Prometheus (se calculan al leer, con la base: valen igual con varios procesos)."""
+        c = self._calculo_deriva(ventana_dias, minimo, info_principal)
+        salida = [
+            "# HELP antifraude_deriva_pagos Pagos evaluados por el modelo en uso en la ventana de deriva.",
+            "# TYPE antifraude_deriva_pagos gauge",
+            f"antifraude_deriva_pagos {c['pagos']}",
+        ]
+        if c["psi"] is not None:
+            salida += [
+                "# HELP antifraude_deriva_psi PSI de los puntajes de la ventana frente a la referencia de validación (con muestra insuficiente es solo informativo).",
+                "# TYPE antifraude_deriva_psi gauge",
+                f"antifraude_deriva_psi {c['psi']:.6f}",
+            ]
+        return "\n".join(salida) + "\n"
+
+    def modelos(self, info_modelos: Dict) -> List[Dict]:
+        """El registro de modelos para el personal, marcando cuál se está ejecutando y con huella verificada."""
+        filas = []
+        for m in self.alm.registro_modelos.listar():
+            vivo = info_modelos.get(m["rol"]) or {}
+            filas.append(
+                {
+                    "id": m["id"],
+                    "rol": m["rol"],
+                    "estado": m["estado"],
+                    "nombre": m["nombre"],
+                    "version": m["version"],
+                    "conjunto": m["conjunto"],
+                    "huella": m["sha256"][:12],
+                    "registrado": m["registrado"],
+                    "promovido": m["promovido"],
+                    "archivado": m["archivado"],
+                    "tiene_referencia": m["referencia"] is not None,
+                    "en_ejecucion": bool(vivo.get("verificado")) and vivo.get("id") == m["id"],
+                }
+            )
+        return filas

@@ -187,6 +187,21 @@ class ConsultasRepositorio:
         ).fetchall()
         return {"ips": ips, "dispositivos": disp, "clientes": clientes, "candidatas": candidatas}
 
+    # ------------------------------------------------------------------ deriva del modelo
+    def distribucion_puntaje(
+        self, con: sqlite3.Connection, nombre: str, version: str, conjunto: str, desde_iso: str
+    ) -> List[int]:
+        """Cuántos pagos evaluados por ESE modelo (desde `desde_iso`, creación de la evaluación) caen en cada una de las 10 cubetas de puntaje.
+        Se cuentan solo los que tienen puntaje (los del modo degradado no) y se excluyen los de la variante sin estado del dispositivo. Mismas cubetas que `deriva.cubeta_de`."""
+        cuentas = [0] * 10
+        for r in con.execute(
+            "SELECT MIN(CAST(probabilidad * 10 AS INTEGER), 9) cubeta, COUNT(*) pagos FROM evaluaciones "
+            "WHERE modelo_nombre = ? AND modelo_version = ? AND modelo_conjunto = ? AND estado_origen != 'no_enviado' AND probabilidad IS NOT NULL AND creada >= ? GROUP BY cubeta",
+            (nombre, version, conjunto, desde_iso),
+        ):
+            cuentas[max(0, min(int(r["cubeta"]), 9))] += int(r["pagos"])
+        return cuentas
+
     # ------------------------------------------------------------------ comercios (para el filtro)
     def comercios_con_pagos(self, con: sqlite3.Connection) -> List[sqlite3.Row]:
         return con.execute(
