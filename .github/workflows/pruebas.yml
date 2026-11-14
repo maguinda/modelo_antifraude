@@ -56,10 +56,12 @@ jobs:
       - name: Errores reales de código (ruff)
         run: ruff check modelo_ia
       - name: Tipos en api/ (solo informa, no bloquea)
+        if: ${{ !cancelled() }}              # cada revisión corre aunque otra haya fallado: se ven todos los problemas de una vez
         continue-on-error: true
         working-directory: modelo_ia
         run: mypy
       - name: Ningún archivo versionado de más de 5 MB
+        if: ${{ !cancelled() }}
         working-directory: modelo_ia
         run: |
           grandes=$(git ls-files -z | xargs -0 du -k | awk '$1 > 5120 {print "  " $2 " (" $1 " KB)"}')
