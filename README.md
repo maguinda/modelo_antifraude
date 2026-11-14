@@ -321,6 +321,25 @@ La primera prueba de carga **encontró un problema real**: con muchas peticiones
 
 **Límites:** el análisis entre comercios (misma IP en comercios distintos) es lo que dejó pendiente la decisión de la Ley 1581: aquí lo ve el analista, no el comercio. Las ráfagas usan una ventana fija de 10 minutos. Con millones de filas habrá que medir el rendimiento de los resúmenes (hoy hay índices, pero se probó con unos miles).
 
+## Adaptador de historial: el diagnóstico para un comercio (`python -m modelo_ia.historial`)
+
+Sirve para el «Camino A» del plan de piloto: un comercio entrega un archivo con sus pagos pasados (CSV o Excel, con los nombres de columna que él use) y se le devuelve cuánto fraude habría detectado el sistema y cuánto dinero habría ahorrado, **sin tocar su operación ni tu base real**.
+
+```bash
+python -m modelo_ia.historial ejemplo   --salida carpeta            # archivo INVENTADO de una tienda imaginaria, para probar
+python -m modelo_ia.historial sugerir   pagos.csv --salida mapeo.json   # propone qué columna es cada campo (revísalo)
+python -m modelo_ia.historial verificar pagos.csv --mapeo mapeo.json    # cuántas filas sirven y qué falta (no evalúa)
+python -m modelo_ia.historial evaluar   pagos.csv --mapeo mapeo.json --salida carpeta
+```
+
+**Cómo funciona.** (1) El *mapeo* (un JSON) dice qué columna del archivo es cada campo de la API, cómo se traducen sus textos («Tarjeta crédito Visa» → `VISA`) y cuál es la columna de resultado (contracargo o fraude). (2) Cada fila se convierte con las mismas reglas de la API, incluido el rechazo de números de tarjeta. (3) Los pagos se reproducen en **orden de fecha** por el mismo servicio de la API, sobre una base temporal que se borra al terminar, moviendo el reloj a la fecha de cada pago: las señales de historial (compras en 24 h, cliente nuevo, viaje imposible) salen como habrían salido ese día. (4) Se mide contra los resultados reales y se escribe `informe.md` (para leer), `informe.json` y `resultados.csv` (decisión por pago, identificado por su fila en el archivo).
+
+**Elige solo el modelo.** Un modelo con más señales detecta más pero exige más datos; si faltan, el servicio entra en modo degradado y manda todo a revisión (el primer intento con el archivo de ejemplo dio 100 % degradado). El adaptador prueba, del más completo al menos, cuál tiene TODO lo que pide con al menos 95 % de cobertura: `completo`, `perfil` (hora, historial y perfil de red) o `historial`. El informe dice cuáles señales no se usaron y qué datos pedirle al comercio para usarlas. Con el archivo de ejemplo se eligió `perfil`.
+
+**Privacidad.** Los códigos de cliente, pedido y dispositivo se vuelven códigos irreversibles solo de letras antes de evaluar (con dígitos, a veces parecían un número de tarjeta y la API los rechazaba); las IP no se guardan; los motivos de rechazo hablan de campos, nunca de valores; la consola solo imprime conteos. Con `--sin-seudonimos` se mantienen los originales (solo para depurar).
+
+**Límites que el informe repite.** (a) El proveedor de IP es simulado: con IP reales casi toda la red queda «desconocida», salvo que el archivo traiga tipo de IP, país y ciudad. (b) Los pagos de los últimos `--madurez-dias` (90) no se miden: sus contracargos todavía pueden llegar. (c) Con menos de 30 fraudes el margen de error es enorme y el informe lo dice. (d) Los modelos se entrenaron con datos sintéticos y sus umbrales no están calibrados a la tasa de fraude de un comercio: en el archivo de ejemplo el nivel `perfil` marcó como dudoso más del 40 % de los pagos. Esos umbrales hay que recalibrarlos con los datos reales del comercio. (e) Un modelo con solo algunas señales de identidad (edad de la cuenta y verificación, sin doble factor) todavía no existe: es el siguiente paso natural.
+
 ## Prueba de la metodología con datos públicos y reales
 
 `python -m modelo_ia.validacion_publica` repite la forma de trabajar (corte por tiempo, umbral elegido por costo en validación, logística frente a Gradient Boosting) sobre un conjunto **público y real**: 284.807 pagos con tarjeta de comerciantes europeos, 492 fraudes (copia de OpenML, id 1597). Se descarga solo y no se guarda en el repositorio.
