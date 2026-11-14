@@ -338,7 +338,26 @@ python -m modelo_ia.historial evaluar   pagos.csv --mapeo mapeo.json --salida ca
 
 **Privacidad.** Los códigos de cliente, pedido y dispositivo se vuelven códigos irreversibles solo de letras antes de evaluar (con dígitos, a veces parecían un número de tarjeta y la API los rechazaba); las IP no se guardan; los motivos de rechazo hablan de campos, nunca de valores; la consola solo imprime conteos. Con `--sin-seudonimos` se mantienen los originales (solo para depurar).
 
-**Límites que el informe repite.** (a) El proveedor de IP es simulado: con IP reales casi toda la red queda «desconocida», salvo que el archivo traiga tipo de IP, país y ciudad. (b) Los pagos de los últimos `--madurez-dias` (90) no se miden: sus contracargos todavía pueden llegar. (c) Con menos de 30 fraudes el margen de error es enorme y el informe lo dice. (d) Los modelos se entrenaron con datos sintéticos y sus umbrales no están calibrados a la tasa de fraude de un comercio: en el archivo de ejemplo el nivel `perfil` marcó como dudoso más del 40 % de los pagos. Esos umbrales hay que recalibrarlos con los datos reales del comercio. (e) Un modelo con solo algunas señales de identidad (edad de la cuenta y verificación, sin doble factor) todavía no existe: es el siguiente paso natural.
+**Límites que el informe repite.** (a) El proveedor de IP es simulado: con IP reales casi toda la red queda «desconocida», salvo que el archivo traiga tipo de IP, país y ciudad. (b) Los pagos de los últimos `--madurez-dias` (90) no se miden: sus contracargos todavía pueden llegar. (c) Con menos de 30 fraudes el margen de error es enorme y el informe lo dice. (d) Los modelos se entrenaron con datos sintéticos y sus umbrales no están calibrados a la tasa de fraude de un comercio: en el archivo de ejemplo el nivel `perfil` marcó como dudoso más del 40 % de los pagos. Esos umbrales hay que recalibrarlos con los datos reales del comercio. (e) Un modelo con identidad parcial (solo edad de la cuenta y verificación, sin doble factor) se probó y **se descartó porque no aporta** (ver «Qué señales aportan de verdad»).
+
+## Qué señales aportan de verdad (y una idea que se descartó)
+
+Cuando un comercio no tiene todos los datos, el adaptador de historial usa un modelo más pequeño. Para saber dónde conviene poner el esfuerzo, se midió cuánto aporta cada grupo de señales por separado, sumado al historial. Gradient Boosting, sin el estado del dispositivo, historial por comercio, conjunto de prueba sintético (datos inventados: sirve para comparar grupos entre sí, no para prometer resultados reales):
+
+| Señales que usa el modelo, además del historial | Calidad (AP) | Costo (millones de COP) |
+|---|---|---|
+| Solo historial | 0,811 | 343 |
+| + identidad parcial (edad de la cuenta y verificación) | 0,817 | 346 |
+| + identidad completa (con doble factor, intentos fallidos y cambio de contraseña) | 0,858 | 331 |
+| + huella del dispositivo | 0,856 | 313 |
+| + ubicación de la IP | 0,864 | 306 |
+| + comportamiento en el formulario | 0,861 | 315 |
+| Todas juntas | 0,902 | 266 |
+
+- **La identidad parcial se probó y se descartó.** Se construyó un grupo con solo la edad de la cuenta y el nivel de verificación y dos modelos que lo usaban. No mejoró nada (0,811 a 0,817; el costo incluso subió) y con el archivo de historial inventado el recall bajó de 0,84 a 0,72 (con 32 fraudes, los márgenes de error se solapan). El código y los modelos no se conservaron. La idea de partida, que era «lo que más ayudaría a un comercio típico», era una suposición sin medir.
+- **El valor de la identidad está en el doble factor, los intentos fallidos y el cambio de contraseña**, las señales de toma de cuentas; la edad de la cuenta y la verificación casi no pesan.
+- **Lo que más sube la calidad** son la ubicación de la IP, el comportamiento, la huella y la identidad completa; juntas llevan la calidad de 0,81 a 0,90. Por eso, para el piloto, las palancas son: un proveedor de IP real, instalar el SDK en la tienda del comercio (huella y comportamiento) y pedirle los datos de doble factor, intentos fallidos y cambios de contraseña.
+- Son datos sintéticos: con datos reales de un comercio el orden podría cambiar, y eso es justo lo que el piloto debe medir.
 
 ## Prueba de la metodología con datos públicos y reales
 
