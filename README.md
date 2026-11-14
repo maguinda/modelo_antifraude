@@ -168,7 +168,8 @@ registrada en la tabla `migraciones`.
 - **Dos procesos arrancando a la vez** (`--workers`): el estado se relee dentro del bloqueo de
   escritura, así ninguna migración corre dos veces (30 rondas con procesos reales lo comprueban).
   Además, un **candado de archivo** (`<base>.migrar.lock`) cubre toda la actualización: el segundo
-  proceso espera a que el primero termine y no repite ni la copia previa. Sin él, uno que llegaba
+  proceso espera a que el primero termine (hasta 120 s; si sigue ocupado, falla con un mensaje claro)
+  y no repite ni la copia previa. Sin él, uno que llegaba
   entre dos migraciones del primero hacía una copia de más (lo encontró la CI; una prueba
   determinista lo reproduce). En Windows no hay candado de archivo y se mantiene solo el bloqueo de
   SQLite.
@@ -745,8 +746,9 @@ copiarlo no deja a nadie fuera).
 - **Qué NO pide el segundo factor:** las lecturas del administrador y las acciones de **analista**,
   como resolver una revisión (`POST /v1/revisiones/{id}/resolver`): un administrador también puede
   hacerlas con la clave sola, porque son trabajo de analista y no de administración.
-- Al **desactivar** o **rotar** una clave se borra su secreto TOTP (no queda uno huérfano en la base
-  ni en los respaldos).
+- Al **desactivar** o **rotar** una clave se borra su secreto TOTP (no queda uno huérfano en la base;
+  los respaldos hechos **antes** de ese momento sí conservan el secreto viejo, que ya no sirve porque la
+  clave está apagada).
 - El secreto, los códigos y los fallos **nunca** salen en registros, métricas, errores ni en el
   detalle de la auditoría (sí queda constancia de `mfa_activado`, `mfa_fallido`, `mfa_bloqueada`…).
 - Apagado por defecto (`MODELO_IA_EXIGIR_MFA`), como el acuerdo de datos; en producción el servicio
