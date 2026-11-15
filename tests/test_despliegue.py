@@ -555,3 +555,28 @@ def test_las_metricas_y_el_codigo_de_la_tienda_no_existen_por_internet_en_ningun
         assert "/demo/*" in linea and "/tienda" in linea and "/estaticos/tienda/*" in linea, nombre
         # y los dos cierres van ANTES de pasar nada a la API
         assert texto.index("respond @metricas 404") < texto.index("reverse_proxy api:8000"), nombre
+
+
+def test_con_postgresql_la_vigilancia_no_mira_archivos_de_sqlite_y_el_respaldo_de_sqlite_apunta_al_de_postgresql(
+    monkeypatch, tmp_path
+):
+    from modelo_ia.despliegue import respaldo, vigilancia
+
+    llamadas = []
+    monkeypatch.setattr(vigilancia, "revisar_salud", lambda u: [(vigilancia.OK, "salud")])
+    monkeypatch.setattr(vigilancia, "revisar_respaldos", lambda c, m: [(vigilancia.OK, "respaldos")])
+    monkeypatch.setattr(vigilancia, "revisar_disco", lambda b: llamadas.append("disco") or [(vigilancia.OK, "d")])
+    monkeypatch.setattr(vigilancia, "revisar_base", lambda b: llamadas.append("base") or [(vigilancia.OK, "b")])
+    args = argparse.Namespace(
+        url_interna="http://x", url_publica="", bd=tmp_path / "no.sqlite3", respaldos=tmp_path, max_horas_respaldo=13.0
+    )
+    monkeypatch.delenv("MODELO_IA_BD_URL_ARCHIVO", raising=False)
+    monkeypatch.delenv("MODELO_IA_BD_URL", raising=False)
+    vigilancia.ejecutar(args)
+    assert llamadas == ["disco", "base"]  # con SQLite se revisan el archivo y el disco, como siempre
+    llamadas.clear()
+    monkeypatch.setenv("MODELO_IA_BD_URL", "postgresql://u:p@h/b")
+    nivel, res = vigilancia.ejecutar(args)
+    assert llamadas == [] and [t for _, t in res] == ["salud", "respaldos"]  # con PostgreSQL no hay archivo que mirar
+    with pytest.raises(respaldo.ErrorDeRespaldo, match="respaldo_pg"):
+        respaldo.crear(tmp_path / "x.sqlite3", tmp_path / "r", tmp_path / "frase")

@@ -139,9 +139,7 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "solo_sqlite" in item.keywords:
             item.add_marker(saltar)
-    respaldo = pytest.mark.skip(
-        reason="las copias de seguridad cifradas son de SQLite (en PostgreSQL: pg_dump, cambio 7c)"
-    )
+    respaldo = pytest.mark.skip(reason="las copias de seguridad cifradas son de SQLite (en PostgreSQL: respaldo_pg.py)")
     for item in items:
         if item.nodeid.startswith("modelo_ia/tests/test_despliegue.py") or item.nodeid.startswith(
             "tests/test_despliegue.py"
