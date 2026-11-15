@@ -34,8 +34,8 @@ from modelo_ia.api.migraciones import (
 )
 from modelo_ia.api.repositorios.esquema import Esquema
 
-IDS = [1, 2, 3, 4]  # las migraciones que existen hoy; quien agregue una nueva cambia solo estas dos constantes
-SIGUIENTE = 5  # el número de la próxima (las pruebas usan migraciones de juguete con este número)
+IDS = [1, 2, 3, 4, 5]  # las migraciones que existen hoy; quien agregue una nueva cambia solo estas dos constantes
+SIGUIENTE = 6  # el número de la próxima (las pruebas usan migraciones de juguete con este número)
 PEPPER = "p" * 40
 RAIZ = Path(__file__).resolve().parents[2]  # la carpeta que contiene modelo_ia/ (para lanzar procesos que lo importen)
 
@@ -198,6 +198,9 @@ def volver_vieja(ruta, forma: int) -> None:
             for c in ("id_seguimiento", "ip_codigo", "disp_codigo", "monto_cop", "no_enviados_json", "senales_json"):
                 con.execute(f"ALTER TABLE evaluaciones DROP COLUMN {c}")
         if forma >= 4:
+            con.execute(
+                "DROP INDEX IF EXISTS ix_eval_modelo_deriva"
+            )  # el índice de la migración 5 usa estado_origen: SQLite no deja quitar una columna indexada
             for c in ("red_origen", "estado_origen"):
                 con.execute(f"ALTER TABLE evaluaciones DROP COLUMN {c}")
         con.commit()

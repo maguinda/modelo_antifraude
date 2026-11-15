@@ -120,7 +120,7 @@ def test_la_migracion_4_rellena_seq_reglas_y_minutos_desde_los_datos_viejos_y_ha
     ruta = tmp_path / "v3.sqlite3"
     base_v3(ruta)
     nuevo = Almacen(ruta, PEPPER)
-    assert nuevo.inicializar() == [4]
+    assert nuevo.inicializar() == [4, 5]
     con = sqlite3.connect(ruta)
     assert con.execute("SELECT id, seq FROM evaluaciones ORDER BY seq").fetchall() == [
         ("e1", 1),
@@ -367,7 +367,7 @@ def test_la_migracion_4_no_se_bloquea_con_reglas_dañadas_y_deja_esas_evaluacion
         )
     con.commit()
     con.close()
-    assert Almacen(ruta, PEPPER).inicializar() == [4]  # antes, un solo texto dañado impedía arrancar
+    assert Almacen(ruta, PEPPER).inicializar() == [4, 5]  # antes, un solo texto dañado impedía arrancar
     filas = (
         sqlite3.connect(ruta)
         .execute("SELECT id_evaluacion FROM evaluacion_reglas WHERE id_evaluacion LIKE 'x%'")
@@ -388,3 +388,38 @@ def test_una_revision_con_fechas_incompatibles_se_resuelve_igual_y_deja_los_minu
             alm.revisiones.resolver(con, id_, "APROBADA", None, 1, "2026-11-12T11:10:00") == 1
         )  # sin zona: restarlas daría TypeError
         assert tuple(con.execute("SELECT estado, minutos_resolucion FROM revisiones").fetchone()) == ("resuelta", None)
+
+
+@pytest.mark.solo_sqlite
+def test_la_consulta_de_deriva_se_responde_solo_con_el_indice_sin_recorrer_la_tabla(alm):
+    """La migración 5: el índice lleva todas las columnas que lee la consulta, así que SQLite no necesita ir a cada fila (con 600 000 pagos: de 78 a 5 ms)."""
+    for i in range(5):
+        guardar(alm, f"T{i}", cliente=f"C{i}", probabilidad=i / 10)
+    with alm.lectura() as con:
+        plan = " ".join(
+            str(r[3])
+            for r in con.execute(
+                "EXPLAIN QUERY PLAN SELECT CASE WHEN probabilidad * 10 >= 9 THEN 9 ELSE 0 END cubeta, COUNT(*) pagos FROM evaluaciones "
+                "WHERE modelo_nombre = ? AND modelo_version = ? AND modelo_conjunto = ? AND estado_origen != 'no_enviado' AND probabilidad IS NOT NULL "
+                "AND creada >= ? GROUP BY cubeta",
+                ("m", "1", "completo", "2026-01-01"),
+            )
+        )
+    assert "COVERING INDEX ix_eval_modelo_deriva" in plan, plan
+
+
+@pytest.mark.solo_sqlite
+def test_la_migracion_5_crea_el_indice_en_una_base_de_la_version_anterior_sin_tocar_datos(tmp_path):
+    ruta = tmp_path / "v4.sqlite3"
+    v4 = Almacen(ruta, PEPPER)
+    assert v4.inicializar(v4._migraciones()[:4]) == [1, 2, 3, 4]
+    comercio = v4.crear_comercio("Tienda V4")
+    con = sqlite3.connect(ruta)
+    assert not con.execute("SELECT 1 FROM sqlite_master WHERE name='ix_eval_modelo_deriva'").fetchone()
+    antes = con.execute("SELECT COUNT(*) FROM comercios").fetchone()[0]
+    nuevo = Almacen(ruta, PEPPER)
+    assert nuevo.inicializar() == [5] and nuevo.inicializar() == []
+    assert sqlite3.connect(ruta).execute("SELECT 1 FROM sqlite_master WHERE name='ix_eval_modelo_deriva'").fetchone()
+    assert sqlite3.connect(ruta).execute("SELECT COUNT(*) FROM comercios").fetchone()[0] == antes and comercio > 1
+    copias = nuevo.copias_previas()
+    assert len(copias) == 1 and "-v5-" in copias[0].name

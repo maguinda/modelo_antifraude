@@ -87,6 +87,11 @@ def m3(con: Any, registro_modelos: str) -> None:
         con.execute(s)
 
 
+def m5(con: Any, indice_deriva: str) -> None:
+    for s in traducir_ddl(indice_deriva):
+        con.execute(s)
+
+
 def m4(con: Any, sql_portable: str) -> None:
     """`seq` es la secuencia de orden de llegada: en una base nueva de PostgreSQL no hay filas anteriores que rellenar."""
     con.execute("ALTER TABLE evaluaciones ADD COLUMN IF NOT EXISTS seq INTEGER")

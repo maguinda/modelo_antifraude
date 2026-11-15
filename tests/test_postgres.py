@@ -104,9 +104,9 @@ def test_una_base_nueva_se_migra_a_la_version_actual_una_sola_vez_y_el_estado_lo
     a = Almacen(pg, PEPPER)
     assert [m["aplicada"] is None for m in a.estado_migraciones()] == [
         True
-    ] * 4  # antes de migrar: nada aplicado, sin tocar la base
-    assert a.inicializar() == [1, 2, 3, 4] and a.inicializar() == []
-    assert [m["id"] for m in a.estado_migraciones() if m["aplicada"]] == [1, 2, 3, 4] and a.copias_previas() == []
+    ] * 5  # antes de migrar: nada aplicado, sin tocar la base
+    assert a.inicializar() == [1, 2, 3, 4, 5] and a.inicializar() == []
+    assert [m["id"] for m in a.estado_migraciones() if m["aplicada"]] == [1, 2, 3, 4, 5] and a.copias_previas() == []
 
 
 @necesita_pg
@@ -204,7 +204,7 @@ def test_tres_procesos_arrancando_a_la_vez_migran_cada_migracion_una_sola_vez(pg
             aplicadas = sorted(
                 int(n) for out, _ in salidas for n in out.decode().strip("[]\n ").split(",") if n.strip()
             )
-            assert aplicadas == [1, 2, 3, 4], aplicadas  # entre los tres, cada migración exactamente una vez
+            assert aplicadas == [1, 2, 3, 4, 5], aplicadas  # entre los tres, cada migración exactamente una vez
         finally:
             with psycopg.connect(URL, autocommit=True) as c:
                 c.execute(f'DROP SCHEMA "{esquema}" CASCADE')
@@ -402,3 +402,19 @@ def test_sslpassword_se_oculta_el_ultimo_sslmode_manda_y_un_socket_con_servidor_
         "postgresql://u:p@db.ejemplo.com/b?host=/tmp"
     )  # hay un servidor remoto en la dirección: no es un socket local
     assert not sin_cifrar("postgresql:///b?host=/var/run/postgresql")  # sin servidor en la dirección, sí
+
+
+@necesita_pg
+def test_la_migracion_5_crea_el_indice_de_la_deriva_en_postgresql_con_las_mismas_columnas_que_en_sqlite(alm):
+    with alm.lectura() as con:
+        definicion = con.execute(
+            "SELECT indexdef FROM pg_indexes WHERE indexname = 'ix_eval_modelo_deriva'"
+        ).fetchone()[0]
+    for columna in ("modelo_nombre", "modelo_version", "modelo_conjunto", "creada", "estado_origen", "probabilidad"):
+        assert columna in definicion, columna
+    assert (
+        definicion.index("modelo_nombre")
+        < definicion.index("creada")
+        < definicion.index("estado_origen")
+        < definicion.index("probabilidad")
+    )
