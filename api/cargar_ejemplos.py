@@ -216,7 +216,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         r.raise_for_status()
         claves.append(r.json()["clave_api"])
     pagos = generar(a.n, a.dias, a.semilla, datetime.now(), prefijo)
-    resultado, errores = Counter(), Counter()
+    resultado: Counter = Counter()
+    errores: Counter = Counter()
     t0 = time.time()
     for i, (k, _, pago) in enumerate(pagos, 1):
         for intento in range(6):

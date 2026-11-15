@@ -35,7 +35,7 @@ router = APIRouter()
 )
 def evaluar(
     response: Response,
-    solicitud: es.SolicitudEvaluacion = Body(..., openapi_examples=EJEMPLOS_SOLICITUD),
+    solicitud: es.SolicitudEvaluacion = Body(..., openapi_examples=EJEMPLOS_SOLICITUD),  # type: ignore[arg-type]
     p: Principal = Depends(exigir("comercio")),
     servicio: ServicioEvaluacion = Depends(obtener_servicio),
 ):

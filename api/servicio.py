@@ -256,6 +256,7 @@ class ServicioEvaluacion:
                         latencia,
                         red_origen,
                     )
+            raise RuntimeError("Inalcanzable: el último intento siempre guarda o termina con un error.")
         except INTEGRIDAD:
             # Dos solicitudes idénticas llegaron a la vez: la segunda ya no puede insertar; devolvemos la guardada.
             with self.alm.lectura() as con:
@@ -384,7 +385,9 @@ class ServicioEvaluacion:
             id_eval,
             {"decision": resultado["decision"], "modo": resultado["modo"], "latencia_ms": latencia},
         )
-        return self._respuesta(con, self.alm.evaluaciones.por_id(con, id_eval), repetida=False)
+        fila_guardada = self.alm.evaluaciones.por_id(con, id_eval)
+        assert fila_guardada is not None, "la evaluación recién guardada debe existir"
+        return self._respuesta(con, fila_guardada, repetida=False)
 
     # ----------------------------------------------------------- decisión
     def _campos_faltantes(self, fila: Dict) -> List[str]:

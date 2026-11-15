@@ -19,7 +19,7 @@ import json
 import re
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, Union
 
 from .ip_datos import CARPETA, FUENTES, _manifiesto
 from .proveedores_ip import InfoIP
@@ -142,7 +142,7 @@ class ProveedorPropio:
         fechas = [date.fromisoformat(m["descargado"][:10]) for m in man.values() if "descargado" in m]
         self.antiguedad_dias = (date.today() - min(fechas)).days if fechas else None
 
-    def _en_nube(self, a: ipaddress._BaseAddress) -> bool:
+    def _en_nube(self, a: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]) -> bool:
         entero, bits = int(a), a.max_prefixlen
         for (version, largo), bases in self._nube.items():
             if version == a.version and ((entero >> (bits - largo)) << (bits - largo)) in bases:

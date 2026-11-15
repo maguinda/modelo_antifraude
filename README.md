@@ -141,7 +141,7 @@ Cada `push` corre `.github/workflows/pruebas.yml` en GitHub (gratis, el reposito
 | Pruebas (Python 3.9 y 3.12) | Las pruebas con las **versiones exactas de producción** (`requirements-dev.txt` incluye `despliegue/requirements-produccion.txt`). 3.9 es la de tu equipo hoy y 3.12 la de producción; cuando migres, se quita la 3.9. | Sí |
 | Calidad · `ruff` | Solo errores reales: sintaxis, imports sobrantes, nombres sin definir, variables sin usar, argumentos mutables por defecto, escapes inválidos. No revisa estilo (el código usa líneas largas a propósito). | Sí |
 | Calidad · formato | `ruff format --check`: el código Python debe estar con el formato automático (ancho 120). Si falla, se corrige con `ruff format modelo_ia`. | Sí |
-| Calidad · `mypy` | Tipos en `api/`. Por ahora **solo informa** (hoy hay 34 avisos, casi todos de librerías sin tipos); se endurecerá poco a poco. | No |
+| Calidad · `mypy` | Tipos en `api/`. Hoy hay **0 errores** y por eso **bloquea**: un cambio que meta uno nuevo no se une. | Sí |
 | Calidad · archivos pesados | Falla si se versiona un archivo de más de 5 MB (datos pesados o personales subidos por error). | Sí |
 
 El flujo no usa secretos, tiene permisos de solo lectura y sus acciones están fijadas por huella
@@ -150,7 +150,7 @@ El flujo no usa secretos, tiene permisos de solo lectura y sus acciones están f
 pip install -r modelo_ia/requirements-dev.txt          # versiones exactas (a diferencia de requirements.txt, que es amplio)
 ruff check modelo_ia                                   # errores reales
 ruff format modelo_ia                                  # da formato al código (en la CI: ruff format --check)
-(cd modelo_ia && mypy)                                 # tipos, informativo
+(cd modelo_ia && mypy)                                 # tipos (bloquea en la CI)
 python -m pytest modelo_ia/tests -q                    # las pruebas
 ```
 Las pruebas que necesitan las bases de IP de 133 MB (`datos_ip/`) se saltan solas en la CI.

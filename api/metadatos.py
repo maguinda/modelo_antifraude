@@ -1,5 +1,7 @@
 """Textos y respuestas documentadas de la API (lo que se ve en Swagger), el formato de error estándar y las constantes compartidas."""
 
+from typing import Any, Dict, Union
+
 from fastapi.responses import JSONResponse
 
 from . import esquemas as es
@@ -50,7 +52,7 @@ ETIQUETAS = [
     {"name": "Estado", "description": "Salud del servicio y modelo en uso."},
 ]
 
-RESPUESTAS_ERROR = {
+RESPUESTAS_ERROR: Dict[Union[int, str], Dict[str, Any]] = {
     401: {"model": es.Problema, "description": "Falta la clave de API o no es válida."},
     403: {
         "model": es.Problema,

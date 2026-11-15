@@ -413,7 +413,7 @@ class FilaRevision(BaseModel):
         None, description="Quién resolvió la revisión (nombre de la persona). Solo lo ven analistas y administradores."
     )
     senales: Senales = Field(
-        Senales(),
+        Senales(),  # type: ignore[call-arg]  # pydantic le pone sus valores por omisión (listas vacías, None); mypy sin su complemento no lo sabe
         description="Las señales que más pesaron en el puntaje (solo para pagos que no se aprobaron). Explican al modelo, no prueban fraude.",
     )
     resumen_pago: Dict[str, Any] = Field(

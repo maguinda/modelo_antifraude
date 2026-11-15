@@ -161,7 +161,7 @@ class ClavesRepositorio:
                 return
             with self.base.transaccion() as con:
                 con.execute("UPDATE claves SET ultimo_uso=? WHERE id=?", (ahora_iso(), clave_id))
-        except (*CUALQUIERA, ValueError):
+        except CUALQUIERA + (ValueError,):
             pass
 
     def desactivar_clave(self, clave_id: int) -> None:

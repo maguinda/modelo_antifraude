@@ -89,9 +89,8 @@ jobs:
       - name: Formato del código (ruff format, ancho 120)
         if: ${{ !cancelled() }}
         run: ruff format --check modelo_ia
-      - name: Tipos en api/ (solo informa, no bloquea)
+      - name: Tipos en api/ (mypy)
         if: ${{ !cancelled() }}              # cada revisión corre aunque otra haya fallado: se ven todos los problemas de una vez
-        continue-on-error: true
         working-directory: modelo_ia
         run: mypy
       - name: Ningún archivo versionado de más de 5 MB
