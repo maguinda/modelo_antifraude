@@ -103,6 +103,18 @@ los analistas los ven el personal y nadie más: un comercio no ve quién decidi�
 
 Estas dos pruebas son lo que separa «lo instalé» de «lo puedo operar».
 
+**Si usas PostgreSQL en lugar de SQLite** (ver el README, «PostgreSQL»): el respaldo es `respaldo_pg.py`, con el mismo formato cifrado (.afbk), la misma rotación y la
+misma copia afuera, pero la copia la saca `pg_dump` y se restaura con `pg_restore` en una sola transacción:
+```
+python -m modelo_ia.despliegue.respaldo_pg crear      # con MODELO_IA_BD_URL (o _ARCHIVO) y la frase de respaldo
+python -m modelo_ia.despliegue.respaldo_pg verificar /respaldos/antifraude_XXXXXXXX_XXXXXX.afbk
+python -m modelo_ia.despliegue.respaldo_pg restaurar /respaldos/antifraude_XXXXXXXX_XXXXXX.afbk [--forzar]
+```
+Hace falta `pg_dump` y `pg_restore` **de la misma versión mayor que el servidor de PostgreSQL o más nueva** (la imagen del servicio NO los trae: agrega el
+cliente de PostgreSQL de esa versión, o corre el respaldo en la máquina donde esté). Una copia de SQLite y una de PostgreSQL no se confunden: cada herramienta rechaza la del otro motor.
+Probado con `pg_dump` 16 contra PostgreSQL 16: copia, verificación, restauración tras perder todo y rechazo de archivos alterados; **no probado** dentro del contenedor del servicio
+ni con una base grande. La vigilancia (`vigilancia.py`) con PostgreSQL revisa la salud de la API, el certificado y la edad de la última copia, no el archivo de la base.
+
 **A. Copia de seguridad y restauración de verdad.**
 ```
 docker compose exec respaldo python -m modelo_ia.despliegue.respaldo crear

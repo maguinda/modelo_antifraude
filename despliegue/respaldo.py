@@ -54,7 +54,7 @@ def _no_en_postgres() -> None:
     if os.environ.get("MODELO_IA_BD_URL") or os.environ.get("MODELO_IA_BD_URL_ARCHIVO"):
         raise ErrorDeRespaldo(
             "Esta instalación usa PostgreSQL: la copia de seguridad cifrada de este programa es solo de SQLite. "
-            "Haz la copia con pg_dump (ver el README, «PostgreSQL»)."
+            "Para PostgreSQL usa «python -m modelo_ia.despliegue.respaldo_pg» (mismo formato cifrado, con pg_dump)."
         )
 
 
@@ -138,8 +138,11 @@ def _descifrar(cifrado: bytes, frase_ruta: Path, iteraciones: int) -> bytes:
     return r.stdout
 
 
-def _abrir(archivo: Path, frase_ruta: Path) -> bytes:
-    """Comprueba la autenticidad y devuelve la base de datos en claro (bytes). Rechaza todo archivo alterado antes de descifrar."""
+def _abrir(
+    archivo: Path, frase_ruta: Path, firma: bytes = b"SQLite format 3\x00", que: str = "una base de datos SQLite"
+) -> bytes:
+    """Comprueba la autenticidad y devuelve la base de datos en claro (bytes). Rechaza todo archivo alterado antes de descifrar.
+    `firma` es cómo empieza lo descifrado si es del motor esperado: una copia de SQLite no se confunde con una de PostgreSQL ni al revés."""
     frase = leer_frase(frase_ruta)
     try:
         datos = Path(archivo).read_bytes()
@@ -156,8 +159,8 @@ def _abrir(archivo: Path, frase_ruta: Path) -> bytes:
     if not hmac.compare_digest(mac, esperado):
         raise ErrorDeRespaldo("La copia está alterada o la frase no es la correcta: no se descifra.")
     plano = _descifrar(cifrado, Path(frase_ruta), iteraciones)
-    if not plano.startswith(b"SQLite format 3\x00"):
-        raise ErrorDeRespaldo("Lo descifrado no es una base de datos SQLite.")
+    if not plano.startswith(firma):
+        raise ErrorDeRespaldo(f"Lo descifrado no es {que}.")
     return plano
 
 

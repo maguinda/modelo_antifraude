@@ -242,3 +242,18 @@ def test_si_el_sqlite_cambia_mientras_se_copia_no_se_confirma_nada_y_se_pide_rep
     monkeypatch.setattr(mp, "_filas", real)  # y ya sin escrituras, repetir funciona y trae también lo que llegó
     resumen = copiar(origen.origen_ruta, destino)
     assert resumen["lista_negra"]["filas"] == 2
+
+
+def test_la_lista_de_tablas_que_se_copian_es_exactamente_la_del_esquema_para_que_ninguna_se_omita_en_silencio(tmp_path):
+    """Si alguien agrega una tabla al esquema y no a TABLAS, la herramienta la dejaría fuera sin avisar: esta prueba lo impide. («migraciones» no se copia a propósito.)"""
+    import sqlite3
+
+    ruta = tmp_path / "esquema.origen-sqlite"
+    a = Almacen(ruta, PEPPER)
+    a.inicializar()
+    con = sqlite3.connect(ruta)
+    reales = {
+        r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    }
+    con.close()
+    assert reales - {"migraciones"} == {t for t, _, _ in mp.TABLAS}

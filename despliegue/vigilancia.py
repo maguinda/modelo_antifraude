@@ -133,13 +133,18 @@ def revisar_respaldos(carpeta: Path, max_horas: float = 13.0, ahora: Optional[da
     return [(OK, f"Última copia buena hace {horas:.1f} h.")]
 
 
+def _usa_postgres() -> bool:
+    return bool(os.environ.get("MODELO_IA_BD_URL") or os.environ.get("MODELO_IA_BD_URL_ARCHIVO"))
+
+
 def ejecutar(a: argparse.Namespace) -> Tuple[int, List[Resultado]]:
     res: List[Resultado] = []
     res += revisar_salud(a.url_interna)
     if a.url_publica:
         res += revisar_certificado(a.url_publica)
-    res += revisar_disco(a.bd)
-    res += revisar_base(a.bd)
+    if not _usa_postgres():  # con PostgreSQL no hay archivo que mirar: la salud de la base la dice /v1/salud (arriba) y el espacio lo vigila quien opera el servidor
+        res += revisar_disco(a.bd)
+        res += revisar_base(a.bd)
     res += revisar_respaldos(a.respaldos, a.max_horas_respaldo)
     return max(n for n, _ in res), res
 
@@ -197,11 +202,6 @@ def main(argv=None) -> int:
     ap.add_argument("--estado-archivo", default=e("MODELO_IA_VIGILANCIA_ESTADO", "/tmp/vigilancia_estado"))
     ap.add_argument("--cada-minutos", type=float, default=0.0, help="0 = una sola revisión y salir")
     a = ap.parse_args(argv)
-    if e("MODELO_IA_BD_URL") or e("MODELO_IA_BD_URL_ARCHIVO"):
-        print(
-            "Esta instalación usa PostgreSQL: la vigilancia de este programa revisa el archivo de SQLite y los respaldos cifrados (solo SQLite)."
-        )
-        return 2
     if a.cada_minutos <= 0:
         return una_vez(a)
     while True:
