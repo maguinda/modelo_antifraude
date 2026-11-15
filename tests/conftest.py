@@ -123,6 +123,7 @@ import hashlib  # noqa: E402
 import os  # noqa: E402
 
 URL_PRUEBAS_PG = os.environ.get("MODELO_IA_PRUEBAS_PG")
+_SQLITE_REAL: list = []  # el sqlite3.connect de verdad, guardado mientras la suite sobre PostgreSQL lo reemplaza por un «saltar»
 
 
 def pytest_configure(config):
@@ -168,9 +169,12 @@ def _almacen_sobre_postgres():
         pytest.skip("abre el archivo de SQLite directamente (MODELO_IA_PRUEBAS_PG activo)")
 
     sqlite3.connect = sin_sqlite
+    _SQLITE_REAL.append(conectar)
 
     def init(self, ruta, pepper, durabilidad="NORMAL", esquema_pg=None):
-        if not es_direccion_pg(ruta):
+        if not es_direccion_pg(ruta) and not str(ruta).endswith(
+            ".origen-sqlite"
+        ):  # esa terminación es la escotilla: un SQLite de verdad (origen de migrar-a-postgres)
             clave = str(ruta)
             if clave not in esquemas:
                 nombre = "t_" + hashlib.sha1(clave.encode()).hexdigest()[:14]
@@ -188,3 +192,12 @@ def _almacen_sobre_postgres():
     with psycopg.connect(URL_PRUEBAS_PG, autocommit=True) as c:
         for nombre in esquemas.values():
             c.execute(f'DROP SCHEMA IF EXISTS "{nombre}" CASCADE')
+
+
+@pytest.fixture(autouse=True)
+def _sqlite_de_verdad_para_las_pruebas_que_migran_datos(request, monkeypatch):
+    """Las pruebas marcadas `migra_datos` usan SQLite (origen) y PostgreSQL (destino) a la vez: aquí sqlite3.connect vuelve a ser el de verdad."""
+    if URL_PRUEBAS_PG and request.node.get_closest_marker("migra_datos") and _SQLITE_REAL:
+        import sqlite3
+
+        monkeypatch.setattr(sqlite3, "connect", _SQLITE_REAL[0])

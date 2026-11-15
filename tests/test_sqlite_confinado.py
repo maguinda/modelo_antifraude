@@ -7,7 +7,11 @@ import re
 from pathlib import Path
 
 API = Path(__file__).resolve().parent.parent / "api"
-PERMITIDOS = ("repositorios", "migraciones.py")
+PERMITIDOS = (
+    "repositorios",
+    "migraciones.py",
+    "migrar_a_postgres.py",
+)  # este último LEE un archivo de SQLite a propósito (solo lectura)
 PROPIO_DE_SQLITE = re.compile(
     r"\browid\b|INSERT OR REPLACE|julianday|json_each|json_extract|\bsubstr\(|PRAGMA|AUTOINCREMENT|lastrowid|RETURNING|\.execute\(|sqlite3\.connect"
 )
