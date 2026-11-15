@@ -239,8 +239,16 @@ El mismo programa funciona sobre **PostgreSQL 16** con `MODELO_IA_BD_URL=postgre
 - **Crear la base** con colación `C` (el orden de los textos igual al de SQLite): `CREATE DATABASE antifraude LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;`. Si no, el
   programa avisa en el registro. Las migraciones se aplican al arrancar, como en SQLite.
 - **Copias de seguridad:** el respaldo cifrado y la vigilancia de este programa son **de SQLite** y se niegan con un mensaje claro. Con PostgreSQL haz
-  `pg_dump` (hazlo también **antes de actualizar** una base con datos: el programa no guarda copia previa en PostgreSQL). La herramienta de respaldo y de paso de
-  SQLite a PostgreSQL es el cambio 7c (**pendiente**, no existe).
+  `pg_dump` (hazlo también **antes de actualizar** una base con datos: el programa no guarda copia previa en PostgreSQL). El respaldo cifrado de este programa para
+  PostgreSQL **sigue sin existir** (solo `pg_dump`).
+- **Pasar los datos de SQLite a PostgreSQL** (`admin migrar-a-postgres`): copia TODO a una base NUEVA y vacía, y verifica antes de confirmar.
+  Pasos: (1) pon la base de SQLite al día con `MODELO_IA_BD=/ruta/base.sqlite3 python -m modelo_ia.api.admin migrar`; (2) crea la base de PostgreSQL vacía (colación
+  `C`); (3) con **el mismo `MODELO_IA_PEPPER`** que usaba SQLite (si cambia, las claves guardadas dejan de reconocerse) y `MODELO_IA_BD_URL` apuntando a la base nueva, corre
+  `python -m modelo_ia.api.admin migrar-a-postgres --sqlite /ruta/base.sqlite3`. El archivo de SQLite se abre **solo para leer** y no cambia; se copia en una sola
+  transacción en el orden de las claves foráneas, conservando los números (id) y dejando las secuencias después del último; y antes de confirmar se compara, tabla por tabla,
+  el número de filas y una huella SHA-256 del contenido. Si algo no coincide, se deshace todo. **Se niega** si el destino ya tiene datos, si el SQLite no está al día o si las
+  columnas no coinciden. Probado con la copia de la demo (1 956 pagos, 123 revisiones, 1 966 registros de auditoría): las diez tablas coinciden y los endpoints del panel dan
+  lo mismo en los dos motores. **No hace** la vuelta (de PostgreSQL a SQLite) ni mezcla con datos que ya haya.
 - **Dos roles (lo recomendado en producción):** el que **migra** (dueño de las tablas, con CREATE) y el de la **aplicación**, que solo lee y escribe filas. La
   aplicación arranca con el rol limitado siempre que la base ya esté al día (no intenta crear nada); quien migra corre `python -m modelo_ia.api.admin migrar`.
   Permisos del rol de la aplicación (sustituye `app` y `public`): `GRANT USAGE ON SCHEMA public TO app; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA
@@ -274,7 +282,7 @@ en vez de `json_each`, `minutos_resolucion` en vez de `julianday`, `ON CONFLICT`
 | `rowid` · `julianday` · `json_each` | `repositorios/esquema.py` (solo la migración 4) | Rellenar las columnas nuevas a partir de los datos que ya había; no se usan al atender peticiones. |
 | `substr(fecha,1,10)` | `repositorios/consultas.py` | Agrupar por día (las fechas son texto ISO); PostgreSQL también tiene `substr`. |
 | `AUTOINCREMENT` | `repositorios/esquema.py` (y `esquema_pg.py` lo traduce a una columna de identidad) | Identificadores numéricos nuevos (en PostgreSQL, `GENERATED ... AS IDENTITY`). |
-| `PRAGMA` · `BEGIN IMMEDIATE` · WAL | `repositorios/base.py`, `esquema.py`, `migraciones.py` | Conexión, un solo escritor y copias de seguridad. |
+| `PRAGMA` · `BEGIN IMMEDIATE` · WAL | `repositorios/base.py`, `esquema.py`, `migraciones.py`, `migrar_a_postgres.py` (este solo lee el SQLite de origen) | Conexión, un solo escritor y copias de seguridad. |
 | `RETURNING` | `comercios.py`, `claves.py`, `modelos_registro.py` | Pide SQLite 3.35 o más reciente (PostgreSQL lo trae de siempre). |
 
 Para agregar una ruta: ponla en el router de su tema, agrégala al recorrido de
