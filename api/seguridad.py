@@ -12,7 +12,7 @@ class LimitadorTasa:
         self._tiempos: Dict[int, Deque[float]] = defaultdict(deque)
         self._candado = threading.Lock()
 
-    def permitir(self, clave_id: int, ahora: float = None) -> Tuple[bool, int]:
+    def permitir(self, clave_id: int, ahora: Optional[float] = None) -> Tuple[bool, int]:
         """(permitido, segundos_para_reintentar)."""
         ahora = time.monotonic() if ahora is None else ahora
         with self._candado:

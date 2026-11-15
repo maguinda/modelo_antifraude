@@ -39,7 +39,7 @@ def ver_lista_negra(
 )
 def agregar_lista_negra(
     id_cliente: str = Path(pattern=es.PATRON_ID),
-    solicitud: es.SolicitudListaNegra = Body(default_factory=es.SolicitudListaNegra),
+    solicitud: es.SolicitudListaNegra = Body(default_factory=es.SolicitudListaNegra),  # type: ignore[arg-type]
     p: Principal = Depends(exigir("comercio")),
     servicio: ServicioEvaluacion = Depends(obtener_servicio),
 ):

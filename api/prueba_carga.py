@@ -12,7 +12,7 @@ import copy
 import random
 import statistics
 import time
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import httpx
 
@@ -52,7 +52,7 @@ async def correr(
     latencias: List[float] = []
     codigos: Dict[int, int] = {}
     reintento_distinto = 0
-    cola = asyncio.Queue()
+    cola: "asyncio.Queue[Any]" = asyncio.Queue()
     for t in trabajos:
         cola.put_nowait(t)
     inicio = time.perf_counter()
@@ -86,7 +86,8 @@ async def correr(
         base_url=url, headers={"X-API-Key": clave}, timeout=120, limits=limites, verify=False
     ) as c:
         # los originales primero (en paralelo); los reintentos después, para que siempre exista el original
-        cola_orig, cola_rein = asyncio.Queue(), asyncio.Queue()
+        cola_orig: "asyncio.Queue[Any]" = asyncio.Queue()
+        cola_rein: "asyncio.Queue[Any]" = asyncio.Queue()
         for t in trabajos:
             (cola_rein if t[1] else cola_orig).put_nowait(t)
         for fase in (cola_orig, cola_rein):

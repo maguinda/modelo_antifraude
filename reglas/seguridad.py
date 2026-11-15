@@ -5,7 +5,7 @@ Si el modelo dice APROBAR pero una de estas reglas dice BLOQUEAR o REVISAR, gana
 Los valores son conservadores y están aquí para que se puedan cambiar con una sola línea.
 """
 
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional
 
 
 from .motor import Regla
@@ -18,7 +18,7 @@ PARAMS_SEGURIDAD: Dict = {
 }
 
 
-def construir_reglas_seguridad(lista_negra: Iterable[str] = (), params: Dict = None) -> List[Regla]:
+def construir_reglas_seguridad(lista_negra: Iterable[str] = (), params: Optional[Dict] = None) -> List[Regla]:
     p = dict(PARAMS_SEGURIDAD, **(params or {}))
     negra = frozenset(lista_negra)
     return [

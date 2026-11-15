@@ -39,4 +39,4 @@ def instalar_contrato(app: FastAPI) -> None:
         app.openapi_schema = esquema
         return esquema
 
-    app.openapi = contrato
+    app.openapi = contrato  # type: ignore[method-assign]

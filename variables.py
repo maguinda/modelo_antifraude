@@ -4,7 +4,7 @@ Regla de oro: lo que depende del pasado (historial, perfil habitual, huella comp
 SOLO con compras anteriores o con la fila actual. Nada de lo que pase después puede entrar en una fila.
 """
 
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -165,7 +165,7 @@ def agregar_comportamiento(df: pd.DataFrame) -> pd.DataFrame:
     return d
 
 
-FUNCIONES = {
+FUNCIONES: Dict[str, Callable[..., pd.DataFrame]] = {
     "hora": agregar_hora,
     "historial": agregar_historial,
     "perfil": agregar_perfil,

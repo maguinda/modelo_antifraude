@@ -475,7 +475,7 @@ class ConsultasPanel:
                 por_ip.setdefault(r["ip_codigo"], []).append(datetime.fromisoformat(r["fecha"]))
             except ValueError:
                 continue
-        salida = []
+        salida: List[Dict[str, Any]] = []
         for codigo, fechas in por_ip.items():
             mejor, ini = 0, 0
             for fin in range(len(fechas)):

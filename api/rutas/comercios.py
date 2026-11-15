@@ -137,7 +137,9 @@ def registrar_acuerdo(
             hoy,
         )
     )
-    return {"id_acuerdo": i, "acuerdo": almacen.historial_acuerdos(id_comercio, hoy)[0]}
+    historial = almacen.historial_acuerdos(id_comercio, hoy)
+    assert historial, "el acuerdo recién registrado debe estar en el historial"
+    return {"id_acuerdo": i, "acuerdo": historial[0]}
 
 
 @router.get(

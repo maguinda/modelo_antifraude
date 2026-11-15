@@ -51,7 +51,7 @@ def construir_reglas(params: Dict) -> List[Regla]:
             Regla(
                 "monto_alto",
                 ("monto_cop",),
-                lambda d, v=v: d["monto_cop"] >= v,
+                lambda d, v=v: d["monto_cop"] >= v,  # type: ignore[misc]
                 "REVISAR",
                 f"Compra de {v:,} COP o más".replace(",", "."),
             )
@@ -62,7 +62,7 @@ def construir_reglas(params: Dict) -> List[Regla]:
             Regla(
                 "muchas_compras_24h",
                 ("transacciones_ultimas_24h",),
-                lambda d, v=v: d["transacciones_ultimas_24h"] >= v,
+                lambda d, v=v: d["transacciones_ultimas_24h"] >= v,  # type: ignore[misc]
                 "REVISAR",
                 f"{v} o más compras en 24 horas",
             )
@@ -73,7 +73,7 @@ def construir_reglas(params: Dict) -> List[Regla]:
             Regla(
                 "cambio_de_ciudad_rapido",
                 ("ciudad_distinta_anterior", "minutos_desde_anterior"),
-                lambda d, v=v: (d["ciudad_distinta_anterior"] == 1) & (d["minutos_desde_anterior"] <= v),
+                lambda d, v=v: (d["ciudad_distinta_anterior"] == 1) & (d["minutos_desde_anterior"] <= v),  # type: ignore[misc]
                 "BLOQUEAR",
                 f"Otra ciudad a los {v} minutos o menos de la compra anterior",
             )
@@ -84,7 +84,7 @@ def construir_reglas(params: Dict) -> List[Regla]:
             Regla(
                 "cliente_nuevo_monto_alto",
                 ("n_compras_previas", "monto_cop"),
-                lambda d, v=v: (d["n_compras_previas"] == 0) & (d["monto_cop"] >= v),
+                lambda d, v=v: (d["n_compras_previas"] == 0) & (d["monto_cop"] >= v),  # type: ignore[misc]
                 "REVISAR",
                 f"Cliente sin historial con compra de {v:,} COP o más".replace(",", "."),
             )
@@ -95,7 +95,7 @@ def construir_reglas(params: Dict) -> List[Regla]:
             Regla(
                 "madrugada_monto_alto",
                 ("hora", "monto_cop"),
-                lambda d, v=v: (d["hora"] <= 5) & (d["monto_cop"] >= v),
+                lambda d, v=v: (d["hora"] <= 5) & (d["monto_cop"] >= v),  # type: ignore[misc]
                 "REVISAR",
                 f"Compra de madrugada de {v:,} COP o más".replace(",", "."),
             )
