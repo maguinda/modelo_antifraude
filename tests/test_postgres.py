@@ -418,3 +418,54 @@ def test_la_migracion_5_crea_el_indice_de_la_deriva_en_postgresql_con_las_mismas
         < definicion.index("estado_origen")
         < definicion.index("probabilidad")
     )
+
+
+def test_el_administrador_con_una_direccion_mala_da_un_mensaje_corto_sin_host_puerto_ni_usuario(tmp_path):
+    """Lo halló la revisión: el comando de migración mostraba un traceback con el host, el puerto y el usuario cuando PostgreSQL no contestaba."""
+    entorno = {
+        **os.environ,
+        "PYTHONPATH": str(RAIZ),
+        "MODELO_IA_PEPPER": "p" * 40,
+        "MODELO_IA_BD_URL": "postgresql://usuario_x:CLAVE-X@host-inexistente.invalid:5999/base_x",
+    }
+    entorno.pop("MODELO_IA_BD", None)
+    for orden in (["listar-claves"], ["migrar-a-postgres", "--sqlite", str(tmp_path / "nada.sqlite3")], ["migrar"]):
+        r = subprocess.run(
+            [sys.executable, "-m", "modelo_ia.api.admin", *orden],
+            env=entorno,
+            cwd=str(RAIZ),
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        salida = r.stdout + r.stderr
+        assert r.returncode != 0 and "Traceback" not in salida, (orden, salida[-300:])
+        for secreto in ("usuario_x", "CLAVE-X", "host-inexistente", "5999", "base_x"):
+            assert secreto not in salida, (orden, secreto)
+        assert "no se pudo usar la base de datos" in salida, (orden, salida[-200:])
+
+
+@necesita_pg
+def test_el_administrador_con_credenciales_malas_en_un_servidor_real_tampoco_muestra_host_puerto_ni_usuario(tmp_path):
+    host = URL.split("@")[1].split("/")[0]
+    entorno = {
+        **os.environ,
+        "PYTHONPATH": str(RAIZ),
+        "MODELO_IA_PEPPER": "p" * 40,
+        "MODELO_IA_BD_URL": f"postgresql://usuario_x:CLAVE-X@{host}/{URL.rsplit('/', 1)[1]}",
+    }
+    entorno.pop("MODELO_IA_BD", None)
+    r = subprocess.run(
+        [sys.executable, "-m", "modelo_ia.api.admin", "listar-claves"],
+        env=entorno,
+        cwd=str(RAIZ),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    salida = r.stdout + r.stderr
+    assert r.returncode != 0 and "Traceback" not in salida and "no se pudo usar la base de datos" in salida, salida[
+        -300:
+    ]
+    for secreto in ("usuario_x", "CLAVE-X", host.split(":")[0], host.split(":")[1]):
+        assert secreto not in salida, secreto

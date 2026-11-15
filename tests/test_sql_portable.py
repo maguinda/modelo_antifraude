@@ -423,3 +423,28 @@ def test_la_migracion_5_crea_el_indice_en_una_base_de_la_version_anterior_sin_to
     assert sqlite3.connect(ruta).execute("SELECT COUNT(*) FROM comercios").fetchone()[0] == antes and comercio > 1
     copias = nuevo.copias_previas()
     assert len(copias) == 1 and "-v5-" in copias[0].name
+
+
+def test_si_hay_mas_de_200_ips_candidatas_a_rafaga_se_eligen_siempre_las_200_mas_activas(alm):
+    """Hallazgo con datos reales: con 236 IP candidatas y un LIMIT 200 sin orden, SQLite y PostgreSQL elegían 200 DISTINTAS (4 ráfagas contra 2)."""
+    with alm.transaccion() as con:
+        n = 0
+        for k in range(203):
+            pagos = 3 if k < 3 else 4  # 3 IP con 3 pagos (las menos activas) y 200 con 4
+            for j in range(pagos):
+                n += 1
+                alm.evaluaciones.insertar(
+                    con, id=f"{n:08d}-0000-4000-8000-000000000000", comercio_id=alm.comercio, id_transaccion=f"T{n}", id_cliente=f"C{k}",
+                    fecha=f"2026-11-12T10:{j:02d}:00", huella=None, fila_json="{}", solicitud_hash=f"h{n}", decision="APROBADA", decision_modelo=None,
+                    probabilidad=0.1, motivos_json="[]", reglas_json="[]", modelo_nombre="m", modelo_version="1", modelo_conjunto="completo", modo="normal",
+                    latencia_ms=1.0, creada="2026-11-12T10:00:00", red_origen="comercio", estado_origen="comercio", id_seguimiento=f"AF-{n:04d}-ABCD",
+                    ip_codigo=f"IP{k:04d}", disp_codigo=None, monto_cop=1.0, no_enviados_json="[]", senales_json=None,
+                )  # fmt: skip
+    with alm.lectura() as con:
+        candidatas = alm.consultas.vinculos(con, filtros(), 3)["candidatas"]
+    ips = {r[0] for r in candidatas}
+    assert len(ips) == 200 and not ips & {
+        "IP0000",
+        "IP0001",
+        "IP0002",
+    }  # las 3 menos activas son las que se quedan fuera, en cualquier motor

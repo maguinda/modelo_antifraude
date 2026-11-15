@@ -181,7 +181,7 @@ class ConsultasRepositorio:
         ).fetchall()
         candidatas = con.execute(
             f"SELECT e.ip_codigo, e.fecha FROM evaluaciones e {base} e.ip_codigo IN ("
-            f"SELECT ip_codigo FROM evaluaciones e {_y(donde)} e.ip_codigo IS NOT NULL GROUP BY ip_codigo HAVING COUNT(*) >= ? LIMIT 200) "
+            f"SELECT ip_codigo FROM evaluaciones e {_y(donde)} e.ip_codigo IS NOT NULL GROUP BY ip_codigo HAVING COUNT(*) >= ? ORDER BY COUNT(*) DESC, ip_codigo LIMIT 200) "
             "ORDER BY e.ip_codigo, e.fecha",
             par + par + (minimo,),
         ).fetchall()
