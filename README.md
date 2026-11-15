@@ -238,9 +238,12 @@ El mismo programa funciona sobre **PostgreSQL 16** con `MODELO_IA_BD_URL=postgre
   Es lo más conservador: no se rediseñaron las carreras. Más adelante se podría pasar a candados por fila si el rendimiento lo pide (hoy no hay medida que lo pida).
 - **Crear la base** con colación `C` (el orden de los textos igual al de SQLite): `CREATE DATABASE antifraude LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;`. Si no, el
   programa avisa en el registro. Las migraciones se aplican al arrancar, como en SQLite.
-- **Copias de seguridad:** el respaldo cifrado y la vigilancia de este programa son **de SQLite** y se niegan con un mensaje claro. Con PostgreSQL haz
-  `pg_dump` (hazlo también **antes de actualizar** una base con datos: el programa no guarda copia previa en PostgreSQL). El respaldo cifrado de este programa para
-  PostgreSQL **sigue sin existir** (solo `pg_dump`).
+- **Copias de seguridad:** `python -m modelo_ia.despliegue.respaldo_pg crear | verificar | restaurar | rotar | ciclo` (ver `despliegue/LEEME.md`): el mismo formato cifrado (.afbk), la misma
+  rotación y la misma copia afuera que el respaldo de SQLite, pero la copia la saca `pg_dump` (formato custom, consistente aunque el servicio escriba) y se restaura con
+  `pg_restore` en **una transacción**. La contraseña viaja por el entorno del proceso, no por la línea de comandos. Hace falta `pg_dump`/`pg_restore` de la **misma
+  versión mayor que el servidor o más nueva** (la imagen del servicio no los trae). Una copia de SQLite y una de PostgreSQL no se confunden: cada herramienta rechaza la del otro.
+  Probado con `pg_dump` 16 contra PostgreSQL 16 (copia, verificación, restaurar tras perderlo todo, archivos alterados); no probado dentro del contenedor del servicio ni con una
+  base grande. **Hazla también antes de actualizar** una base con datos: el programa no guarda copia previa en PostgreSQL. El respaldo de SQLite (`respaldo.py`) y la vigilancia de archivos solo sirven con SQLite; con PostgreSQL la vigilancia revisa la API, el certificado y la edad de la última copia.
 - **Pasar los datos de SQLite a PostgreSQL** (`admin migrar-a-postgres`): copia TODO a una base NUEVA y vacía, y verifica antes de confirmar.
   Pasos: (1) pon la base de SQLite al día con `MODELO_IA_BD=/ruta/base.sqlite3 python -m modelo_ia.api.admin migrar`; (2) crea la base de PostgreSQL vacía (colación
   `C`); (3) con **el mismo `MODELO_IA_PEPPER`** que usaba SQLite (si cambia, las claves guardadas dejan de reconocerse) y `MODELO_IA_BD_URL` apuntando a la base nueva, corre
