@@ -2549,3 +2549,33 @@ def test_si_la_base_no_esta_disponible_en_cualquier_punto_la_api_responde_503_y_
     assert (
         cliente.get("/v1/yo", headers={"X-API-Key": "mia_comercio_inventada"}).status_code == 401
     )  # lo demás sigue igual
+
+
+def test_los_errores_inesperados_y_los_de_base_caida_salen_con_las_mismas_cabeceras_de_seguridad(ctx, monkeypatch):
+    """El 500 y el 503 los arma la capa más externa de Starlette, por fuera de los middlewares: antes salían SIN nosniff, X-Frame-Options ni CSP."""
+    import sqlite3
+
+    cliente = TestClient(ctx.app, raise_server_exceptions=False)
+    normal = cliente.get("/v1/yo", headers=ctx.h("A"))
+    esperadas = (
+        "X-Content-Type-Options",
+        "Referrer-Policy",
+        "X-Frame-Options",
+        "Content-Security-Policy",
+        "Cache-Control",
+    )
+    assert all(h in normal.headers for h in esperadas)
+    for error, estado in (
+        (RuntimeError("falla inesperada"), 500),
+        (sqlite3.OperationalError("database is locked"), 503),
+    ):
+
+        def falla(*a, _e=error, **k):
+            raise _e
+
+        monkeypatch.setattr(ctx.app.state.almacen, "autenticar", falla)
+        r = cliente.get("/v1/yo", headers=ctx.h("A"))
+        assert r.status_code == estado, estado
+        for h in esperadas:
+            assert r.headers.get(h) == normal.headers.get(h), (estado, h)
+        assert "falla inesperada" not in r.text and "locked" not in r.text

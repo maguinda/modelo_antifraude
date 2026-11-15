@@ -1,13 +1,12 @@
 """Ajustes del servicio. Todo lo sensible viene de variables de entorno, nunca del código."""
 
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
 from .. import config
-from .repositorios.motor_pg import es_direccion_pg
+from .repositorios.motor_pg import direccion_sin_cifrar, es_direccion_pg
 
 PEPPER_DE_DESARROLLO = "pepper-de-desarrollo-cambiar-en-produccion"
 PEPPER_LARGO_MINIMO = 32
@@ -132,13 +131,9 @@ class Ajustes:
             )
         elif len(self.pepper) < PEPPER_LARGO_MINIMO:
             bloqueantes.append(f"El secreto es demasiado corto (mínimo {PEPPER_LARGO_MINIMO} caracteres).")
-        if (
-            self.bd_url
-            and "sslmode=" not in self.bd_url
-            and not re.search(r"@(localhost|127\.0\.0\.1|\[::1\])[:/]", self.bd_url)
-        ):
+        if self.bd_url and direccion_sin_cifrar(self.bd_url):
             avisos.append(
-                "La dirección de PostgreSQL no lleva sslmode: la conexión puede ir sin cifrar. Fuera de tu propia máquina usa ?sslmode=verify-full (con sslrootcert)."
+                "La conexión a PostgreSQL puede ir sin cifrar (la dirección no lleva sslmode, o es disable, allow o prefer). Fuera de tu propia máquina usa ?sslmode=verify-full (con sslrootcert)."
             )
         if self.durabilidad != "FULL":
             avisos.append(

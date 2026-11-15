@@ -25,6 +25,36 @@ def es_direccion_pg(destino: Any) -> bool:
     return isinstance(destino, str) and destino.startswith(("postgresql://", "postgres://"))
 
 
+def ocultar_clave(url: str) -> str:
+    """La dirección sin la contraseña: la que va en `usuario:clave@` (aunque la clave lleve «@») y la que va como `?password=`."""
+    sin_query, separador, query = url.partition("?")
+    esquema, marca, resto = sin_query.partition("://")
+    if marca:
+        datos, arroba, destino = resto.rpartition("@")  # la ÚLTIMA arroba separa los datos de acceso del servidor
+        if arroba and ":" in datos:
+            resto = datos.split(":", 1)[0] + ":***@" + destino
+        sin_query = esquema + marca + resto
+    query = re.sub(r"(?i)((?:^|&)(?:password|passfile)=)[^&]*", r"\1***", query)
+    return sin_query + separador + query
+
+
+def direccion_sin_cifrar(url: str) -> bool:
+    """¿La conexión puede ir sin cifrar y sale de esta máquina? Verdadero si el servidor no es local y `sslmode` falta o es disable, allow o prefer
+    (ninguno de esos tres exige el cifrado)."""
+    from urllib.parse import parse_qs, urlsplit
+
+    partes = urlsplit(url)
+    consulta = parse_qs(partes.query)
+    host = (partes.hostname or "").lower()
+    if (
+        (consulta.get("host") or [""])[0].startswith("/")
+        or host in ("localhost", "::1")
+        or re.fullmatch(r"127(\.\d{1,3}){3}", host)
+    ):
+        return False  # un socket de esta máquina o la propia máquina
+    return (consulta.get("sslmode") or [""])[0].lower() not in ("require", "verify-ca", "verify-full")
+
+
 class FilaPg(tuple):
     """Una fila que se lee por posición, por nombre y como diccionario (igual que `sqlite3.Row`)."""
 
@@ -119,7 +149,7 @@ class BasePg:
 
     def describir(self) -> str:
         """La dirección SIN la contraseña, para mensajes y registros."""
-        return re.sub(r"//([^:/@]+):[^@]*@", r"//\1:***@", self.url)
+        return ocultar_clave(self.url)
 
     def abrir(self) -> ConexionPg:
         import psycopg

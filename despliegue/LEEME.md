@@ -140,8 +140,9 @@ las copias NO debe estar junto a ellas.**
   de un error, búscalo con `docker compose logs api | grep ESE-ID`. Nunca llevan claves, cuerpos,
   query strings ni IP. Si recreas el contenedor se pierden: para conservarlos configura el
   controlador de logs de Docker (rotación y tamaño máximo).
-- **Métricas:** `GET https://TU-DOMINIO/v1/metricas` con la clave de administrador
-  (`curl -H "X-API-Key: $CLAVE_ADMIN" …`) devuelve el formato Prometheus, sumando los 2 procesos de
+- **Métricas:** por internet **no existen** (Caddy responde 404 en `/v1/metricas`). Se piden por la red interna, directo a la API:
+  `docker compose exec api python -c "import urllib.request as u; r=u.Request('http://127.0.0.1:8000/v1/metricas', headers={'X-API-Key': '<clave de administrador>'}); print(u.urlopen(r).read().decode())"`
+  (o desde otro contenedor de la red `interna`, apuntando a `http://api:8000/v1/metricas`). Devuelve el formato Prometheus, sumando los 2 procesos de
   la API. No hay alertas ni tableros todavía: son los datos listos para conectarlos.
 
 ## Registro de modelos y deriva

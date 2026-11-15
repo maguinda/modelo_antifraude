@@ -21,6 +21,10 @@
 	@demo path /demo/* /tienda /tienda/* /estaticos/tienda/*
 	respond @demo 404
 
+	# Las métricas son SOLO para quien vigila el servicio, por la red interna (api:8000 directo): por internet no existen, aunque se tenga una clave de administrador
+	@metricas path /v1/metricas
+	respond @metricas 404
+
 	header {
 		# HSTS: arranca con poco tiempo (300 s) y se sube cuando todo esté probado (ver LEEME.md). Subirlo mal es difícil de deshacer.
 		Strict-Transport-Security "max-age={$HSTS_SEGUNDOS:300}"
