@@ -34,7 +34,7 @@ def ocultar_clave(url: str) -> str:
         if arroba and ":" in datos:
             resto = datos.split(":", 1)[0] + ":***@" + destino
         sin_query = esquema + marca + resto
-    query = re.sub(r"(?i)((?:^|&)(?:password|passfile)=)[^&]*", r"\1***", query)
+    query = re.sub(r"(?i)((?:^|&)(?:password|passfile|sslpassword)=)[^&]*", r"\1***", query)
     return sin_query + separador + query
 
 
@@ -47,12 +47,18 @@ def direccion_sin_cifrar(url: str) -> bool:
     consulta = parse_qs(partes.query)
     host = (partes.hostname or "").lower()
     if (
-        (consulta.get("host") or [""])[0].startswith("/")
+        (
+            (consulta.get("host") or [""])[0].startswith("/") and not host
+        )  # un socket de esta máquina (con un servidor en la dirección, no)
         or host in ("localhost", "::1")
         or re.fullmatch(r"127(\.\d{1,3}){3}", host)
     ):
         return False  # un socket de esta máquina o la propia máquina
-    return (consulta.get("sslmode") or [""])[0].lower() not in ("require", "verify-ca", "verify-full")
+    return (consulta.get("sslmode") or [""])[-1].lower() not in (
+        "require",
+        "verify-ca",
+        "verify-full",
+    )  # si se repite, libpq usa el ÚLTIMO
 
 
 class FilaPg(tuple):
