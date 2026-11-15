@@ -1,7 +1,8 @@
 """Ajustes del servicio. Todo lo sensible viene de variables de entorno, nunca del código."""
 
 import os
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
@@ -27,9 +28,9 @@ def _leer_secreto_de_archivo(ruta: str) -> str:
 @dataclass
 class Ajustes:
     ruta_bd: Path = config.RAIZ / "api" / "datos_api.sqlite3"
-    bd_url: Optional[str] = (
-        None  # dirección de PostgreSQL (MODELO_IA_BD_URL o MODELO_IA_BD_URL_ARCHIVO); si está, manda sobre ruta_bd
-    )
+    bd_url: Optional[str] = field(
+        default=None, repr=False
+    )  # dirección de PostgreSQL (MODELO_IA_BD_URL o MODELO_IA_BD_URL_ARCHIVO); si está, manda sobre ruta_bd
     pepper: str = PEPPER_DE_DESARROLLO  # secreto que protege las claves guardadas (MODELO_IA_PEPPER)
     ruta_modelo: Optional[Path] = None  # por defecto, el modelo actual (MODELO_IA_MODELO)
     limite_peticiones_por_minuto: int = 600  # por clave de API
@@ -131,6 +132,14 @@ class Ajustes:
             )
         elif len(self.pepper) < PEPPER_LARGO_MINIMO:
             bloqueantes.append(f"El secreto es demasiado corto (mínimo {PEPPER_LARGO_MINIMO} caracteres).")
+        if (
+            self.bd_url
+            and "sslmode=" not in self.bd_url
+            and not re.search(r"@(localhost|127\.0\.0\.1|\[::1\])[:/]", self.bd_url)
+        ):
+            avisos.append(
+                "La dirección de PostgreSQL no lleva sslmode: la conexión puede ir sin cifrar. Fuera de tu propia máquina usa ?sslmode=verify-full (con sslrootcert)."
+            )
         if self.durabilidad != "FULL":
             avisos.append(
                 "MODELO_IA_DURABILIDAD no es FULL: si se va la luz puede perderse lo último que se guardó. En producción conviene FULL."

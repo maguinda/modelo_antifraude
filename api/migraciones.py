@@ -278,6 +278,18 @@ def aplicar_pg(base: Any, migraciones: Sequence[Migracion], ahora_iso: Callable[
     con = base.abrir()
     hechas: List[int] = []
     try:
+        if _tiene_tabla(
+            con
+        ):  # base ya al día: no se crea ni se bloquea nada, así el servicio arranca con un rol que solo lee y escribe filas
+            aplicadas = {r[0] for r in con.execute("SELECT id FROM migraciones")}
+            conocidas = {m.id for m in migraciones}
+            if aplicadas - conocidas:
+                raise BaseMasNueva(
+                    f"Esta base tiene migraciones que este programa no conoce ({sorted(aplicadas - conocidas)}): la creó una versión más nueva. "
+                    "No se abre para no dañarla; actualiza el programa o restaura una copia anterior."
+                )
+            if conocidas <= aplicadas:
+                return []
         con.execute("SET lock_timeout = '600s'")  # la espera máxima del candado, como en SQLite
         con.execute("SELECT pg_advisory_lock(?)", (CLAVE_MIGRACIONES,))
         try:

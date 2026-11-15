@@ -114,6 +114,9 @@ class BasePg:
         )  # una escritura a la vez dentro de este proceso (entre procesos manda el candado de PostgreSQL)
         self._colacion_revisada = False
 
+    def __repr__(self) -> str:
+        return f"BasePg({self.describir()!r}, esquema={self.esquema!r})"  # nunca con la contraseña
+
     def describir(self) -> str:
         """La dirección SIN la contraseña, para mensajes y registros."""
         return re.sub(r"//([^:/@]+):[^@]*@", r"//\1:***@", self.url)
@@ -121,9 +124,14 @@ class BasePg:
     def abrir(self) -> ConexionPg:
         import psycopg
 
-        c = psycopg.connect(
-            self.url, autocommit=True, row_factory=fabrica_de_filas, connect_timeout=10
-        )  # las transacciones las manejamos a mano
+        try:  # las transacciones las manejamos a mano (autocommit)
+            c = psycopg.connect(self.url, autocommit=True, row_factory=fabrica_de_filas, connect_timeout=10)
+        except (
+            psycopg.ProgrammingError
+        ):  # la dirección está mal escrita: el mensaje del controlador la repite ENTERA, con la contraseña
+            raise ValueError(
+                "MODELO_IA_BD_URL no es una dirección válida de PostgreSQL (postgresql://usuario:clave@host:5432/base)."
+            ) from None
         try:
             if self.esquema:
                 c.execute(f'SET search_path TO "{self.esquema}"')
@@ -145,7 +153,8 @@ class BasePg:
 
     @contextmanager
     def transaccion(self) -> Iterator[ConexionPg]:
-        """Una sola escritura a la vez en toda la base (candado de aviso tomado al empezar), con lo leído estable hasta el COMMIT."""
+        """Una sola escritura a la vez en toda la base (candado de aviso tomado al empezar). Cada sentencia lee lo ya confirmado (READ COMMITTED): como
+        nadie más escribe mientras se tiene el candado, releer DENTRO de la transacción da lo mismo que en SQLite."""
         with self._turno:
             con = self.abrir()
             try:

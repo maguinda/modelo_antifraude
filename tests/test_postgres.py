@@ -269,3 +269,85 @@ def test_dos_pagos_iguales_a_la_vez_desde_procesos_distintos_dejan_una_sola_eval
         assert con.execute("SELECT COUNT(*), COUNT(DISTINCT seq) FROM evaluaciones").fetchone().__class__ is not None
         total, distintos = tuple(con.execute("SELECT COUNT(*), COUNT(DISTINCT seq) FROM evaluaciones").fetchone())
     assert total == 10 and distintos == 10  # y ningún seq repetido
+
+
+# ------------------------------------------------------------------ lo que halló la revisión de seguridad
+def test_las_migraciones_de_sqlite_y_de_postgresql_llevan_los_mismos_numeros_y_nombres(tmp_path):
+    """El día que alguien agregue la migración 5 solo para SQLite, esta prueba falla: las dos listas deben crecer juntas."""
+    from modelo_ia.api.repositorios.base import Base
+    from modelo_ia.api.repositorios.esquema import Esquema
+    from modelo_ia.api.repositorios.seudonimos import Seudonimizador
+
+    seud = Seudonimizador(PEPPER.encode())
+    sqlite = Esquema(Base(tmp_path / "x.sqlite3"), seud).migraciones()
+    pg = Esquema(BasePg("postgresql://u:p@h/b"), seud).migraciones()  # no se conecta al crearla
+    assert [(m.id, m.nombre) for m in pg] == [(m.id, m.nombre) for m in sqlite]
+
+
+def test_una_direccion_mal_escrita_no_deja_la_contrasena_en_el_error_ni_en_la_representacion():
+    base = BasePg("postgresql://usuario:CLAVE-SECRETA@[::1/x")
+    with pytest.raises(ValueError) as e:
+        base.abrir()
+    assert "CLAVE-SECRETA" not in str(e.value) and "CLAVE-SECRETA" not in repr(e.value) and e.value.__cause__ is None
+    assert "CLAVE-SECRETA" not in repr(base)
+    from modelo_ia.api.ajustes import Ajustes
+
+    assert "CLAVE-SECRETA" not in repr(Ajustes(bd_url="postgresql://u:CLAVE-SECRETA@h/b"))
+
+
+def test_una_direccion_de_postgresql_sin_sslmode_fuera_de_la_propia_maquina_da_un_aviso_de_produccion():
+    from modelo_ia.api.ajustes import Ajustes
+
+    def avisos(url):
+        return [a for a in Ajustes(bd_url=url).problemas_de_produccion()["avisos"] if "sslmode" in a]
+
+    assert avisos("postgresql://u:p@db.ejemplo.com:5432/b")  # remota y sin cifrar: avisa
+    assert not avisos("postgresql://u:p@db.ejemplo.com:5432/b?sslmode=verify-full")
+    assert (
+        not avisos("postgresql://u:p@localhost:5432/b")
+        and not avisos("postgresql://u:p@127.0.0.1/b")
+        and not avisos(None)
+    )
+
+
+@necesita_pg
+def test_truncate_no_puede_vaciar_la_auditoria_ni_los_acuerdos(alm):
+    """En SQLite no existe TRUNCATE; en PostgreSQL no dispara los triggers por fila: sin su propio trigger vaciaría la auditoría."""
+    alm.crear_comercio("Tienda PG")  # deja filas en auditoría
+    for tabla in ("auditoria", "acuerdos"):
+        for sentencia in (f"TRUNCATE {tabla}", f"TRUNCATE {tabla} CASCADE"):
+            with pytest.raises(INTEGRIDAD, match="no se borra"), alm.transaccion() as con:
+                con.execute(sentencia)
+    with alm.lectura() as con:
+        assert con.execute("SELECT COUNT(*) FROM auditoria").fetchone()[0] >= 1
+
+
+@necesita_pg
+def test_el_servicio_arranca_con_un_rol_que_solo_lee_y_escribe_filas_si_la_base_ya_esta_al_dia(pg):
+    """Un rol de aplicación sin CREATE ni TRUNCATE: lo que se recomienda en producción. Solo el que migra necesita CREATE."""
+    import psycopg
+
+    from modelo_ia.api.almacen import Almacen
+
+    esquema = pg.split("search_path%3D")[1]
+    Almacen(pg, PEPPER).inicializar()  # el dueño migra
+    rol = "app_" + uuid.uuid4().hex[:8]
+    with psycopg.connect(URL, autocommit=True) as c:
+        c.execute(f"CREATE ROLE {rol} LOGIN PASSWORD 'solo_prueba'")
+        c.execute(f'GRANT USAGE ON SCHEMA "{esquema}" TO {rol}')
+        c.execute(f'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "{esquema}" TO {rol}')
+        c.execute(f'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "{esquema}" TO {rol}')
+    try:
+        host = URL.split("@")[1].split("/")[0]
+        url_app = f"postgresql://{rol}:solo_prueba@{host}/{URL.rsplit('/', 1)[1]}?options=-csearch_path%3D{esquema}"
+        app = Almacen(url_app, PEPPER)
+        assert app.inicializar() == []  # sin CREATE: no intenta crear nada porque ya está al día
+        assert app.crear_comercio("Desde el rol de la aplicación") > 1
+        with pytest.raises(Exception, match="permission denied"), app.transaccion() as con:
+            con.execute("TRUNCATE auditoria")  # y el rol no puede vaciar nada aunque quisiera
+    finally:
+        with psycopg.connect(URL, autocommit=True) as c:
+            c.execute(f'REVOKE ALL ON ALL TABLES IN SCHEMA "{esquema}" FROM {rol}')
+            c.execute(f'REVOKE ALL ON ALL SEQUENCES IN SCHEMA "{esquema}" FROM {rol}')
+            c.execute(f'REVOKE USAGE ON SCHEMA "{esquema}" FROM {rol}')
+            c.execute(f"DROP ROLE {rol}")

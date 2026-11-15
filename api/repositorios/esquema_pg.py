@@ -31,7 +31,8 @@ def traducir_ddl(sql: str) -> List[str]:
 
 
 def triggers() -> List[str]:
-    """Funciones y triggers que impiden editar o borrar (acuerdos y auditoría), repetibles."""
+    """Funciones y triggers que impiden editar, borrar o VACIAR (acuerdos y auditoría), repetibles.
+    `TRUNCATE` no existe en SQLite y en PostgreSQL no dispara los triggers por fila: por eso lleva el suyo (por sentencia)."""
     salida: List[str] = []
     for nombre, tabla, operacion, mensaje in INMUTABLES:
         salida.append(
@@ -40,6 +41,14 @@ def triggers() -> List[str]:
         salida.append(f"DROP TRIGGER IF EXISTS {nombre} ON {tabla}")
         salida.append(
             f"CREATE TRIGGER {nombre} BEFORE {operacion} ON {tabla} FOR EACH ROW EXECUTE FUNCTION f_{nombre}()"
+        )
+    for tabla, mensaje in (("acuerdos", "los acuerdos no se borran"), ("auditoria", "la auditoria no se borra")):
+        salida.append(
+            f"CREATE OR REPLACE FUNCTION f_{tabla}_no_se_vacia() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION '{mensaje}' USING ERRCODE = 'integrity_constraint_violation'; END; $$"
+        )
+        salida.append(f"DROP TRIGGER IF EXISTS {tabla}_no_se_vacia ON {tabla}")
+        salida.append(
+            f"CREATE TRIGGER {tabla}_no_se_vacia BEFORE TRUNCATE ON {tabla} FOR EACH STATEMENT EXECUTE FUNCTION f_{tabla}_no_se_vacia()"
         )
     return salida
 
