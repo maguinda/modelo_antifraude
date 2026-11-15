@@ -2,7 +2,7 @@
 # Cómo correrlas (desde la carpeta que contiene modelo_ia/):
 #   ruff check modelo_ia            errores reales (imports sobrantes, nombres sin definir, argumentos mutables)
 #   ruff format modelo_ia           da formato al código (ancho 120); en la CI se verifica con `ruff format --check modelo_ia`
-#   mypy                            tipos en modelo_ia/api (por ahora solo informa, no bloquea)
+#   mypy                            tipos en modelo_ia/api (0 errores: bloquea en la CI)
 
 [tool.ruff]
 line-length = 120                      # ancho del formato automático (ruff format); las reglas de revisión de abajo son solo errores reales

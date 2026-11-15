@@ -112,6 +112,13 @@ def main(argv=None) -> None:
     sub.add_parser(
         "migrar", help="aplica los cambios de la base que falten (guarda una copia antes si la base tiene datos)"
     )
+    mp = sub.add_parser(
+        "migrar-a-postgres",
+        help="copia TODOS los datos de un archivo de SQLite a la base NUEVA de PostgreSQL (MODELO_IA_BD_URL), verificando fila por fila; no modifica el archivo",
+    )
+    mp.add_argument(
+        "--sqlite", required=True, help="el archivo de SQLite de donde salen los datos (se abre solo para leer)"
+    )
     r = sub.add_parser("rotar-clave")
     r.add_argument("--id", type=int, required=True)
     m1 = sub.add_parser(
@@ -185,6 +192,35 @@ def main(argv=None) -> None:
         if a.orden == "migrar":
             if not hechas:
                 print("La base ya está al día: no había nada que migrar.")
+            return
+        if a.orden == "migrar-a-postgres":
+            from .errores_bd import CUALQUIERA
+            from .migrar_a_postgres import MigracionDeDatosError, copiar
+
+            if not ajustes.bd_url:
+                print(
+                    "Define MODELO_IA_BD_URL (o MODELO_IA_BD_URL_ARCHIVO) con la dirección de la base NUEVA de PostgreSQL."
+                )
+                raise SystemExit(2)
+            print(
+                "Antes de seguir: el servicio que usa el SQLite debe estar DETENIDO (lo que se escriba después de la copia no estará en PostgreSQL)."
+            )
+            try:
+                resumen = copiar(Path(a.sqlite), almacen)
+            except MigracionDeDatosError as e:
+                print(f"No se pasó nada: {e}")
+                raise SystemExit(1)
+            except CUALQUIERA as e:  # un error de la base (no conecta, permisos…): mensaje corto, sin el detalle técnico ni la dirección
+                print(
+                    f"No se pasó nada: la base respondió con un error ({type(e).__name__}). Revisa la dirección, la red y los permisos del usuario."
+                )
+                raise SystemExit(1)
+            for tabla, r_ in resumen.items():
+                print(f"  {tabla:18} {r_['filas']:>8} filas   huella {r_['huella']}  (igual en origen y destino)")
+            print(
+                "Listo: los datos están en PostgreSQL y la verificación coincidió en todas las tablas. "
+                "Usa el MISMO MODELO_IA_PEPPER que con SQLite: si cambia, las claves guardadas dejan de reconocerse."
+            )
             return
         if a.orden == "crear-comercio":
             id_comercio = almacen.crear_comercio(a.nombre, a.razon_social, a.nit)
