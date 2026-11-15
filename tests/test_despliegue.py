@@ -542,3 +542,14 @@ def test_el_caddyfile_deja_pasar_la_configuracion_de_las_pantallas_porque_en_pro
     assert (
         "/init" not in linea and "/demo/*" in linea and "/tienda" in linea
     )  # lo que devuelve /init en producción lo comprueba test_api
+
+
+def test_las_metricas_y_el_codigo_de_la_tienda_no_existen_por_internet_en_ninguna_de_las_dos_configuraciones_de_caddy():
+    """Las métricas son para quien vigila, por la red interna: con Caddy delante dan 404 aunque se tenga la clave de administrador."""
+    for nombre in ("Caddyfile", "Caddyfile.pantallas-aparte"):
+        texto = _leer(nombre)
+        assert "@metricas path /v1/metricas" in texto and "respond @metricas 404" in texto, nombre
+        linea = texto.split("@demo path")[1].split("\n")[0]
+        assert "/demo/*" in linea and "/tienda" in linea and "/estaticos/tienda/*" in linea, nombre
+        # y los dos cierres van ANTES de pasar nada a la API
+        assert texto.index("respond @metricas 404") < texto.index("reverse_proxy api:8000"), nombre

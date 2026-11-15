@@ -16,6 +16,19 @@ log = logging.getLogger("modelo_ia.api")
 
 
 def registrar_manejo(app: FastAPI, ajustes: Ajustes) -> None:
+    def con_cabeceras(r, request: Request):
+        """Las cabeceras de seguridad de TODAS las respuestas. Se usa también en los errores inesperados (500, 503): esos los arma la capa más
+        externa de Starlette, por fuera de los middlewares, y sin esto saldrían sin ellas."""
+        r.headers["X-Content-Type-Options"] = "nosniff"
+        r.headers["Referrer-Policy"] = "no-referrer"
+        r.headers["X-Frame-Options"] = "DENY"
+        if ajustes.hsts_segundos > 0 and request.url.scheme == "https":
+            r.headers["Strict-Transport-Security"] = f"max-age={ajustes.hsts_segundos}"
+        if request.url.path.startswith("/v1/"):  # decisiones sobre pagos: nunca en caché; es JSON, no se ejecuta nada
+            r.headers["Cache-Control"] = "no-store"
+            r.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        return r
+
     @app.exception_handler(ErrorAPI)
     async def _error_api(request: Request, e: ErrorAPI):
         return problema(e.status, e.titulo, e.detalle, request.url.path, cabeceras=e.cabeceras)
@@ -46,18 +59,24 @@ def registrar_manejo(app: FastAPI, ajustes: Ajustes) -> None:
         # la base no está disponible (se cortó, no conecta, está bloqueada): se dice y se pide reintentar; no es un error del programa
         if isinstance(e, OPERACION):
             log.exception("base de datos no disponible")
-            return problema(
-                503,
-                "Servicio no disponible",
-                "La base de datos no responde. Trata el pago como EN_REVISION y reintenta.",
-                request.url.path,
+            return con_cabeceras(
+                problema(
+                    503,
+                    "Servicio no disponible",
+                    "La base de datos no responde. Trata el pago como EN_REVISION y reintenta.",
+                    request.url.path,
+                ),
+                request,
             )
         log.exception("error inesperado")
-        return problema(
-            500,
-            "Error interno",
-            "Ocurrió un error inesperado. Trata el pago como EN_REVISION y reintenta.",
-            request.url.path,
+        return con_cabeceras(
+            problema(
+                500,
+                "Error interno",
+                "Ocurrió un error inesperado. Trata el pago como EN_REVISION y reintenta.",
+                request.url.path,
+            ),
+            request,
         )
 
     @app.middleware("http")
@@ -80,13 +99,4 @@ def registrar_manejo(app: FastAPI, ajustes: Ajustes) -> None:
     @app.middleware("http")
     async def _cabeceras_de_seguridad(request: Request, siguiente):
         """Se agregan a TODAS las respuestas (también a los errores 401, 413...). HSTS lo pone el proxy HTTPS."""
-        r = await siguiente(request)
-        r.headers["X-Content-Type-Options"] = "nosniff"
-        r.headers["Referrer-Policy"] = "no-referrer"
-        r.headers["X-Frame-Options"] = "DENY"
-        if ajustes.hsts_segundos > 0 and request.url.scheme == "https":
-            r.headers["Strict-Transport-Security"] = f"max-age={ajustes.hsts_segundos}"
-        if request.url.path.startswith("/v1/"):  # decisiones sobre pagos: nunca en caché; es JSON, no se ejecuta nada
-            r.headers["Cache-Control"] = "no-store"
-            r.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
-        return r
+        return con_cabeceras(await siguiente(request), request)

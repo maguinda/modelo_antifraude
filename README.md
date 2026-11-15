@@ -247,8 +247,8 @@ El mismo programa funciona sobre **PostgreSQL 16** con `MODELO_IA_BD_URL=postgre
   public TO app; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app;` y **nada más** (sin TRUNCATE ni CREATE). La auditoría y los acuerdos no se editan,
   borran ni vacían (`TRUNCATE` también está bloqueado por un trigger), pero **el dueño de las tablas siempre puede quitar un trigger**: por eso la aplicación no
   debe ser la dueña.
-- **Cifrado de la conexión:** fuera de tu propia máquina usa `?sslmode=verify-full&sslrootcert=/ruta/ca.pem` (`require` cifra pero no verifica el servidor). Si la
-  dirección no lleva `sslmode` y no es local, el programa lo avisa al arrancar en producción.
+- **Cifrado de la conexión:** fuera de tu propia máquina usa `?sslmode=verify-full&sslrootcert=/ruta/ca.pem` (`require` cifra pero no verifica el servidor). Si el servidor no es local y la
+  dirección no lleva `sslmode` (o es `disable`, `allow` o `prefer`, que no exigen cifrado), el programa lo avisa al arrancar en producción.
 - **Conexiones:** cada operación abre su conexión (sin agrupador). Con 2 procesos puede haber del orden de 80 conexiones a la vez frente a las 100 que PostgreSQL
   permite por omisión: si el servicio crece, pon **PgBouncer en modo sesión** delante (en modo transacción se pierden `search_path`, `lock_timeout` y el candado de la
   migración) o limita los procesos. Sin agrupador, agotar las conexiones se ve como un 503 «la base no responde», sin pérdida de datos.

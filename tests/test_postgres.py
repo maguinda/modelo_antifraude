@@ -351,3 +351,39 @@ def test_el_servicio_arranca_con_un_rol_que_solo_lee_y_escribe_filas_si_la_base_
             c.execute(f'REVOKE ALL ON ALL SEQUENCES IN SCHEMA "{esquema}" FROM {rol}')
             c.execute(f'REVOKE USAGE ON SCHEMA "{esquema}" FROM {rol}')
             c.execute(f"DROP ROLE {rol}")
+
+
+def test_ocultar_clave_cubre_las_formas_en_que_una_contrasena_puede_ir_en_una_direccion():
+    from modelo_ia.api.repositorios.motor_pg import ocultar_clave
+
+    casos = {
+        "postgresql://u:SECRETA@h:5432/b": "postgresql://u:***@h:5432/b",
+        "postgresql://u:SE@CRETA@h/b": "postgresql://u:***@h/b",  # una clave con «@» sin codificar
+        "postgresql://u@h/b?password=SECRETA&sslmode=require": "postgresql://u@h/b?password=***&sslmode=require",
+        "postgresql://h/b?sslmode=require&PASSWORD=SECRETA": "postgresql://h/b?sslmode=require&PASSWORD=***",
+        "postgresql://u:SECRETA@h/b?options=-csearch_path%3Dx": "postgresql://u:***@h/b?options=-csearch_path%3Dx",
+        "postgresql://h/b": "postgresql://h/b",
+    }
+    for entrada, esperado in casos.items():
+        assert ocultar_clave(entrada) == esperado, entrada
+        assert "SECRETA" not in ocultar_clave(entrada) and "CRETA" not in ocultar_clave(entrada)
+
+
+def test_la_conexion_se_considera_sin_cifrar_solo_si_sale_de_la_maquina_y_no_exige_cifrado():
+    from modelo_ia.api.repositorios.motor_pg import direccion_sin_cifrar as sin_cifrar
+
+    assert sin_cifrar("postgresql://u:p@db.ejemplo.com/b") and sin_cifrar(
+        "postgresql://u:p@db.ejemplo.com/b?sslmode=prefer"
+    )
+    assert sin_cifrar("postgresql://u:p@db.ejemplo.com/b?sslmode=disable") and sin_cifrar(
+        "postgresql://u:p@db.ejemplo.com/b?sslmode=allow"
+    )
+    assert sin_cifrar("postgresql://u:p@localhost.ejemplo.com/b") and sin_cifrar(
+        "postgresql://u:p@127.0.0.1.nip.io/b"
+    )  # parecen locales y no lo son
+    assert sin_cifrar("postgresql://u:p@[2001:db8::1]/b")
+    for bien in ("require", "verify-ca", "verify-full", "VERIFY-FULL"):
+        assert not sin_cifrar(f"postgresql://u:p@db.ejemplo.com/b?sslmode={bien}"), bien
+    for local in ("postgresql://u:p@localhost/b", "postgresql://u:p@LOCALHOST:5432/b", "postgresql://u:p@127.0.0.1/b", "postgresql://u:p@127.0.0.2/b",
+                  "postgresql://u:p@[::1]:5432/b", "postgresql:///b?host=/var/run/postgresql", "postgresql://u@/b?host=/tmp"):  # fmt: skip
+        assert not sin_cifrar(local), local
