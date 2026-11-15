@@ -16,6 +16,7 @@ from typing import Any, ContextManager, Dict, List, Optional, Sequence, Tuple
 from .migraciones import Migracion
 from .repositorios.auditoria import auditar
 from .repositorios.base import Base
+from .repositorios.motor_pg import BasePg, es_direccion_pg
 from .repositorios.claves import ClavesRepositorio, Principal, normalizar_nombre
 from .repositorios.comercios import (
     ComercioInexistente,
@@ -60,10 +61,13 @@ __all__ = [
 
 
 class Almacen:
-    def __init__(self, ruta: Path, pepper: str, durabilidad: str = "NORMAL"):
-        """durabilidad: NORMAL (rápida; si se va la luz puede perderse lo último) o FULL (cada guardado se fuerza a disco)."""
-        self.base = Base(
-            ruta, durabilidad
+    def __init__(self, ruta: Any, pepper: str, durabilidad: str = "NORMAL", esquema_pg: Optional[str] = None):
+        """`ruta`: el archivo de SQLite, o una dirección `postgresql://usuario:clave@host:5432/base` (cambio 7b; `esquema_pg` aísla las pruebas en un esquema).
+        durabilidad (solo SQLite): NORMAL (rápida; si se va la luz puede perderse lo último) o FULL (cada guardado se fuerza a disco)."""
+        if durabilidad not in ("NORMAL", "FULL"):
+            raise ValueError("durabilidad debe ser NORMAL o FULL")
+        self.base: Any = (
+            BasePg(ruta, esquema_pg) if es_direccion_pg(ruta) else Base(ruta, durabilidad)
         )  # la única dueña de la conexión y del candado de escritura: todos los repositorios la comparten
         self.ruta, self.pepper, self.durabilidad = self.base.ruta, pepper.encode("utf-8"), durabilidad
         self.seudonimos = Seudonimizador(self.pepper)
@@ -79,7 +83,7 @@ class Almacen:
         self.registro_modelos: ModelosRegistroRepo = ModelosRegistroRepositorio(self.base)
 
     # ------------------------------------------------------------ conexión y transacciones
-    def abrir(self) -> sqlite3.Connection:
+    def abrir(self) -> Any:
         return self.base.abrir()
 
     def transaccion(self) -> ContextManager[sqlite3.Connection]:

@@ -113,3 +113,78 @@ def ruta_csv_completo(tmp_path, df_completo):
     ruta = tmp_path / "completo.csv"
     df_completo.to_csv(ruta, index=False, encoding="utf-8-sig")
     return ruta
+
+
+# ------------------------------------------------------------------ la suite sobre PostgreSQL (cambio 7b)
+# MODELO_IA_PRUEBAS_PG=postgresql://usuario:clave@host:5432/base  -> cada Almacen que una prueba crea con una ruta de SQLite usa, en su lugar, un ESQUEMA propio
+# de esa base (uno por ruta: reabrir la misma ruta vuelve al mismo esquema). Las pruebas que abren el archivo de SQLite directamente no valen aquí
+# y se saltan con `@pytest.mark.solo_sqlite` (o el nombre del módulo en MODULOS_SOLO_SQLITE).
+import hashlib  # noqa: E402
+import os  # noqa: E402
+
+URL_PRUEBAS_PG = os.environ.get("MODELO_IA_PRUEBAS_PG")
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "solo_sqlite: usa el archivo de SQLite directamente; no se corre contra PostgreSQL"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if not URL_PRUEBAS_PG:
+        return
+    saltar = pytest.mark.skip(reason="usa el archivo de SQLite directamente (MODELO_IA_PRUEBAS_PG activo)")
+    for item in items:
+        if "solo_sqlite" in item.keywords:
+            item.add_marker(saltar)
+    respaldo = pytest.mark.skip(
+        reason="las copias de seguridad cifradas son de SQLite (en PostgreSQL: pg_dump, cambio 7c)"
+    )
+    for item in items:
+        if item.nodeid.startswith("modelo_ia/tests/test_despliegue.py") or item.nodeid.startswith(
+            "tests/test_despliegue.py"
+        ):
+            item.add_marker(respaldo)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _almacen_sobre_postgres():
+    if not URL_PRUEBAS_PG:
+        yield
+        return
+    import psycopg
+
+    from modelo_ia.api import almacen as modulo
+    from modelo_ia.api.repositorios.motor_pg import es_direccion_pg
+
+    import sqlite3
+
+    original, esquemas, conectar = modulo.Almacen.__init__, {}, sqlite3.connect
+
+    def sin_sqlite(
+        *args, **kwargs
+    ):  # una prueba que abre el archivo de SQLite a mano no tiene qué hacer contra PostgreSQL: se salta, no falla
+        pytest.skip("abre el archivo de SQLite directamente (MODELO_IA_PRUEBAS_PG activo)")
+
+    sqlite3.connect = sin_sqlite
+
+    def init(self, ruta, pepper, durabilidad="NORMAL", esquema_pg=None):
+        if not es_direccion_pg(ruta):
+            clave = str(ruta)
+            if clave not in esquemas:
+                nombre = "t_" + hashlib.sha1(clave.encode()).hexdigest()[:14]
+                with psycopg.connect(URL_PRUEBAS_PG, autocommit=True) as c:
+                    c.execute(f'DROP SCHEMA IF EXISTS "{nombre}" CASCADE')
+                    c.execute(f'CREATE SCHEMA "{nombre}"')
+                esquemas[clave] = nombre
+            ruta = f"{URL_PRUEBAS_PG}?options=-csearch_path%3D{esquemas[clave]}"  # el esquema va EN la dirección: quien la reuse (crear_app) cae en el mismo
+        original(self, ruta, pepper, durabilidad, esquema_pg)
+
+    modulo.Almacen.__init__ = init
+    yield
+    modulo.Almacen.__init__ = original
+    sqlite3.connect = conectar
+    with psycopg.connect(URL_PRUEBAS_PG, autocommit=True) as c:
+        for nombre in esquemas.values():
+            c.execute(f'DROP SCHEMA IF EXISTS "{nombre}" CASCADE')

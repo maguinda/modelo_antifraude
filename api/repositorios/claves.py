@@ -8,9 +8,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..errores_bd import CUALQUIERA
 from .. import totp
 from .auditoria import auditar
-from .base import Base
+from .base import BaseDeDatos
 from .comunes import PLATAFORMA, ahora_iso
 from .seudonimos import Seudonimizador
 
@@ -40,7 +41,7 @@ def normalizar_nombre(nombre: str) -> str:
 
 
 class ClavesRepositorio:
-    def __init__(self, base: Base, seudonimos: Seudonimizador):
+    def __init__(self, base: BaseDeDatos, seudonimos: Seudonimizador):
         self.base, self.seudonimos = base, seudonimos
 
     def comercio_suspendido_por_clave(self, clave: str) -> bool:
@@ -160,7 +161,7 @@ class ClavesRepositorio:
                 return
             with self.base.transaccion() as con:
                 con.execute("UPDATE claves SET ultimo_uso=? WHERE id=?", (ahora_iso(), clave_id))
-        except (sqlite3.Error, ValueError):
+        except (*CUALQUIERA, ValueError):
             pass
 
     def desactivar_clave(self, clave_id: int) -> None:

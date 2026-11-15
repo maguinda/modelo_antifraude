@@ -932,6 +932,7 @@ def test_demo_las_claves_funcionan_cada_una_en_su_rol(demo):
     assert c.get("/v1/revisiones", headers={"X-API-Key": k["comercio"]}).status_code == 403
 
 
+@pytest.mark.solo_sqlite
 def test_demo_reutiliza_las_claves_y_reiniciar_las_cambia_y_borra_la_base(demo):
     demo.crear_app_demo()
     primeras = _claves_de(demo.CLAVES)
@@ -1286,6 +1287,7 @@ def test_tras_varios_conflictos_el_pago_igual_se_guarda(ctx, monkeypatch):
     assert con.execute("SELECT COUNT(*) FROM evaluaciones WHERE id_cliente='CLI-Y'").fetchone()[0] == 4
 
 
+@pytest.mark.solo_sqlite
 def test_la_durabilidad_se_configura_y_solo_acepta_valores_validos(tmp_path):
     from modelo_ia.api.almacen import Almacen
 
@@ -2522,3 +2524,28 @@ def test_los_limites_entre_carpetas_se_respetan(ctx):
         if archivo.suffix in (".js", ".html", ".css"):
             texto = archivo.read_text(encoding="utf-8")
             assert "../api/" not in texto and "modelo_ia.api" not in texto, archivo.name
+
+
+def test_si_la_base_no_esta_disponible_en_cualquier_punto_la_api_responde_503_y_no_500(ctx, monkeypatch):
+    """Se cortó la conexión, la base está bloqueada o no contesta (SQLite o PostgreSQL): «no disponible, reintenta», no un error interno."""
+    import sqlite3
+
+    import psycopg
+
+    cliente = TestClient(ctx.app, raise_server_exceptions=False)
+    for error in (sqlite3.OperationalError("database is locked"), psycopg.OperationalError("connection refused")):
+
+        def falla(*a, _e=error, **k):
+            raise _e
+
+        monkeypatch.setattr(
+            ctx.app.state.almacen, "autenticar", falla
+        )  # falla antes de llegar al servicio: justo el caso que daba 500
+        r = cliente.get("/v1/yo", headers=ctx.h("A"))
+        assert r.status_code == 503 and r.json()["title"] == "Servicio no disponible", type(error)
+        assert "connection refused" not in r.text and "locked" not in r.text  # el detalle técnico no sale al cliente
+    monkeypatch.undo()
+    assert cliente.get("/v1/yo", headers=ctx.h("A")).status_code == 200
+    assert (
+        cliente.get("/v1/yo", headers={"X-API-Key": "mia_comercio_inventada"}).status_code == 401
+    )  # lo demás sigue igual

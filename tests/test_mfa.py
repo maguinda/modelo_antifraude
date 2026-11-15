@@ -503,6 +503,7 @@ def test_la_migracion_2_agrega_las_columnas_conserva_las_claves_y_hace_una_copia
     assert nuevo.inicializar() == []
 
 
+@pytest.mark.solo_sqlite
 def test_la_migracion_2_se_puede_correr_dos_veces_sin_fallar_y_una_base_nueva_ya_trae_las_columnas(tmp_path):
     nuevo = Almacen(tmp_path / "n.sqlite3", PEPPER)
     assert nuevo.inicializar() == [1, 2, 3, 4]

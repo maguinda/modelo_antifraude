@@ -224,6 +224,42 @@ registrada en la tabla `migraciones`.
   los bloqueos son del servicio. Los repositorios no dependen de la fachada y la fachada no tiene
   SQL.
 
+### PostgreSQL (opcional; SQLite sigue siendo lo normal)
+
+El mismo programa funciona sobre **PostgreSQL 16** con `MODELO_IA_BD_URL=postgresql://usuario:clave@host:5432/base` (o la dirección en un archivo, con
+`MODELO_IA_BD_URL_ARCHIVO`, porque lleva la contraseña). Sin esa variable todo sigue como antes, con SQLite. No se pueden poner las dos (`MODELO_IA_BD` y
+`MODELO_IA_BD_URL`): el programa se niega.
+
+- **Cómo está hecho:** los repositorios no cambiaron. `repositorios/motor_pg.py` les da la misma interfaz que SQLite (marcadores `?`, filas por nombre o posición,
+  `transaccion()` y `lectura()`); `repositorios/esquema_pg.py` trae el mismo esquema (tablas, índice parcial, triggers de «no se edita / no se borra» como funciones
+  de PostgreSQL) y las mismas cuatro migraciones; `errores_bd.py` agrupa los errores de los dos motores.
+- **Una escritura a la vez:** cada escritura toma un candado de aviso de PostgreSQL (`pg_advisory_xact_lock`) al empezar, así que las garantías de siempre
+  (un pago repetido se evalúa una sola vez, una revisión se resuelve una sola vez, un modelo en uso por rol) valen igual **entre procesos y entre servidores**.
+  Es lo más conservador: no se rediseñaron las carreras. Más adelante se podría pasar a candados por fila si el rendimiento lo pide (hoy no hay medida que lo pida).
+- **Crear la base** con colación `C` (el orden de los textos igual al de SQLite): `CREATE DATABASE antifraude LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;`. Si no, el
+  programa avisa en el registro. Las migraciones se aplican al arrancar, como en SQLite.
+- **Copias de seguridad:** el respaldo cifrado y la vigilancia de este programa son **de SQLite** y se niegan con un mensaje claro. Con PostgreSQL haz
+  `pg_dump` (hazlo también **antes de actualizar** una base con datos: el programa no guarda copia previa en PostgreSQL). La herramienta de respaldo y de paso de
+  SQLite a PostgreSQL es el cambio 7c (**pendiente**, no existe).
+- **Dos roles (lo recomendado en producción):** el que **migra** (dueño de las tablas, con CREATE) y el de la **aplicación**, que solo lee y escribe filas. La
+  aplicación arranca con el rol limitado siempre que la base ya esté al día (no intenta crear nada); quien migra corre `python -m modelo_ia.api.admin migrar`.
+  Permisos del rol de la aplicación (sustituye `app` y `public`): `GRANT USAGE ON SCHEMA public TO app; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA
+  public TO app; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app;` y **nada más** (sin TRUNCATE ni CREATE). La auditoría y los acuerdos no se editan,
+  borran ni vacían (`TRUNCATE` también está bloqueado por un trigger), pero **el dueño de las tablas siempre puede quitar un trigger**: por eso la aplicación no
+  debe ser la dueña.
+- **Cifrado de la conexión:** fuera de tu propia máquina usa `?sslmode=verify-full&sslrootcert=/ruta/ca.pem` (`require` cifra pero no verifica el servidor). Si la
+  dirección no lleva `sslmode` y no es local, el programa lo avisa al arrancar en producción.
+- **Conexiones:** cada operación abre su conexión (sin agrupador). Con 2 procesos puede haber del orden de 80 conexiones a la vez frente a las 100 que PostgreSQL
+  permite por omisión: si el servicio crece, pon **PgBouncer en modo sesión** delante (en modo transacción se pierden `search_path`, `lock_timeout` y el candado de la
+  migración) o limita los procesos. Sin agrupador, agotar las conexiones se ve como un 503 «la base no responde», sin pérdida de datos.
+- **Al agregar una migración nueva** hay que escribirla para los dos motores: una prueba falla si las dos listas no llevan los mismos números y nombres.
+  `traducir()` solo entiende comillas simples (sin `?` dentro de identificadores con comillas dobles ni apóstrofes dentro de comentarios `--`).
+- **Probado:** la suite completa corre contra PostgreSQL real en la CI (las pruebas que abren el archivo de SQLite o hacen copias cifradas se saltan solas);
+  las 872 respuestas del panel son idénticas en los dos motores; servidor real con 2 procesos, tráfico concurrente con envíos repetidos, 8 analistas resolviendo
+  la misma revisión y un corte y vuelta de PostgreSQL (la API responde 503 y se recupera sola).
+- **No probado / no existe:** alta disponibilidad, réplicas, agrupador de conexiones (cada operación abre su conexión), migración de datos reales desde SQLite,
+  PostgreSQL administrado en la nube, versiones distintas de la 16, ni cifrado en tránsito (usa `?sslmode=require` en la dirección si el servidor está fuera de tu red).
+
 ### Lo propio de SQLite (lista de trabajo para pasar a PostgreSQL)
 
 Todo el SQL está en `repositorios/` (y las migraciones en `migraciones.py`); una prueba
@@ -237,7 +273,7 @@ en vez de `json_each`, `minutos_resolucion` en vez de `julianday`, `ON CONFLICT`
 |---|---|---|
 | `rowid` · `julianday` · `json_each` | `repositorios/esquema.py` (solo la migración 4) | Rellenar las columnas nuevas a partir de los datos que ya había; no se usan al atender peticiones. |
 | `substr(fecha,1,10)` | `repositorios/consultas.py` | Agrupar por día (las fechas son texto ISO); PostgreSQL también tiene `substr`. |
-| `AUTOINCREMENT` | `repositorios/esquema.py` | Identificadores numéricos nuevos (en PostgreSQL, `GENERATED ... AS IDENTITY`). |
+| `AUTOINCREMENT` | `repositorios/esquema.py` (y `esquema_pg.py` lo traduce a una columna de identidad) | Identificadores numéricos nuevos (en PostgreSQL, `GENERATED ... AS IDENTITY`). |
 | `PRAGMA` · `BEGIN IMMEDIATE` · WAL | `repositorios/base.py`, `esquema.py`, `migraciones.py` | Conexión, un solo escritor y copias de seguridad. |
 | `RETURNING` | `comercios.py`, `claves.py`, `modelos_registro.py` | Pide SQLite 3.35 o más reciente (PostgreSQL lo trae de siempre). |
 

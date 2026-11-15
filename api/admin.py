@@ -146,12 +146,12 @@ def main(argv=None) -> None:
     a = ap.parse_args(argv)
 
     ajustes = Ajustes.desde_entorno()
-    almacen = Almacen(ajustes.ruta_bd, ajustes.pepper)
+    almacen = Almacen(ajustes.destino_bd, ajustes.pepper)
     if ajustes.pepper_inseguro:
         print("AVISO: usando el secreto de desarrollo. Define MODELO_IA_PEPPER antes de usar esto de verdad.")
     try:
         if a.orden == "migraciones":  # solo consulta: no aplica nada (ni crea la base si no existe)
-            if not Path(ajustes.ruta_bd).exists():
+            if not ajustes.bd_url and not Path(ajustes.ruta_bd).exists():
                 print("La base todavía no existe: se crea al arrancar el servicio o con «migrar».")
                 return
             for m in almacen.estado_migraciones():

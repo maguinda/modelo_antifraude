@@ -197,6 +197,11 @@ def main(argv=None) -> int:
     ap.add_argument("--estado-archivo", default=e("MODELO_IA_VIGILANCIA_ESTADO", "/tmp/vigilancia_estado"))
     ap.add_argument("--cada-minutos", type=float, default=0.0, help="0 = una sola revisión y salir")
     a = ap.parse_args(argv)
+    if e("MODELO_IA_BD_URL") or e("MODELO_IA_BD_URL_ARCHIVO"):
+        print(
+            "Esta instalación usa PostgreSQL: la vigilancia de este programa revisa el archivo de SQLite y los respaldos cifrados (solo SQLite)."
+        )
+        return 2
     if a.cada_minutos <= 0:
         return una_vez(a)
     while True:

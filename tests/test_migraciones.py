@@ -336,6 +336,7 @@ def test_si_una_migracion_falla_no_queda_nada_a_medias_y_se_puede_reintentar(tmp
     ]
 
 
+@pytest.mark.solo_sqlite
 @pytest.mark.parametrize("forma", [None, 0, 3])
 def test_si_falla_la_migracion_1_a_mitad_no_queda_el_esquema_a_medias(tmp_path, monkeypatch, forma):
     """La 1 hace muchos pasos (tablas, columnas, índices, códigos). Si el último falla, ninguno debe quedar: ni en una base nueva ni en una vieja."""
@@ -434,6 +435,7 @@ def test_dos_copias_en_el_mismo_segundo_no_se_pisan(tmp_path):
     assert a != b and a.exists() and b.exists()
 
 
+@pytest.mark.solo_sqlite
 def test_se_copia_solo_si_la_base_tiene_algo_que_valga_la_pena(tmp_path):
     def hay(nombre, preparar=None):
         alm = Almacen(tmp_path / nombre, PEPPER)
@@ -470,6 +472,7 @@ def test_una_base_de_una_version_mas_nueva_se_rechaza_sin_tocarla(tmp_path):
         crear_app(Ajustes(ruta_bd=ruta, pepper=PEPPER))  # el servicio ni siquiera arranca
 
 
+@pytest.mark.solo_sqlite
 def test_un_archivo_vacio_cuenta_como_base_nueva_y_uno_dañado_falla_con_claridad(tmp_path):
     vacio = tmp_path / "vacio.sqlite3"
     vacio.write_bytes(b"")
@@ -608,6 +611,7 @@ def cli(tmp_path, monkeypatch, capsys):
     return correr
 
 
+@pytest.mark.solo_sqlite
 def test_la_consola_consulta_sin_modificar_y_migra_cuando_se_le_pide(cli, tmp_path):
     ruta = tmp_path / "c.sqlite3"
     c, salida, _ = cli("migraciones")

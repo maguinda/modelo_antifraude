@@ -23,7 +23,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, Iterator, List, Sequence
+from typing import Any, Callable, Dict, Iterator, List, Sequence
 
 try:
     import fcntl  # candado de archivo entre procesos (Linux y macOS)
@@ -74,7 +74,14 @@ def validar(migraciones: Sequence[Migracion]) -> None:
         raise ValueError("Cada migración necesita un nombre.")
 
 
-def _tiene_tabla(con: sqlite3.Connection) -> bool:
+def _tiene_tabla(con: Any) -> bool:
+    if getattr(con, "motor", "sqlite") == "postgresql":
+        return (
+            con.execute(
+                "SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'migraciones'"
+            ).fetchone()
+            is not None
+        )
     return con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='migraciones'").fetchone() is not None
 
 
@@ -256,6 +263,62 @@ def _aplicar(
                 except sqlite3.Error:
                     pass
                 raise
+    finally:
+        con.close()
+    return hechas
+
+
+def aplicar_pg(base: Any, migraciones: Sequence[Migracion], ahora_iso: Callable[[], str]) -> List[int]:
+    """Lo mismo que `aplicar`, para PostgreSQL: el candado es de PostgreSQL (vale entre procesos y entre servidores), cada migración es UNA transacción
+    (el DDL de PostgreSQL también se deshace) y se relee lo aplicado DENTRO del bloqueo. No se guarda copia previa: antes de actualizar una base con datos,
+    haz una con `pg_dump` (ver el README)."""
+    from .repositorios.motor_pg import CLAVE_ESCRITURA, CLAVE_MIGRACIONES
+
+    validar(migraciones)
+    con = base.abrir()
+    hechas: List[int] = []
+    try:
+        if _tiene_tabla(
+            con
+        ):  # base ya al día: no se crea ni se bloquea nada, así el servicio arranca con un rol que solo lee y escribe filas
+            aplicadas = {r[0] for r in con.execute("SELECT id FROM migraciones")}
+            conocidas = {m.id for m in migraciones}
+            if aplicadas - conocidas:
+                raise BaseMasNueva(
+                    f"Esta base tiene migraciones que este programa no conoce ({sorted(aplicadas - conocidas)}): la creó una versión más nueva. "
+                    "No se abre para no dañarla; actualiza el programa o restaura una copia anterior."
+                )
+            if conocidas <= aplicadas:
+                return []
+        con.execute("SET lock_timeout = '600s'")  # la espera máxima del candado, como en SQLite
+        con.execute("SELECT pg_advisory_lock(?)", (CLAVE_MIGRACIONES,))
+        try:
+            con.execute(TABLA)
+            conocidas = {m.id for m in migraciones}
+            desconocidas = sorted(r[0] for r in con.execute("SELECT id FROM migraciones") if r[0] not in conocidas)
+            if desconocidas:
+                raise BaseMasNueva(
+                    f"Esta base tiene migraciones que este programa no conoce ({desconocidas}): la creó una versión más nueva. "
+                    "No se abre para no dañarla; actualiza el programa o restaura una copia anterior."
+                )
+            for m in migraciones:
+                con.execute("BEGIN")
+                try:
+                    con.execute("SELECT pg_advisory_xact_lock(?)", (CLAVE_ESCRITURA,))
+                    if m.id in {r[0] for r in con.execute("SELECT id FROM migraciones")}:  # releído DENTRO del bloqueo
+                        con.execute("COMMIT")
+                        continue
+                    m.aplicar(con)
+                    con.execute(
+                        "INSERT INTO migraciones (id, nombre, aplicada) VALUES (?,?,?)", (m.id, m.nombre, ahora_iso())
+                    )
+                    con.execute("COMMIT")
+                    hechas.append(m.id)
+                except BaseException:
+                    con.execute("ROLLBACK")
+                    raise
+        finally:
+            con.execute("SELECT pg_advisory_unlock(?)", (CLAVE_MIGRACIONES,))
     finally:
         con.close()
     return hechas

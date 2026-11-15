@@ -6,7 +6,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from .auditoria import auditar
-from .base import Base
+from .base import BaseDeDatos
 from .comunes import PLATAFORMA, ahora_iso, texto_limpio
 
 
@@ -52,7 +52,7 @@ def estado_acuerdo(ultimo: Optional[Any], hoy: date) -> Dict[str, Any]:
 
 
 class ComerciosRepositorio:
-    def __init__(self, base: Base):
+    def __init__(self, base: BaseDeDatos):
         self.base = base
 
     def crear_comercio(

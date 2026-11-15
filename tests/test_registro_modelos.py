@@ -892,6 +892,7 @@ def test_la_deriva_usa_la_referencia_del_modelo_que_corre_aunque_se_promueva_otr
     assert "antifraude_deriva" in ctx.cliente.get("/v1/metricas", headers=ctx.h("admin")).text
 
 
+@pytest.mark.solo_sqlite
 def test_dos_procesos_reales_promoviendo_a_la_vez_nunca_dejan_dos_modelos_en_uso(tmp_path):
     """Con hilos del mismo proceso el candado de Python ya ordena todo; aquí son PROCESOS distintos: lo único que los ordena es SQLite."""
     import subprocess
