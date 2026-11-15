@@ -548,7 +548,9 @@ def test_las_metricas_y_el_codigo_de_la_tienda_no_existen_por_internet_en_ningun
     """Las métricas son para quien vigila, por la red interna: con Caddy delante dan 404 aunque se tenga la clave de administrador."""
     for nombre in ("Caddyfile", "Caddyfile.pantallas-aparte"):
         texto = _leer(nombre)
-        assert "@metricas path /v1/metricas" in texto and "respond @metricas 404" in texto, nombre
+        assert "@metricas path /v1/metricas /v1/metricas/*" in texto and "respond @metricas 404" in texto, (
+            nombre
+        )  # también con barra final
         linea = texto.split("@demo path")[1].split("\n")[0]
         assert "/demo/*" in linea and "/tienda" in linea and "/estaticos/tienda/*" in linea, nombre
         # y los dos cierres van ANTES de pasar nada a la API

@@ -22,7 +22,7 @@
 	respond @demo 404
 
 	# Las métricas son SOLO para quien vigila el servicio, por la red interna (api:8000 directo): por internet no existen, aunque se tenga una clave de administrador
-	@metricas path /v1/metricas
+	@metricas path /v1/metricas /v1/metricas/*   # también con barra final: la API la redirige sin pedir clave
 	respond @metricas 404
 
 	header {

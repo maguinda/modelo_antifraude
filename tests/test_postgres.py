@@ -387,3 +387,18 @@ def test_la_conexion_se_considera_sin_cifrar_solo_si_sale_de_la_maquina_y_no_exi
     for local in ("postgresql://u:p@localhost/b", "postgresql://u:p@LOCALHOST:5432/b", "postgresql://u:p@127.0.0.1/b", "postgresql://u:p@127.0.0.2/b",
                   "postgresql://u:p@[::1]:5432/b", "postgresql:///b?host=/var/run/postgresql", "postgresql://u@/b?host=/tmp"):  # fmt: skip
         assert not sin_cifrar(local), local
+
+
+def test_sslpassword_se_oculta_el_ultimo_sslmode_manda_y_un_socket_con_servidor_remoto_no_es_local():
+    from modelo_ia.api.repositorios.motor_pg import direccion_sin_cifrar as sin_cifrar, ocultar_clave
+
+    oculta = ocultar_clave("postgresql://u@h/b?sslmode=require&sslpassword=LLAVE-SECRETA&password=SECRETA")
+    assert "LLAVE-SECRETA" not in oculta and "SECRETA" not in oculta and "sslmode=require" in oculta
+    assert sin_cifrar(
+        "postgresql://u:p@db.ejemplo.com/b?sslmode=verify-ca&sslmode=disable"
+    )  # libpq usa el último: disable
+    assert not sin_cifrar("postgresql://u:p@db.ejemplo.com/b?sslmode=disable&sslmode=verify-full")
+    assert sin_cifrar(
+        "postgresql://u:p@db.ejemplo.com/b?host=/tmp"
+    )  # hay un servidor remoto en la dirección: no es un socket local
+    assert not sin_cifrar("postgresql:///b?host=/var/run/postgresql")  # sin servidor en la dirección, sí
