@@ -27,3 +27,7 @@ despliegue/respaldos/
 
 # Bases de ubicación de IP descargadas (se bajan con: python -m modelo_ia.api.ip_datos descargar; pesan decenas de MB y tienen sus propias licencias)
 datos_ip/
+
+# Panel React (frontend/app): dependencias instaladas y lo compilado se regeneran con `npm ci` y `npm run build`
+frontend/app/node_modules/
+frontend/app/dist/

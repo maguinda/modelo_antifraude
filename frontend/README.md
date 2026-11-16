@@ -6,6 +6,8 @@ Las pantallas del sistema: **panel** de revisión, **dashboard** de control, **t
 que corre en el navegador del comprador y el diseño compartido (`comun/diseno.css`). Son HTML, CSS y JavaScript
 propios, sin pasos de compilación y sin terceros.
 
+> **En migración:** `app/` es el panel nuevo (React + TypeScript + Vite, con compilación). Las pantallas de arriba siguen sin compilación hasta migrarse; ver `app/README.md`.
+
 ## Cómo se relaciona con el backend
 - Solo hablan con la API por su **contrato**: rutas `/v1/...` (y `/demo/...` en la demo, que solo existe en la demo), del mismo origen, con la
   clave en la cabecera `X-API-Key`. No importan nada del backend ni leen su disco.

@@ -1,0 +1,33 @@
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+  padding: var(--e3) 0;
+}
+.estado {
+  margin: 0;
+  color: var(--texto-suave);
+  min-width: 12ch; /* el texto cambia de largo: así el bloque no salta */
+}
+.controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2);
+}
+.campoCorto {
+  min-width: 7rem;
+}
+.pagina {
+  min-width: 11ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .barra,
+  .controles {
+    justify-content: center;
+  }
+}

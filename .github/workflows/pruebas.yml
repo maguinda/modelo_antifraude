@@ -68,6 +68,39 @@ jobs:
           MODELO_IA_PRUEBAS_PG: postgresql://postgres:prueba_ci@localhost:5432/antifraude
         run: python -m pytest modelo_ia/tests -q -p no:cacheprovider
 
+  frontend:
+    name: Frontend (React, tipos, pruebas y compilación)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          path: modelo_ia
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: modelo_ia/frontend/app/package-lock.json
+      - name: Instalar dependencias (exactas, del package-lock; sin scripts de instalación)
+        working-directory: modelo_ia/frontend/app
+        run: npm ci --ignore-scripts
+      - name: Auditoría de dependencias (solo las de producción)
+        working-directory: modelo_ia/frontend/app
+        run: npm audit --omit=dev --audit-level=high
+      - name: Tipos (TypeScript estricto)
+        if: ${{ !cancelled() }}
+        working-directory: modelo_ia/frontend/app
+        run: npm run typecheck
+      - name: Pruebas
+        if: ${{ !cancelled() }}
+        working-directory: modelo_ia/frontend/app
+        run: npm test
+      - name: Compilar
+        if: ${{ !cancelled() }}
+        working-directory: modelo_ia/frontend/app
+        run: npm run build
+
   calidad:
     name: Calidad (ruff, tipos y archivos pesados)
     runs-on: ubuntu-24.04              # fijo, no «latest»: en ubuntu-latest (26.04) ya no existe Python 3.9, y así la CI no cambia de sistema sin avisar

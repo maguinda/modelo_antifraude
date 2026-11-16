@@ -1,0 +1,146 @@
+.encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--e3);
+  margin-bottom: var(--e3);
+}
+.encabezado h2 {
+  margin: 0;
+}
+.campoOrden {
+  min-width: 12rem;
+}
+.aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+  padding: var(--e3) var(--e4);
+  margin-bottom: var(--e3);
+  border-radius: var(--r-sm);
+  background: var(--rojo-suave);
+  color: var(--rojo);
+}
+.tabla {
+  background: var(--papel);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-md);
+  box-shadow: var(--sombra);
+  overflow-x: auto;
+  min-height: 12rem; /* con pocas filas o cargando, la tarjeta no se encoge de golpe */
+  transition: opacity 0.15s;
+}
+.refrescando {
+  opacity: 0.55;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  padding: var(--e3) var(--e4);
+  text-align: left;
+  border-bottom: 1px solid var(--linea);
+  overflow-wrap: anywhere;
+}
+th {
+  color: var(--texto-suave);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+tbody tr:hover {
+  background: var(--fila-hover);
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.estado {
+  display: inline-block;
+  padding: var(--e1) var(--e3);
+  border-radius: var(--r-pildora);
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-right: var(--e2);
+}
+.APROBADA {
+  background: var(--verde-suave);
+  color: var(--verde);
+}
+.EN_REVISION {
+  background: var(--ambar-suave);
+  color: var(--ambar);
+}
+.RECHAZADA {
+  background: var(--rojo-suave);
+  color: var(--rojo);
+}
+.vacio {
+  padding: var(--e5);
+  text-align: center;
+  color: var(--texto-suave);
+}
+.espera td {
+  border-bottom: 0;
+}
+.barraEspera {
+  display: block;
+  height: 1.25rem;
+  border-radius: var(--r-sm);
+  background: var(--linea);
+  animation: latido 1.2s ease-in-out infinite;
+}
+@keyframes latido {
+  50% {
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .barraEspera {
+    animation: none;
+  }
+}
+/* móvil: cada fila es una tarjeta con su etiqueta, sin scroll horizontal ni columnas escondidas */
+@media (max-width: 640px) {
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+    width: 100%;
+  }
+  tr {
+    padding: var(--e3) 0;
+    border-bottom: 1px solid var(--linea);
+  }
+  td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--e3);
+    border-bottom: 0;
+    padding: var(--e1) var(--e4);
+    text-align: right;
+  }
+  td[data-etiqueta]::before {
+    content: attr(data-etiqueta);
+    color: var(--texto-suave);
+    text-align: left;
+    flex: none;
+  }
+}
+
+.nota {
+  margin: var(--e3) 0 0;
+  color: var(--texto-suave);
+}
