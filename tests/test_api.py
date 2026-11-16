@@ -2499,6 +2499,17 @@ def test_con_pantallas_el_frontend_sale_de_la_carpeta_frontend_y_la_variable_de_
         assert Ajustes.desde_entorno().servir_pantallas is esperado, valor
 
 
+def _fuentes_frontend(*sufijos):
+    """Los archivos escritos a mano del frontend (sin dependencias instaladas, sin lo compilado, sin las pruebas de la app React)."""
+    for p in documentacion.FRONTEND.rglob("*"):
+        if (
+            p.is_file()
+            and p.suffix in sufijos
+            and not ({"node_modules", "dist", "pruebas"} & set(p.relative_to(documentacion.FRONTEND).parts))
+        ):
+            yield p
+
+
 def test_cada_ruta_de_la_api_que_usa_el_frontend_existe_en_el_contrato(ctx):
     """Frontend y backend se separan, pero siguen hablando por un contrato: un JS que llame a una ruta /v1 (escrita tal cual en el código) que ya no existe se detecta aquí."""
     import re
@@ -2506,7 +2517,7 @@ def test_cada_ruta_de_la_api_que_usa_el_frontend_existe_en_el_contrato(ctx):
     contrato = set(ctx.app.openapi()["paths"])
     plantillas = [re.compile("^" + re.sub(r"\{[^}]+\}", "[^/]+", ruta) + "$") for ruta in contrato]
     usadas = set()
-    for js in (documentacion.FRONTEND).rglob("*.js"):
+    for js in _fuentes_frontend(".js", ".ts", ".tsx"):
         usadas |= set(re.findall(r"""["'`](/v1/[A-Za-z0-9_/.-]*)""", js.read_text(encoding="utf-8")))
     assert usadas, "el frontend ya no llama a la API: ¿cambió la forma de pedir los datos?"
     for ruta in usadas:
@@ -2520,10 +2531,9 @@ def test_los_limites_entre_carpetas_se_respetan(ctx):
     assert not (estaticos & set(documentacion.SECCIONES_FRONTEND)), estaticos
     assert {"swagger-ui-bundle.js", "redoc.standalone.js", "MANIFIESTO.txt"} <= estaticos
     assert {p.name for p in documentacion.FRONTEND.iterdir() if p.is_dir()} >= set(documentacion.SECCIONES_FRONTEND)
-    for archivo in documentacion.FRONTEND.rglob("*"):
-        if archivo.suffix in (".js", ".html", ".css"):
-            texto = archivo.read_text(encoding="utf-8")
-            assert "../api/" not in texto and "modelo_ia.api" not in texto, archivo.name
+    for archivo in _fuentes_frontend(".js", ".html", ".css", ".ts", ".tsx"):
+        texto = archivo.read_text(encoding="utf-8")
+        assert "../api/" not in texto and "modelo_ia.api" not in texto, archivo.name
 
 
 def test_si_la_base_no_esta_disponible_en_cualquier_punto_la_api_responde_503_y_no_500(ctx, monkeypatch):
