@@ -287,7 +287,7 @@ class Esquema:
             con.execute(sentencia)
 
     @staticmethod
-    def analizar_si_hace_falta(con: sqlite3.Connection, minimo_filas: int = 10_000) -> bool:
+    def analizar_si_hace_falta(con: sqlite3.Connection, minimo_filas: int = 10_000, forzar: bool = False) -> bool:
         """SQLite elige el plan de cada consulta según estadísticas (`ANALYZE`) que este programa nunca calculaba: con millones de pagos eso volvía una consulta de
         0,4 s en una de más de 40 s. Las calcula (1,9 s con 3 millones de pagos) si la tabla ya es grande y no hay estadísticas o la tabla creció o se achicó a más del doble."""
         try:
@@ -296,8 +296,13 @@ class Esquema:
             return False  # base sin la tabla o sin la columna: nada que analizar todavía
         if filas < minimo_filas:
             return False
+        if forzar:  # se acaban de crear índices nuevos: no tienen estadísticas aunque las de la tabla sean recientes
+            con.execute("ANALYZE")
+            return True
         try:
-            previa = con.execute("SELECT stat FROM sqlite_stat1 WHERE tbl = 'evaluaciones' LIMIT 1").fetchone()
+            previa = con.execute(
+                "SELECT stat FROM sqlite_stat1 WHERE tbl = 'evaluaciones' ORDER BY idx IS NOT NULL, idx LIMIT 1"
+            ).fetchone()
             conocidas = int(str(previa[0]).split()[0]) if previa else 0
         except (sqlite3.Error, ValueError, IndexError):
             conocidas = 0
@@ -326,7 +331,7 @@ class Esquema:
         )
         con = self.base.abrir()
         try:
-            self.analizar_si_hace_falta(con)  # PostgreSQL lo hace solo (autovacuum); SQLite no
+            self.analizar_si_hace_falta(con, forzar=6 in hechas)  # PostgreSQL lo hace solo (autovacuum); SQLite no
         except sqlite3.Error:
             pass  # las estadísticas son una mejora, nunca un motivo para no arrancar
         finally:

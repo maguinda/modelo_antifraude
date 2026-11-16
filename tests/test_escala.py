@@ -59,7 +59,6 @@ def test_buscar_por_cliente_o_transaccion_sin_comercio_usa_indices_y_no_recorre_
     f.id_cliente = "C1"
     donde, par = donde_de(f)
     plan = _plan(c, f"SELECT COUNT(*) FROM evaluaciones e {donde}", par)
-    assert "SCAN" not in plan.replace("SCAN e USING COVERING", "") or "USING" in plan
     assert "ix_eval_cliente_global" in plan
 
 
@@ -107,3 +106,54 @@ def test_analizar_solo_cuando_la_tabla_es_grande_y_no_hay_estadisticas_o_cambio_
     assert c.execute("SELECT COUNT(*) FROM sqlite_stat1").fetchone()[0] > 0
     assert Esquema.analizar_si_hace_falta(c, minimo_filas=3) is False  # ya tiene estadísticas de un tamaño parecido
     assert Esquema.analizar_si_hace_falta(c, minimo_filas=10_000) is False  # tabla pequeña
+
+
+def _guardar(c, i, cliente, comercio=1, reglas=()):
+    c.execute(
+        "INSERT INTO evaluaciones (id, seq, comercio_id, id_transaccion, id_cliente, fecha, fila_json, solicitud_hash, decision, motivos_json, reglas_json, modelo_nombre, "
+        "modelo_version, modelo_conjunto, modo, latencia_ms, creada) VALUES (?, ?, ?, ?, ?, '2026-01-01T00:00:00', '{}', 'h', 'APROBADA', '[]', '[]', 'm', '1', 'c', 'normal', 1, '2026-01-01T00:00:00')",
+        (f"id{i}", i, comercio, f"T{i}", cliente),
+    )
+    for pos, r in enumerate(reglas):
+        c.execute("INSERT INTO evaluacion_reglas (id_evaluacion, posicion, regla) VALUES (?, ?, ?)", (f"id{i}", pos, r))
+
+
+def test_el_filtro_por_regla_da_las_mismas_filas_que_el_exists_antiguo_incluso_con_la_regla_repetida(con):
+    c, _ = con
+    _guardar(c, 1, "A", reglas=("velocidad", "velocidad", "monto"))  # la misma regla dos veces en un pago
+    _guardar(c, 2, "B", reglas=("monto",))
+    _guardar(c, 3, "C")
+    nuevo = "SELECT e.id FROM evaluaciones e WHERE e.id IN (SELECT id_evaluacion FROM evaluacion_reglas WHERE regla = ?) ORDER BY e.id"
+    viejo = "SELECT e.id FROM evaluaciones e WHERE EXISTS (SELECT 1 FROM evaluacion_reglas er WHERE er.id_evaluacion = e.id AND er.regla = ?) ORDER BY e.id"
+    for regla, esperado in (("velocidad", ["id1"]), ("monto", ["id1", "id2"]), ("no_existe", [])):
+        assert [r[0] for r in c.execute(nuevo, (regla,))] == [r[0] for r in c.execute(viejo, (regla,))] == esperado
+
+
+def test_el_conteo_por_comercio_da_cero_al_comercio_sin_pagos(con):
+    c, a = con
+    vacio = a.crear_comercio("Sin pagos")
+    _guardar(c, 1, "A", comercio=a.crear_comercio("Con pagos"))
+    c.commit()
+    filas = dict(
+        c.execute(
+            "SELECT c.id, COUNT(e.comercio_id) FROM comercios c LEFT JOIN evaluaciones e ON e.comercio_id = c.id GROUP BY c.id"
+        ).fetchall()
+    )
+    assert filas[vacio] == 0 and sorted(filas.values())[-1] == 1
+
+
+def test_analizar_otra_vez_si_la_tabla_crece_o_se_achica_a_mas_del_doble_o_si_se_fuerza(con):
+    c, _ = con
+    for i in range(1, 5):
+        _guardar(c, i, "A")
+    c.commit()
+    assert Esquema.analizar_si_hace_falta(c, minimo_filas=3) is True
+    for i in range(5, 10):  # 9 filas > el doble de las 4 analizadas
+        _guardar(c, i, "A")
+    c.commit()
+    assert Esquema.analizar_si_hace_falta(c, minimo_filas=3) is True
+    assert Esquema.analizar_si_hace_falta(c, minimo_filas=3) is False
+    assert Esquema.analizar_si_hace_falta(c, minimo_filas=3, forzar=True) is True  # índices nuevos: se fuerza
+    assert (
+        Esquema.analizar_si_hace_falta(c, minimo_filas=100, forzar=True) is False
+    )  # pero una tabla pequeña no se analiza

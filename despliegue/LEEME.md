@@ -219,6 +219,14 @@ Si la base ya tiene datos, antes de tocarla se guarda una **copia previa** junto
 (`api.sqlite3.antes-de-migrar-vN-FECHA.sqlite3`, permisos 600). Si esa copia no se puede guardar
 (sin espacio, sin permisos), **no se migra nada**: libera espacio (necesitas lo que pesa la base) y
 reintenta.
+
+   **Migración 6 (índices de búsqueda):** crea dos índices sobre `evaluaciones` (con 3 millones de pagos pesan unos
+   50 MB cada uno y se construyen en segundos). En PostgreSQL se aplica con el rol **dueño** de las tablas (un rol
+   limitado no puede crear índices) y conviene hacerlo en una hora de poca carga: mientras se construyen, las
+   escrituras sobre `evaluaciones` esperan. En SQLite con millones de pagos, la copia previa pesa varios GB: revisa
+   el espacio antes. Después de la migración, SQLite calcula sus estadísticas (`ANALYZE`, ~2 s con 3 millones).
+   **Límite medido con 3 millones de pagos:** el resumen del panel sin filtro y los vínculos tardan 10-20 s; con un
+   periodo de 7 días, 2-3 s. Si el volumen llega ahí, usa periodos cortos en el panel.
 4. Comprueba `/v1/salud` y un pago de antes: responde «repetida».
 5. Cuando todo esté bien, **borra la copia previa** con `rm` desde el volumen de datos. Tiene los
    mismos datos que la base (personales, aunque seudonimizados), **no entra en el respaldo cifrado**
