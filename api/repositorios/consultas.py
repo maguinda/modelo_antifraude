@@ -157,27 +157,30 @@ class ConsultasRepositorio:
         }
 
     # ------------------------------------------------------------------ vínculos: patrones entre pagos
-    def vinculos(self, con: sqlite3.Connection, f: Any, minimo: int) -> Dict[str, List[sqlite3.Row]]:
+    def vinculos(
+        self, con: sqlite3.Connection, f: Any, minimo: int, limite: int = 50, desplazamiento: int = 0
+    ) -> Dict[str, List[sqlite3.Row]]:
+        """Cada bloque devuelve hasta `limite + 1` filas desde `desplazamiento` (la fila de más sirve para saber si hay otra página sin contar todo)."""
         donde, par = donde_de(f)
         base = _y(donde)
         ips = con.execute(
             "SELECT e.ip_codigo codigo, COUNT(*) pagos, COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) clientes, COUNT(DISTINCT e.comercio_id) comercios, "
             "SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, SUM(CASE WHEN decision = 'EN_REVISION' THEN 1 ELSE 0 END) en_revision, MIN(fecha) primera, MAX(fecha) ultima "
-            f"FROM evaluaciones e {base} e.ip_codigo IS NOT NULL GROUP BY e.ip_codigo HAVING COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) >= ? ORDER BY clientes DESC, pagos DESC, e.ip_codigo LIMIT 50",
-            par + (minimo,),
+            f"FROM evaluaciones e {base} e.ip_codigo IS NOT NULL GROUP BY e.ip_codigo HAVING COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) >= ? ORDER BY clientes DESC, pagos DESC, e.ip_codigo LIMIT ? OFFSET ?",
+            par + (minimo, limite + 1, desplazamiento),
         ).fetchall()
         disp = con.execute(
             "SELECT e.disp_codigo codigo, COUNT(*) pagos, COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) clientes, COUNT(DISTINCT e.comercio_id) comercios, "
             "SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, SUM(CASE WHEN decision = 'EN_REVISION' THEN 1 ELSE 0 END) en_revision, MIN(fecha) primera, MAX(fecha) ultima "
-            f"FROM evaluaciones e {base} e.disp_codigo IS NOT NULL GROUP BY e.disp_codigo HAVING COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) >= ? ORDER BY clientes DESC, pagos DESC, e.disp_codigo LIMIT 50",
-            par + (minimo,),
+            f"FROM evaluaciones e {base} e.disp_codigo IS NOT NULL GROUP BY e.disp_codigo HAVING COUNT(DISTINCT e.comercio_id || '|' || e.id_cliente) >= ? ORDER BY clientes DESC, pagos DESC, e.disp_codigo LIMIT ? OFFSET ?",
+            par + (minimo, limite + 1, desplazamiento),
         ).fetchall()
         clientes = con.execute(
             "SELECT e.comercio_id, c.nombre comercio, e.id_cliente, COUNT(*) pagos, COUNT(DISTINCT e.ip_codigo) ips, "
             "SUM(CASE WHEN decision = 'RECHAZADA' THEN 1 ELSE 0 END) rechazadas, MIN(fecha) primera, MAX(fecha) ultima "
             f"FROM evaluaciones e JOIN comercios c ON c.id = e.comercio_id {base} e.ip_codigo IS NOT NULL "
-            "GROUP BY e.comercio_id, c.nombre, e.id_cliente HAVING COUNT(DISTINCT e.ip_codigo) >= ? ORDER BY ips DESC, pagos DESC, e.comercio_id, e.id_cliente LIMIT 50",
-            par + (minimo,),
+            "GROUP BY e.comercio_id, c.nombre, e.id_cliente HAVING COUNT(DISTINCT e.ip_codigo) >= ? ORDER BY ips DESC, pagos DESC, e.comercio_id, e.id_cliente LIMIT ? OFFSET ?",
+            par + (minimo, limite + 1, desplazamiento),
         ).fetchall()
         candidatas = con.execute(
             f"SELECT e.ip_codigo, e.fecha FROM evaluaciones e {base} e.ip_codigo IN ("

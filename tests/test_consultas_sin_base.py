@@ -107,7 +107,7 @@ class FalsasConsultas:
         self.llamadas.append(("resumen", f, con_analistas))
         return self.datos_resumen
 
-    def vinculos(self, con, f, minimo):
+    def vinculos(self, con, f, minimo, limite=50, desplazamiento=0):
         self.llamadas.append(("vinculos", f, minimo))
         return self.datos_vinculos
 
@@ -348,6 +348,51 @@ def test_los_vinculos_agregan_el_filtro_para_saltar_al_listado_y_calculan_las_ra
         {"codigo": "AAAA0001", "pagos_en_ventana": 3, "pagos_totales": 4, "filtro": {"ip": "AAAA0001"}}
     ]  # la fecha inválida se ignora
     assert r["minimo"] == 3 and r["ventana_rafaga_minutos"] == 10
+
+
+def _filas_de_vinculos(n_ips, extra_por_bloque):
+    """n_ips IPs con 3 pagos en 4 minutos cada una (3 ráfagas por IP) y `extra_por_bloque` filas en cada uno de los otros bloques."""
+    return {
+        "ips": [{"codigo": f"IP{i:04d}", "pagos": 3, "clientes": 3} for i in range(extra_por_bloque)],
+        "dispositivos": [{"codigo": f"DS{i:04d}", "pagos": 3, "clientes": 3} for i in range(extra_por_bloque)],
+        "clientes": [
+            {"comercio_id": 2, "comercio": "T", "id_cliente": f"C{i:04d}", "pagos": 3, "ips": 3}
+            for i in range(extra_por_bloque)
+        ],
+        "candidatas": [
+            {"ip_codigo": f"IP{i:04d}", "fecha": f"2026-11-01T10:0{m}:00"} for i in range(n_ips) for m in (0, 2, 4)
+        ],
+    }
+
+
+def test_las_rafagas_se_paginan_mas_alla_de_50_igual_que_los_otros_bloques():
+    """Falló con el tope viejo [:50] dentro de _rafagas: con limite > 50 o desplazamiento >= 50 salían cortadas o vacías."""
+    consultas, panel = montar()
+    consultas.datos_vinculos = _filas_de_vinculos(60, 3)
+    primera = panel.vinculos(Filtros(ADMIN), 3, 10)  # sin parámetros: lo de siempre (50)
+    assert len(primera["rafagas_por_ip"]) == 50 and primera["paginacion"]["hay_mas"]["rafagas_por_ip"] is True
+    todas = panel.vinculos(Filtros(ADMIN), 3, 10, limite=200)
+    assert len(todas["rafagas_por_ip"]) == 60 and todas["paginacion"]["hay_mas"]["rafagas_por_ip"] is False
+    resto = panel.vinculos(Filtros(ADMIN), 3, 10, limite=50, desplazamiento=50)
+    assert len(resto["rafagas_por_ip"]) == 10 and resto["paginacion"]["hay_mas"]["rafagas_por_ip"] is False
+    assert [x["codigo"] for x in primera["rafagas_por_ip"] + resto["rafagas_por_ip"]] == [
+        x["codigo"] for x in todas["rafagas_por_ip"]
+    ]  # las dos páginas juntas son la lista completa, sin repetir ni perder
+
+
+def test_los_bloques_de_sql_usan_la_fila_de_mas_solo_para_saber_si_hay_otra_pagina():
+    consultas, panel = montar()
+    consultas.datos_vinculos = _filas_de_vinculos(0, 3)  # el repositorio entrega limite+1 = 3 filas
+    r = panel.vinculos(Filtros(ADMIN), 3, 10, limite=2)
+    assert [
+        len(r[k]) for k in ("misma_ip_varios_clientes", "mismo_dispositivo_varios_clientes", "cliente_con_varias_ips")
+    ] == [2, 2, 2]
+    assert all(
+        r["paginacion"]["hay_mas"][k]
+        for k in ("misma_ip_varios_clientes", "mismo_dispositivo_varios_clientes", "cliente_con_varias_ips")
+    )
+    exacto = panel.vinculos(Filtros(ADMIN), 3, 10, limite=3)  # justo 3 filas con limite 3: no hay otra página
+    assert not any(exacto["paginacion"]["hay_mas"].values())
 
 
 def test_la_lista_de_comercios_sale_del_repositorio():

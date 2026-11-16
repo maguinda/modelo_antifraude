@@ -1986,6 +1986,63 @@ def test_los_vinculos_encuentran_misma_ip_dispositivo_cliente_y_rafagas(ctx):
     assert a[0]["clientes"] == 4 and a[0]["comercios"] == 1  # un comercio no ve el cruce con otros
 
 
+def _vinculos_de_prueba(ctx):
+    for k in range(3):  # 3 IPs distintas, cada una con 3 clientes en pocos minutos: 3 filas de «misma IP» y 3 ráfagas
+        for i in range(3):
+            ctx.evaluar(pago_ip(f"P{k}{i}", f"CP{k}{i}", f"203.0.113.{k}", fecha_pago=f"2026-11-11T09:0{i}:00"))
+
+
+def test_los_vinculos_se_paginan_sin_repetir_ni_perder_filas_y_avisan_si_hay_mas(ctx):
+    _vinculos_de_prueba(ctx)
+    todo = panel(ctx, "vinculos", minimo=3, limite=200).json()
+    assert len(todo["misma_ip_varios_clientes"]) == 3 and len(todo["rafagas_por_ip"]) == 3
+    assert not any(todo["paginacion"]["hay_mas"].values())
+    for bloque in ("misma_ip_varios_clientes", "rafagas_por_ip"):
+        vistas = []
+        for desde in (0, 2):
+            v = panel(ctx, "vinculos", minimo=3, limite=2, desplazamiento=desde).json()
+            assert v["paginacion"] == {"limite": 2, "desplazamiento": desde, "hay_mas": v["paginacion"]["hay_mas"]}
+            assert v["paginacion"]["hay_mas"][bloque] is (desde == 0)  # la primera página tiene más; la segunda no
+            assert len(v[bloque]) == (2 if desde == 0 else 1)
+            vistas += [x["codigo"] for x in v[bloque]]
+        assert vistas == [x["codigo"] for x in todo[bloque]]  # mismas filas, mismo orden, ninguna repetida ni perdida
+    pasada = panel(ctx, "vinculos", minimo=3, limite=2, desplazamiento=1000).json()
+    assert (
+        pasada["misma_ip_varios_clientes"] == [] and pasada["rafagas_por_ip"] == []
+    )  # pasarse del final no es un error
+
+
+def test_un_comercio_no_ve_filas_ni_pistas_de_otro_al_paginar_los_vinculos(ctx):
+    _vinculos_de_prueba(ctx)
+    for i in range(3):  # el comercio B comparte las IPs 203.0.113.0, .1 y .2 con A
+        for k in range(3):
+            ctx.evaluar(pago_ip(f"B{k}{i}", f"CB{k}{i}", f"203.0.113.{k}", fecha_pago=f"2026-11-11T09:0{i}:00"), "B")
+    for quien, clientes, comercios in (("A", 3, 1), ("B", 3, 1), ("analista", 6, 2)):
+        vistas = []
+        for desde in (0, 1, 2):  # una fila por página, como se pagina de verdad
+            v = panel(ctx, "vinculos", quien, minimo=3, limite=1, desplazamiento=desde).json()
+            vistas += v["misma_ip_varios_clientes"]
+            assert v["paginacion"]["hay_mas"]["misma_ip_varios_clientes"] is (desde < 2), (quien, desde)
+        assert len(vistas) == 3 and {x["clientes"] for x in vistas} == {clientes}, quien
+        assert {x["comercios"] for x in vistas} == {comercios}, (
+            quien
+        )  # nadie ve que la IP se comparte con otro comercio
+
+
+def test_los_vinculos_sin_parametros_responden_lo_de_siempre_y_validan_los_limites(ctx):
+    _vinculos_de_prueba(ctx)
+    v = panel(ctx, "vinculos", minimo=3).json()
+    assert v["paginacion"]["limite"] == 50 and v["paginacion"]["desplazamiento"] == 0
+    assert {
+        "misma_ip_varios_clientes",
+        "mismo_dispositivo_varios_clientes",
+        "cliente_con_varias_ips",
+        "rafagas_por_ip",
+    } <= set(v)
+    for malo in ({"limite": 0}, {"limite": 201}, {"desplazamiento": -1}, {"desplazamiento": 1001}):
+        assert panel(ctx, "vinculos", minimo=3, **malo).status_code == 422, malo
+
+
 def test_el_panel_es_de_solo_lectura_y_no_cambia_la_base(ctx):
     ctx.evaluar(pago_ip("Q1", "CQ1", "192.0.2.5"))
     ctx.evaluar(pago_minimo("Q2", "CQ2"))
