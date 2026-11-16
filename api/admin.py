@@ -25,6 +25,7 @@ Regla: cada analista y cada administrador tiene SU clave, con su nombre. Así se
 sin afectar a las demás. No compartas claves.
 """
 
+import os
 import argparse
 from datetime import datetime
 from pathlib import Path
@@ -333,6 +334,10 @@ def main(argv=None) -> None:
     except (ValueError, ComercioInexistente, OperacionNoPermitida, BaseMasNueva, CopiaPreviaFallo) as e:
         raise SystemExit(f"ERROR: {e}")
     except CUALQUIERA as e:  # la base no contesta, la dirección no sirve, falta un permiso…: mensaje corto, sin host, puerto, usuario ni contraseña
+        if (
+            os.environ.get("MODELO_IA_DEPURAR") == "1"
+        ):  # para depurar EN TU COMPUTADOR: el error original completo (puede mostrar host, puerto y usuario)
+            raise
         raise SystemExit(
             f"ERROR: no se pudo usar la base de datos ({type(e).__name__}). Revisa la dirección, la red y los permisos del usuario."
         ) from None

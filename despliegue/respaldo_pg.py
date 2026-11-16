@@ -40,6 +40,7 @@ from .respaldo import (
     _llave_mac,
     copiar_afuera,
     leer_frase,
+    limpiar_restos,
     rotar,
 )
 
@@ -154,6 +155,7 @@ def crear(
         os.chmod(carpeta, 0o700)
     except OSError:
         pass
+    limpiar_restos(carpeta)
     temporal = Path(tempfile.mkdtemp(prefix="afbkpg_", dir=carpeta))
     try:
         os.chmod(temporal, 0o700)
@@ -227,9 +229,17 @@ def una_vuelta(carpeta: Path, frase_archivo: Path, diarios: int, semanales: int,
         copiar_afuera(r["archivo"])
         _anotar_estado(carpeta, True, r["archivo"], None)
         return r
-    except ErrorDeRespaldo as e:
-        _anotar_estado(carpeta, False, None, str(e))
-        raise
+    except (ErrorDeRespaldo, OSError) as e:
+        mensaje = (
+            str(e)
+            if isinstance(e, ErrorDeRespaldo)
+            else f"No se pudo hacer la copia ({type(e).__name__}): ¿falta espacio en disco o permisos?"
+        )
+        try:
+            _anotar_estado(carpeta, False, None, mensaje)
+        except (ErrorDeRespaldo, OSError):
+            pass
+        raise ErrorDeRespaldo(mensaje) from None
 
 
 def main(argv: Optional[List[str]] = None) -> int:

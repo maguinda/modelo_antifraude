@@ -10,6 +10,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/*
 
+# OPCIONAL (apagado por omisión): pg_dump y pg_restore para las copias de seguridad de PostgreSQL (respaldo_pg.py). La versión debe ser IGUAL O MÁS NUEVA que la del servidor
+# de PostgreSQL. Se activa con:  docker build --build-arg INCLUIR_CLIENTE_POSTGRES=1 --build-arg VERSION_CLIENTE_POSTGRES=16 ...   (NO probado: esta construcción no se ha ejecutado)
+ARG INCLUIR_CLIENTE_POSTGRES=0
+ARG VERSION_CLIENTE_POSTGRES=16
+RUN if [ "$INCLUIR_CLIENTE_POSTGRES" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+      && install -d /usr/share/postgresql-common/pgdg \
+      && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+      && . /etc/os-release \
+      && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+      && apt-get update && apt-get install -y --no-install-recommends "postgresql-client-${VERSION_CLIENTE_POSTGRES}" \
+      && apt-get purge -y curl gnupg && apt-get autoremove -y \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 # El servicio NO corre como administrador.
 RUN groupadd --system --gid 10001 antifraude \
     && useradd --system --uid 10001 --gid antifraude --no-create-home --shell /usr/sbin/nologin antifraude
