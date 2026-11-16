@@ -53,6 +53,41 @@ describe("cliente", () => {
     expect(f).toHaveBeenCalledTimes(2);
   });
 
+  it("el tiempo agotado NO se reintenta (no se espera 3 veces 20 s)", async () => {
+    const f = vi.fn((_u: unknown, init: RequestInit) => new Promise<Response>((_, rechazar) => init.signal?.addEventListener("abort", () => rechazar(new DOMException("x", "AbortError")))));
+    await expect(crearCliente("K", { fetcher: f as unknown as typeof fetch, tiempoMax: 5, esperas: [1, 1] }).obtener("/v1/x")).rejects.toMatchObject({ agotado: true });
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  it("no manda cookies ni deja la respuesta en la caché, y solo acepta rutas del mismo origen", async () => {
+    const f = vi.fn(async () => respuesta(200, {}));
+    const cliente = crearCliente("K", { fetcher: f as unknown as typeof fetch });
+    await cliente.obtener("/v1/x");
+    const init = (f.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(init.credentials).toBe("omit");
+    expect(init.cache).toBe("no-store");
+    for (const mala of ["https://otro.example/v1/x", "//otro.example/v1/x", "v1/x"]) {
+      await expect(cliente.obtener(mala)).rejects.toMatchObject({ message: "Ruta no permitida." });
+    }
+    expect(f).toHaveBeenCalledTimes(1); // la clave nunca salió hacia otra dirección
+  });
+
+  it("cancelar durante la espera entre reintentos corta al instante", async () => {
+    const control = new AbortController();
+    const f = vi.fn(async () => respuesta(503, { detail: "caído" }));
+    const p = crearCliente("K", { fetcher: f as unknown as typeof fetch, esperas: [60000] }).obtener("/v1/x", {}, control.signal);
+    await vi.waitFor(() => expect(f).toHaveBeenCalledTimes(1));
+    control.abort();
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("si ya viene cancelada no espera ni llama", async () => {
+    const control = new AbortController();
+    control.abort();
+    const f = vi.fn(async () => respuesta(503, {}));
+    await expect(crearCliente("K", { fetcher: f as unknown as typeof fetch, esperas: [60000] }).obtener("/v1/x", {}, control.signal)).rejects.toMatchObject({ name: "AbortError" });
+  });
+
   it("si la petición no responde a tiempo, falla con un mensaje claro", async () => {
     const f = vi.fn((_u: unknown, init: RequestInit) => new Promise<Response>((_, rechazar) => init.signal?.addEventListener("abort", () => rechazar(new DOMException("x", "AbortError")))));
     const p = crearCliente("K", { fetcher: f as unknown as typeof fetch, tiempoMax: 10, esperas: [] }).obtener("/v1/x");

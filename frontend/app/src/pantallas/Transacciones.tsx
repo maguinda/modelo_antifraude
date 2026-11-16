@@ -5,7 +5,7 @@ import { Paginacion } from "../componentes/Paginacion";
 import { useConsulta } from "../hooks/useConsulta";
 import { useParametrosUrl } from "../hooks/useParametrosUrl";
 import { fecha, pesos, DECISIONES } from "../formato";
-import { ajustarPagina, hayMasAllaDelTope, tamanoValido } from "../paginacion";
+import { ajustarPagina, hayMasAllaDelTope, limitarPagina, tamanoValido } from "../paginacion";
 import estilos from "./Transacciones.module.css";
 
 const ORDENES: ReadonlyArray<[OrdenTransacciones, string]> = [
@@ -15,6 +15,8 @@ const ORDENES: ReadonlyArray<[OrdenTransacciones, string]> = [
   ["monto_desc", "Mayor monto"],
 ];
 const FILAS_ESPERA = 5;
+
+type PaginaCargada = PaginaTransacciones & { pagina: number; porPagina: number };
 
 interface Props {
   cliente: Cliente;
@@ -26,25 +28,26 @@ export function Transacciones({ cliente, alExpirar }: Props) {
   const [params, cambiar] = useParametrosUrl();
   const porPagina = tamanoValido(params.get("limite"));
   const orden = (ORDENES.find(([v]) => v === params.get("orden"))?.[0] ?? "fecha_desc") as OrdenTransacciones;
-  // La página pedida se corrige con el total que ya se conoce (si no hay, se confía hasta que llegue el primero).
-  const pedida = ajustarPagina(params.get("pagina"), Number.MAX_SAFE_INTEGER, porPagina); // con tope: nunca pide un desplazamiento que el servidor rechace
+  const pedida = limitarPagina(params.get("pagina"), porPagina); // con el tope del servidor; el total real la corrige al llegar
 
   const clave = `${orden}|${porPagina}|${pedida}`;
-  const { datos, cargando, error, recargar } = useConsulta<PaginaTransacciones>(clave, (senal) =>
-    cliente.obtener<PaginaTransacciones>(
+  const { datos, cargando, error, recargar } = useConsulta<PaginaCargada>(clave, async (senal) => {
+    const r = await cliente.obtener<PaginaTransacciones>(
       "/v1/panel/transacciones",
       { orden, limite: porPagina, desplazamiento: (pedida - 1) * porPagina },
       senal,
-    ),
-  );
+    );
+    return { ...r, pagina: pedida, porPagina }; // se recuerda QUÉ página trae: la barra siempre coincide con las filas que se ven
+  });
 
   const total = datos?.total ?? 0;
-  const pagina = datos ? ajustarPagina(pedida, total, porPagina) : pedida;
+  const mostrada = datos ? ajustarPagina(datos.pagina, total, datos.porPagina) : 1;
+  const pagina = datos ? ajustarPagina(pedida, total, porPagina) : pedida; // la que debería estar pedida con el total real
 
   // Si el total bajó y la página pedida quedó más allá del final, se vuelve a la última (sin pantalla de error).
   useEffect(() => {
-    if (datos && !cargando && pagina !== pedida) cambiar({ pagina: String(pagina) });
-  }, [datos, cargando, pagina, pedida, cambiar]);
+    if (datos && !cargando && !error && pagina !== pedida) cambiar({ pagina: String(pagina) }, { reemplazar: true });
+  }, [datos, cargando, error, pagina, pedida, cambiar]);
 
   useEffect(() => {
     if (error instanceof ErrorApi && (error.estado === 401 || error.estado === 403)) alExpirar();
@@ -59,7 +62,14 @@ export function Transacciones({ cliente, alExpirar }: Props) {
         <h2>Transacciones</h2>
         <div className={`campo ${estilos.campoOrden}`}>
           <label htmlFor="orden">Ordenar por</label>
-          <select id="orden" value={orden} disabled={cargando} onChange={(e) => cambiar({ orden: e.target.value, pagina: null })}>
+          <select
+            id="orden"
+            value={orden}
+            aria-busy={cargando}
+            onChange={(e) => {
+              if (!cargando) cambiar({ orden: e.target.value, pagina: null });
+            }}
+          >
             {ORDENES.map(([v, t]) => (
               <option key={v} value={v}>
                 {t}
@@ -78,6 +88,7 @@ export function Transacciones({ cliente, alExpirar }: Props) {
         </div>
       ) : null}
 
+      {sinDatosAun && error ? null : (
       <div className={`${estilos.tabla} ${cargando && !sinDatosAun ? estilos.refrescando : ""}`}>
         <table>
           <thead>
@@ -125,6 +136,7 @@ export function Transacciones({ cliente, alExpirar }: Props) {
         </table>
         {!sinDatosAun && filas.length === 0 && !cargando ? <p className={estilos.vacio}>No hay pagos para mostrar.</p> : null}
       </div>
+      )}
 
       {!sinDatosAun && hayMasAllaDelTope(total, porPagina) ? (
         <p className={estilos.nota}>
@@ -135,8 +147,8 @@ export function Transacciones({ cliente, alExpirar }: Props) {
       {!sinDatosAun ? (
         <Paginacion
           total={total}
-          pagina={pagina}
-          porPagina={porPagina}
+          pagina={mostrada}
+          porPagina={datos?.porPagina ?? porPagina}
           ocupado={cargando}
           alCambiarPagina={(p) => cambiar({ pagina: p <= 1 ? null : String(p) })}
           alCambiarTamano={(t) => cambiar({ limite: String(t), pagina: null })}

@@ -22,5 +22,7 @@ python modelo_ia/pruebas_navegador/app_react.py   # recorrido en Chromium y WebK
 ## Paginación (por qué es así)
 - La **página** y el **tamaño** (10, 25 o 50) viven en la dirección (`?pagina=2&limite=25`): se puede copiar el enlace y «atrás» funciona. Valores raros o fuera de rango se corrigen, nunca dan error.
 - Mientras llega una página, **los datos anteriores siguen a la vista** (atenuados) y los botones se bloquean: ni saltos ni doble clic. Una respuesta vieja nunca pisa a la nueva.
-- Si falla (corte, 500), aparece el aviso con **Reintentar** y se conserva lo que había. Los cortes transitorios (502/503/504, red, tiempo de espera de 20 s) se reintentan solos hasta 2 veces; los errores del usuario (401, 403, 404, 422), nunca.
+- Si falla (corte, 500), aparece el aviso con **Reintentar** y se conserva lo que había. Los cortes transitorios (502/503/504 y fallas de red) se reintentan solos hasta 2 veces; **no** se reintenta el tiempo agotado (20 s) ni los errores del usuario (401, 403, 404, 422). El cliente solo acepta rutas del mismo origen, sin cookies y sin caché.
+- **Teclado y lectores de pantalla:** los botones de página usan `aria-disabled` (no `disabled`), así el foco no se pierde al paginar; la barra dice «Cargando…» en una zona `aria-live`. Cuando la página corregida por el total difiere de la pedida, se reemplaza la entrada del historial (no se empuja), para que «atrás» no quede atrapado.
+- **La barra coincide con las filas:** muestra la página de los datos que se ven, no la pedida; si falla un cambio de página, sigue diciendo la anterior.
 - **Tope:** el backend no acepta un desplazamiento mayor a 100.000 filas. Más allá se avisa que hay que afinar con filtros (fecha, comercio…).

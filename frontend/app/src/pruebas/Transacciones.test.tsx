@@ -43,10 +43,83 @@ describe("pantalla de transacciones", () => {
     montar(lenta);
     await screen.findByText("AF-0001");
     await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
-    await waitFor(() => expect((screen.getByRole("button", { name: "Siguiente" }) as HTMLButtonElement).disabled).toBe(true));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Siguiente" }).getAttribute("aria-disabled")).toBe("true"));
     expect(screen.getByText("AF-0001")).toBeTruthy(); // sigue a la vista
     soltar();
     expect(await screen.findByText("AF-0026")).toBeTruthy();
+  });
+
+  it("al paginar el foco NO se pierde y un segundo clic durante la carga no manda otra petición", async () => {
+    const s = servidorFalso(60);
+    let soltar!: () => void;
+    const lenta = (async (e: RequestInfo | URL, i?: RequestInit) => {
+      if (new URL(String(e), "http://x").searchParams.get("desplazamiento") === "25") await new Promise<void>((r) => (soltar = r));
+      return s.fetcher(e, i);
+    }) as typeof fetch;
+    montar(lenta);
+    await screen.findByText("AF-0001");
+    const siguiente = screen.getByRole("button", { name: "Siguiente" });
+    siguiente.focus();
+    await userEvent.click(siguiente);
+    await waitFor(() => expect(siguiente.getAttribute("aria-disabled")).toBe("true"));
+    expect(document.activeElement).toBe(siguiente); // con «disabled» el foco caería en el body
+    const antes = s.pedidas.length;
+    await userEvent.click(siguiente);
+    expect(s.pedidas.length).toBe(antes);
+    soltar();
+    await screen.findByText("AF-0026");
+    expect(document.activeElement).toBe(siguiente);
+  });
+
+  it("la corrección automática de una página fuera de rango REEMPLAZA la entrada del historial (atrás no queda atrapado)", async () => {
+    window.history.replaceState(null, "", "/app?pagina=99");
+    const empujar = vi.spyOn(window.history, "pushState");
+    const reemplazar = vi.spyOn(window.history, "replaceState");
+    montar(servidorFalso(30).fetcher);
+    await screen.findByText("Página 2 de 2");
+    await screen.findByText("AF-0030");
+    expect(empujar).not.toHaveBeenCalled();
+    expect(reemplazar).toHaveBeenCalled();
+    empujar.mockRestore();
+    reemplazar.mockRestore();
+  });
+
+  it("si falla al pasar de página, la barra sigue diciendo la página de las filas que se ven", async () => {
+    const s = servidorFalso(60);
+    let falla = false;
+    const f = (async (e: RequestInfo | URL, i?: RequestInit) => (falla ? respuesta(500, { detail: "se cayó" }) : s.fetcher(e, i))) as typeof fetch;
+    montar(f);
+    await screen.findByText("AF-0001");
+    falla = true;
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await screen.findByRole("alert");
+    expect(screen.getByText("Página 1 de 3")).toBeTruthy();
+    expect(screen.getByText("Mostrando 1–25 de 60")).toBeTruthy();
+    expect(screen.getByText("AF-0001")).toBeTruthy();
+  });
+
+  it("si falla la PRIMERA carga no queda una tabla vacía: solo el aviso con «Reintentar», y reintentar funciona", async () => {
+    const s = servidorFalso(10);
+    let falla = true;
+    const f = (async (e: RequestInfo | URL, i?: RequestInit) => (falla ? respuesta(500, { detail: "se cayó" }) : s.fetcher(e, i))) as typeof fetch;
+    montar(f);
+    const alerta = await screen.findByRole("alert");
+    expect(screen.queryByRole("table")).toBeNull();
+    falla = false;
+    await userEvent.click(within(alerta).getByRole("button", { name: "Reintentar" }));
+    expect(await screen.findByText("AF-0001")).toBeTruthy();
+  });
+
+  it("al salir de la pantalla se cancela la petición en curso", async () => {
+    let senal: AbortSignal | undefined;
+    const colgada = ((_e: RequestInfo | URL, i?: RequestInit) => {
+      senal = i?.signal ?? undefined;
+      return new Promise<Response>(() => {});
+    }) as typeof fetch;
+    const { unmount } = render(<Transacciones cliente={crearCliente("K", { fetcher: colgada, esperas: [] })} alExpirar={vi.fn()} />);
+    await waitFor(() => expect(senal).toBeDefined());
+    unmount();
+    expect(senal?.aborted).toBe(true);
   });
 
   it("una página más allá del final (el total bajó) vuelve a la última, sin error", async () => {

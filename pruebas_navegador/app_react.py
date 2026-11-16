@@ -6,6 +6,8 @@ Uso: python modelo_ia/pruebas_navegador/app_react.py
 """
 
 import json
+import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -28,7 +30,10 @@ procesos = []
 
 
 def lanzar(cmd, **kw):
-    p = subprocess.Popen(cmd, stdout=open(S / f"{len(procesos)}.log", "w"), stderr=subprocess.STDOUT, **kw)
+    # Sesión propia: al terminar se mata el GRUPO (npx deja un «node» hijo que, si no, seguiría ocupando el puerto)
+    p = subprocess.Popen(
+        cmd, stdout=open(S / f"{len(procesos)}.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, **kw
+    )
     procesos.append(p)
     return p
 
@@ -39,7 +44,8 @@ def esperar(url, veces=120):
             if httpx.get(url, timeout=2).status_code == 200:
                 return True
         except Exception:
-            time.sleep(0.5)
+            pass
+        time.sleep(0.5)
     return False
 
 
@@ -86,7 +92,8 @@ try:
     )
     claves = (carpeta / "claves_demo.txt").read_text(encoding="utf-8")
     k_ana = next(l.split("=", 1)[1].strip() for l in claves.splitlines() if l.startswith("ANALISTA="))
-    subprocess.run(["npm", "run", "build"], cwd=str(APP), capture_output=True, check=True, timeout=300)
+    compilado = subprocess.run(["npm", "run", "build"], cwd=str(APP), capture_output=True, text=True, timeout=300)
+    assert compilado.returncode == 0, "npm run build falló:\n" + compilado.stdout[-1500:] + compilado.stderr[-1500:]
     lanzar(
         ["npx", "vite", "preview", "--port", str(PUERTO_APP), "--strictPort", "--host", "127.0.0.1"],
         cwd=str(APP),
@@ -153,10 +160,15 @@ try:
             # carga lenta: la tabla no se vacía y los botones se bloquean
             estado["modo"] = "lento"
             primero = pag.locator("tbody tr td[data-etiqueta='Seguimiento']").first.inner_text()
-            pag.click("button:has-text('Siguiente')")
+            # con TECLADO (como quien usa lector de pantalla): en Safari el clic con ratón no enfoca botones, así que el foco solo se puede medir así
+            pag.focus("button:has-text('Siguiente')")
+            pag.keyboard.press("Enter")
             pag.wait_for_timeout(500)
             r["durante_carga_filas_visibles"] = filas()
             r["durante_carga_boton_bloqueado"] = pag.locator("button:has-text('Siguiente')").is_disabled()
+            r["durante_carga_foco_sigue_en_siguiente"] = pag.evaluate(
+                "document.activeElement && document.activeElement.textContent === 'Siguiente'"
+            )
             r["durante_carga_tabla_marcada_ocupada"] = pag.locator("section[aria-busy='true']").count() == 1
             pag.screenshot(path=str(CAPTURAS / f"{motor}_{nombre.replace(' ', '_')}_cargando.png"))
             for ret in retenidas:
@@ -197,4 +209,7 @@ try:
     print("capturas en", CAPTURAS)
 finally:
     for pr in procesos:
-        pr.terminate()
+        try:
+            os.killpg(pr.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
