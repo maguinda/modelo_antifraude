@@ -790,7 +790,7 @@ def test_la_migracion_3_crea_el_registro_conserva_los_datos_y_hace_una_sola_copi
     clave = v2.crear_clave(1, "admin")
     assert not sqlite3.connect(ruta).execute("SELECT 1 FROM sqlite_master WHERE name='modelos_registro'").fetchone()
     nuevo = Almacen(ruta, PEPPER)
-    assert nuevo.inicializar() == [3, 4, 5]
+    assert nuevo.inicializar() == [3, 4, 5, 6]
     con = sqlite3.connect(ruta)
     assert con.execute(
         "SELECT name FROM sqlite_master WHERE name IN ('modelos_registro','un_modelo_en_uso_por_rol') ORDER BY name"

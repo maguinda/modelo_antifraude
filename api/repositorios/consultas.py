@@ -205,6 +205,6 @@ class ConsultasRepositorio:
     # ------------------------------------------------------------------ comercios (para el filtro)
     def comercios_con_pagos(self, con: sqlite3.Connection) -> List[sqlite3.Row]:
         return con.execute(
-            "SELECT c.id, c.nombre, CASE WHEN c.activo = 0 THEN 1 ELSE 0 END AS suspendido, COUNT(e.id) pagos FROM comercios c LEFT JOIN evaluaciones e ON e.comercio_id = c.id "
+            "SELECT c.id, c.nombre, CASE WHEN c.activo = 0 THEN 1 ELSE 0 END AS suspendido, COUNT(e.comercio_id) pagos FROM comercios c LEFT JOIN evaluaciones e ON e.comercio_id = c.id "
             "WHERE c.id != 1 GROUP BY c.id ORDER BY pagos DESC, c.nombre, c.id"
         ).fetchall()
