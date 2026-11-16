@@ -54,14 +54,21 @@ function dormir(ms: number, senal?: AbortSignal): Promise<void> {
 export function crearCliente(clave: string, opciones: OpcionesCliente = {}) {
   const { tiempoMax = 20000, esperas = ESPERAS, fetcher = (...a) => fetch(...a) } = opciones;
 
-  async function una(ruta: string, senal?: AbortSignal): Promise<unknown> {
+  async function una(ruta: string, senal?: AbortSignal, enviado?: unknown): Promise<unknown> {
     const control = new AbortController();
     const cancelar = () => control.abort();
     senal?.addEventListener("abort", cancelar, { once: true });
     if (senal?.aborted) control.abort();
     const reloj = setTimeout(() => control.abort(), tiempoMax);
     try {
-      const r = await fetcher(ruta, { method: "GET", headers: { "X-API-Key": clave }, credentials: "omit", cache: "no-store", signal: control.signal });
+      const r = await fetcher(ruta, {
+        method: enviado === undefined ? "GET" : "POST",
+        headers: enviado === undefined ? { "X-API-Key": clave } : { "X-API-Key": clave, "Content-Type": "application/json" },
+        body: enviado === undefined ? undefined : JSON.stringify(enviado),
+        credentials: "omit",
+        cache: "no-store",
+        signal: control.signal,
+      });
       const texto = await r.text();
       let cuerpo: unknown = null;
       try {
@@ -102,7 +109,16 @@ export function crearCliente(clave: string, opciones: OpcionesCliente = {}) {
     }
   }
 
-  return { obtener };
+  /**
+   * POST con cuerpo JSON. UN SOLO intento, nunca se reintenta: repetir una escritura podría duplicarla. Si no hay respuesta (corte, tiempo agotado)
+   * se avisa que NO se sabe si se guardó (`estado` 0) y quien llama debe recargar antes de volver a intentar.
+   */
+  async function enviar<T>(ruta: string, datos: unknown, senal?: AbortSignal): Promise<T> {
+    if (!/^\/(?![/\\])[^\\\t\r\n]*$/.test(ruta)) throw new ErrorApi(0, "Ruta no permitida.", true);
+    return (await una(ruta, senal, datos)) as T;
+  }
+
+  return { obtener, enviar };
 }
 
 export type Cliente = ReturnType<typeof crearCliente>;

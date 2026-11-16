@@ -107,4 +107,33 @@ describe("cliente", () => {
     const f = vi.fn(async () => new Response("<html>", { status: 502 }));
     await expect(crearCliente("K", { fetcher: f as unknown as typeof fetch, esperas: [] }).obtener("/v1/x")).rejects.toMatchObject({ estado: 502, message: "Error 502" });
   });
+
+  describe("enviar (POST)", () => {
+    it("manda JSON con la clave y NO reintenta aunque el servidor falle (repetir una escritura podría duplicarla)", async () => {
+      const f = vi.fn(async () => respuesta(503, { detail: "caído" }));
+      const cliente = crearCliente("K9", { fetcher: f as unknown as typeof fetch, esperas: [1, 1] });
+      await expect(cliente.enviar("/v1/x", { decision: "APROBADA" })).rejects.toMatchObject({ estado: 503 });
+      expect(f).toHaveBeenCalledTimes(1);
+      const init = (f.mock.calls[0] as unknown as [string, RequestInit])[1];
+      expect(init.method).toBe("POST");
+      expect(init.body).toBe('{"decision":"APROBADA"}');
+      expect((init.headers as Record<string, string>)["X-API-Key"]).toBe("K9");
+      expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+      expect(init.credentials).toBe("omit");
+    });
+    it("una falla de red tampoco se reintenta y se informa como «sin respuesta» (estado 0)", async () => {
+      const f = vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      });
+      await expect(crearCliente("K", { fetcher: f as unknown as typeof fetch, esperas: [1] }).enviar("/v1/x", {})).rejects.toMatchObject({ estado: 0 });
+      expect(f).toHaveBeenCalledTimes(1);
+    });
+    it("solo acepta rutas del mismo origen", async () => {
+      const f = vi.fn(async () => respuesta(200, {}));
+      for (const mala of ["https://otro.example/x", "//otro.example/x", "/\\otro.example/x"]) {
+        await expect(crearCliente("K", { fetcher: f as unknown as typeof fetch }).enviar(mala, {})).rejects.toMatchObject({ message: "Ruta no permitida." });
+      }
+      expect(f).not.toHaveBeenCalled();
+    });
+  });
 });
