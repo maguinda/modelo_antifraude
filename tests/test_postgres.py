@@ -469,3 +469,34 @@ def test_el_administrador_con_credenciales_malas_en_un_servidor_real_tampoco_mue
     ]
     for secreto in ("usuario_x", "CLAVE-X", host.split(":")[0], host.split(":")[1]):
         assert secreto not in salida, secreto
+
+
+def test_con_depurar_el_administrador_deja_ver_el_error_original_y_sin_el_no(tmp_path):
+    entorno = {
+        **os.environ,
+        "PYTHONPATH": str(RAIZ),
+        "MODELO_IA_PEPPER": "p" * 40,
+        "MODELO_IA_BD_URL": "postgresql://usuario_x:CLAVE-X@host-inexistente.invalid:5999/base_x",
+    }
+    entorno.pop("MODELO_IA_BD", None)
+    sin = subprocess.run(
+        [sys.executable, "-m", "modelo_ia.api.admin", "listar-claves"],
+        env=entorno,
+        cwd=str(RAIZ),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert "Traceback" not in sin.stdout + sin.stderr
+    con = subprocess.run(
+        [sys.executable, "-m", "modelo_ia.api.admin", "listar-claves"],
+        env={**entorno, "MODELO_IA_DEPURAR": "1"},
+        cwd=str(RAIZ),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert (
+        "Traceback" in con.stderr and "OperationalError" in con.stderr
+    )  # el detalle completo, para quien depura en su computador
+    assert "CLAVE-X" not in con.stderr  # ni así sale la contraseña (psycopg no la incluye)

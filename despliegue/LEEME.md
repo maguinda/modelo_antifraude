@@ -111,7 +111,7 @@ python -m modelo_ia.despliegue.respaldo_pg verificar /respaldos/antifraude_XXXXX
 python -m modelo_ia.despliegue.respaldo_pg restaurar /respaldos/antifraude_XXXXXXXX_XXXXXX.afbk [--forzar]
 ```
 Hace falta `pg_dump` y `pg_restore` **de la misma versión mayor que el servidor de PostgreSQL o más nueva** (la imagen del servicio NO los trae: agrega el
-cliente de PostgreSQL de esa versión, o corre el respaldo en la máquina donde esté). Una copia de SQLite y una de PostgreSQL no se confunden: cada herramienta rechaza la del otro motor.
+cliente de PostgreSQL de esa versión, o corre el respaldo en la máquina donde esté). La imagen trae una opción para instalarlo: `docker build --build-arg INCLUIR_CLIENTE_POSTGRES=1 --build-arg VERSION_CLIENTE_POSTGRES=16` (apagada por omisión y **sin probar**: esa construcción no se ha ejecutado). Una copia de SQLite y una de PostgreSQL no se confunden: cada herramienta rechaza la del otro motor.
 Probado con `pg_dump` 16 contra PostgreSQL 16: copia, verificación, restauración tras perder todo y rechazo de archivos alterados; **no probado** dentro del contenedor del servicio
 ni con una base grande. La vigilancia (`vigilancia.py`) con PostgreSQL revisa la salud de la API, el certificado y la edad de la última copia, no el archivo de la base.
 

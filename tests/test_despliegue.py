@@ -580,3 +580,92 @@ def test_con_postgresql_la_vigilancia_no_mira_archivos_de_sqlite_y_el_respaldo_d
     assert llamadas == [] and [t for _, t in res] == ["salud", "respaldos"]  # con PostgreSQL no hay archivo que mirar
     with pytest.raises(respaldo.ErrorDeRespaldo, match="respaldo_pg"):
         respaldo.crear(tmp_path / "x.sqlite3", tmp_path / "r", tmp_path / "frase")
+
+
+# ------------------------------------------------------------------ riesgos menores del respaldo (disco lleno, restos de una copia que murió, errores del sistema)
+def test_si_el_disco_se_llena_al_escribir_la_copia_no_queda_nada_a_medias_y_el_error_es_claro(tmp_path, monkeypatch):
+    import errno
+
+    from modelo_ia.despliegue import respaldo
+
+    def sin_espacio(*a, **k):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(respaldo.os, "fdopen", sin_espacio)
+    destino = tmp_path / "antifraude_20261115_100000.afbk"
+    with pytest.raises(respaldo.ErrorDeRespaldo, match="falta espacio en disco"):
+        respaldo._escribir_privado(destino, b"x" * 100)
+    assert not destino.exists() and not list(tmp_path.glob("*.tmp"))
+
+
+def test_un_error_del_sistema_en_la_vuelta_de_copia_se_anota_como_fallo_y_no_mata_el_ciclo(tmp_path, monkeypatch):
+    import json
+
+    from modelo_ia.despliegue import respaldo
+
+    monkeypatch.setattr(
+        respaldo, "crear", lambda *a, **k: (_ for _ in ()).throw(OSError(28, "No space left on device"))
+    )
+    with pytest.raises(
+        respaldo.ErrorDeRespaldo, match="falta espacio en disco"
+    ):  # el ciclo atrapa ErrorDeRespaldo y reintenta en la próxima vuelta
+        respaldo.una_vuelta(tmp_path / "b.sqlite3", tmp_path, tmp_path / "frase", 7, 4, 3)
+    estado = json.loads((tmp_path / "ultimo_respaldo.json").read_text())
+    assert estado["ok"] is False and "falta espacio" in estado["error"]  # y la vigilancia lo verá
+
+
+def test_los_restos_de_una_copia_que_murio_a_medias_se_borran_solo_si_son_viejos_y_solo_con_esos_nombres(tmp_path):
+    import os
+    import time
+
+    from modelo_ia.despliegue import respaldo
+
+    ahora = time.time()
+    viejo_hace = ahora - 3 * 3600
+    for nombre in ("afbk_abc123", "afbkpg_xyz789"):  # carpetas temporales con la copia SIN cifrar adentro
+        d = tmp_path / nombre
+        d.mkdir()
+        (d / "copia.sqlite3").write_bytes(b"datos en claro")
+        os.utime(d, (viejo_hace, viejo_hace))
+    reciente = tmp_path / "afbk_reciente"  # una copia que se está haciendo ahora mismo
+    reciente.mkdir()
+    ajena = tmp_path / "otra_carpeta"  # nada que ver con las copias
+    ajena.mkdir()
+    os.utime(ajena, (viejo_hace, viejo_hace))
+    tmp_viejo = tmp_path / "antifraude_20261101_000000.afbk.tmp"
+    tmp_viejo.write_bytes(b"x")
+    os.utime(tmp_viejo, (viejo_hace, viejo_hace))
+    buena = tmp_path / "antifraude_20261101_000000.afbk"  # una copia buena, vieja: NO se toca
+    buena.write_bytes(b"x")
+    os.utime(buena, (viejo_hace, viejo_hace))
+    borradas = respaldo.limpiar_restos(tmp_path)
+    assert sorted(borradas) == ["afbk_abc123", "afbkpg_xyz789", "antifraude_20261101_000000.afbk.tmp"]
+    assert reciente.exists() and ajena.exists() and buena.exists()
+
+
+def test_el_dockerfile_trae_pg_dump_solo_si_se_pide_y_por_omision_no_cambia_la_imagen():
+    texto = _leer("Dockerfile")
+    assert "ARG INCLUIR_CLIENTE_POSTGRES=0" in texto and 'if [ "$INCLUIR_CLIENTE_POSTGRES" = "1" ]' in texto
+    assert "postgresql-client-${VERSION_CLIENTE_POSTGRES}" in texto and "sin probar" in _leer("LEEME.md")
+
+
+def test_al_crear_una_copia_se_limpian_antes_los_restos_viejos_de_una_que_murio(tmp_path):
+    import os
+    import time
+
+    from modelo_ia.api.almacen import Almacen
+    from modelo_ia.despliegue import respaldo
+
+    bd = tmp_path / "b.sqlite3"
+    Almacen(bd, "p" * 40).inicializar()
+    frase = tmp_path / "frase"
+    frase.write_text("una frase de respaldo muy larga solo para esta prueba")
+    frase.chmod(0o600)
+    carpeta = tmp_path / "respaldos"
+    resto = carpeta / "afbk_muerta"
+    resto.mkdir(parents=True)
+    (resto / "copia.sqlite3").write_bytes(b"datos en claro de una copia que murio")
+    viejo = time.time() - 5 * 3600
+    os.utime(resto, (viejo, viejo))
+    x = respaldo.crear(bd, carpeta, frase)
+    assert x["archivo"].exists() and not resto.exists()  # lo viejo y sin cifrar ya no está

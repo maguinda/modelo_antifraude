@@ -182,14 +182,42 @@ def _conteos(ruta_bd: Path) -> Dict[str, int]:
 
 
 def _escribir_privado(destino: Path, contenido: bytes) -> None:
-    """Escritura atómica con permisos 600."""
+    """Escritura atómica con permisos 600. Si falla (por ejemplo, disco lleno) no deja el archivo a medias y lo dice con un error claro."""
     tmp = destino.with_name(destino.name + ".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "wb") as f:
-        f.write(contenido)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, destino)
+    try:
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            f.write(contenido)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, destino)
+    except OSError as e:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise ErrorDeRespaldo(
+            f"No se pudo escribir {destino.name} ({type(e).__name__}): ¿falta espacio en disco o permisos?"
+        ) from None
+
+
+def limpiar_restos(carpeta: Path, edad_horas: float = 1.0, ahora: Optional[float] = None) -> List[str]:
+    """Borra lo que dejó una copia que murió a medias (kill -9, falta de memoria, se fue la luz): las carpetas temporales `afbk_*` / `afbkpg_*` (con la copia SIN cifrar
+    adentro) y los `.tmp` de más de `edad_horas`. Solo toca esos nombres y solo lo viejo: una copia que se está haciendo ahora mismo no se borra."""
+    limite = (ahora if ahora is not None else time.time()) - edad_horas * 3600
+    borradas: List[str] = []
+    for p in Path(carpeta).glob("*"):
+        try:
+            viejo = p.stat().st_mtime < limite
+            if p.is_dir() and re.fullmatch(r"afbk(pg)?_[A-Za-z0-9_]+", p.name) and viejo:
+                shutil.rmtree(p, ignore_errors=True)
+                borradas.append(p.name)
+            elif p.is_file() and p.name.endswith(".afbk.tmp") and viejo:
+                p.unlink()
+                borradas.append(p.name)
+        except OSError:
+            continue
+    return borradas
 
 
 def crear(bd: Path, carpeta: Path, frase_archivo: Path, ahora: Optional[datetime] = None) -> Dict:
@@ -203,6 +231,7 @@ def crear(bd: Path, carpeta: Path, frase_archivo: Path, ahora: Optional[datetime
         os.chmod(carpeta, 0o700)
     except OSError:
         pass
+    limpiar_restos(carpeta)
     temporal = Path(tempfile.mkdtemp(prefix="afbk_", dir=carpeta))
     try:
         os.chmod(temporal, 0o700)
@@ -327,9 +356,20 @@ def una_vuelta(bd: Path, carpeta: Path, frase_archivo: Path, diarios: int, seman
         copiar_afuera(r["archivo"])
         _anotar_estado(carpeta, True, r["archivo"], None)
         return r
-    except ErrorDeRespaldo as e:
-        _anotar_estado(carpeta, False, None, str(e))
-        raise
+    except (
+        ErrorDeRespaldo,
+        OSError,
+    ) as e:  # un error del sistema (disco lleno, permisos) también queda anotado y se dice con un mensaje claro
+        mensaje = (
+            str(e)
+            if isinstance(e, ErrorDeRespaldo)
+            else f"No se pudo hacer la copia ({type(e).__name__}): ¿falta espacio en disco o permisos?"
+        )
+        try:
+            _anotar_estado(carpeta, False, None, mensaje)
+        except (ErrorDeRespaldo, OSError):
+            pass  # si ni siquiera se puede anotar, el error de la copia es el que importa
+        raise ErrorDeRespaldo(mensaje) from None
 
 
 def main(argv=None) -> int:
