@@ -1,4 +1,4 @@
-# VARIANTE OPCIONAL (no se usa por omisión; probada el 15-nov-2026 con Caddy 2 real delante de la imagen del servicio y PostgreSQL, y con Chromium y WebKit a 390 px): el servidor web entrega las pantallas y la API solo responde datos.
+# VARIANTE OPCIONAL (no se usa por omisión; probada el 15-nov-2026 con Caddy 2 real delante de la imagen del servicio (con la API usando PostgreSQL) y con Chromium y WebKit a 390 px; SIN dominio público ni certificado real, sin servidor de producción y sin celular real): el servidor web entrega las pantallas y la API solo responde datos.
 # Para usarla: (1) MODELO_IA_PANTALLAS=0 en el servicio `api`; (2) montar la carpeta frontend/ en el servicio `caddy` como /srv/frontend (solo lectura);
 # (3) usar este archivo en lugar de Caddyfile; (4) ANTES de producción: `caddy validate` y revisar con `curl -sI` que /panel y /dashboard traen la CSP.
 # OJO: en esta variante la CSP de /panel y /dashboard queda FIJA en Report-Only: MODELO_IA_CSP=enforce NO la cambia (hay que editar este archivo).
