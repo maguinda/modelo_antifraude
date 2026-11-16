@@ -66,7 +66,7 @@ describe("cliente", () => {
     const init = (f.mock.calls[0] as unknown as [string, RequestInit])[1];
     expect(init.credentials).toBe("omit");
     expect(init.cache).toBe("no-store");
-    for (const mala of ["https://otro.example/v1/x", "//otro.example/v1/x", "v1/x"]) {
+    for (const mala of ["https://otro.example/v1/x", "//otro.example/v1/x", "/\\otro.example/v1/x", "/\totro.example/v1/x", "/v1/x\n", "v1/x"]) {
       await expect(cliente.obtener(mala)).rejects.toMatchObject({ message: "Ruta no permitida." });
     }
     expect(f).toHaveBeenCalledTimes(1); // la clave nunca salió hacia otra dirección
