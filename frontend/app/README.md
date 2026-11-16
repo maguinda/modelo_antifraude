@@ -2,7 +2,7 @@
 
 Primera pieza del frontend nuevo. **Convive con las pantallas actuales** (`panel/`, `dashboard/`, `tienda/`): no las reemplaza ni cambia sus direcciones. Se migra pantalla por pantalla, en PRs aparte.
 
-Hoy incluye una pantalla: **Transacciones**, con paginación. Todavía **no la entrega la API** (llega en el siguiente paso); se ve con `npm run dev`.
+Hoy incluye una pantalla: **Transacciones**, con paginación. La entrega la API en **`/app`** (archivos en `/estaticos/app/`) **si está compilada** (`frontend/app/dist`); sin compilar, `/app` no existe y todo lo demás sigue igual. La imagen Docker la compila sola (etapa de Node; la imagen final no lleva Node). En desarrollo se ve con `npm run dev`.
 
 ## Comandos (Node 24)
 ```bash
@@ -10,7 +10,8 @@ cd modelo_ia/frontend/app
 npm ci --ignore-scripts      # instala las versiones exactas del package-lock
 npm run dev                  # http://localhost:5173/estaticos/app/  (reenvía /v1 a http://127.0.0.1:8000; cámbialo con MODELO_IA_DESTINO)
 npm run typecheck && npm test && npm run build
-python modelo_ia/pruebas_navegador/app_react.py   # recorrido en Chromium y WebKit (ver pruebas_navegador/README.md)
+python modelo_ia/pruebas_navegador/app_react.py        # recorrido en Chromium y WebKit con `vite preview`
+python modelo_ia/pruebas_navegador/app_react.py --api  # lo mismo, servida por la API en /app y con la política de contenido (CSP) en bloqueo
 ```
 
 ## Reglas de esta carpeta

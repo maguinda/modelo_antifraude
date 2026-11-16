@@ -48,6 +48,18 @@
 		root * /srv/frontend/dashboard
 		file_server
 	}
+	# Panel React (frontend/app): solo existe compilado. En esta variante hay que compilarlo en la máquina (cd frontend/app && npm ci --ignore-scripts && npm run build) antes de montar frontend/.
+	handle /app {
+		header Content-Security-Policy-Report-Only "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'"
+		header Cache-Control no-store
+		rewrite * /index.html
+		root * /srv/frontend/app/dist
+		file_server
+	}
+	handle_path /estaticos/app/* {
+		root * /srv/frontend/app/dist
+		file_server
+	}
 	handle /panel {
 		header Content-Security-Policy-Report-Only "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'"
 		header Cache-Control no-store

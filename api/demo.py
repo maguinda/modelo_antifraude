@@ -82,6 +82,9 @@ def preparar(reiniciar: bool = False) -> Tuple[Ajustes, Dict[str, str]]:
 def crear_app_demo(reiniciar: bool = False):
     ajustes, claves = preparar(reiniciar)
     ajustes.servir_pantallas = True  # la demo es UN solo servidor: entrega también sus pantallas
+    ajustes.csp_modo = os.environ.get(
+        "MODELO_IA_CSP", ajustes.csp_modo
+    )  # para probar las pantallas con la política en modo bloqueo
     app = crear_app(ajustes, docs=False)
     registrar_documentacion(app, ajustes.csp_modo, claves)
     registrar_panel(app, ajustes.csp_modo, claves["analista"])
