@@ -89,7 +89,7 @@ export function crearCliente(clave: string, opciones: OpcionesCliente = {}) {
   /** GET con reintentos SOLO ante cortes transitorios (502/503/504, red, tiempo). Nunca reintenta un error de usuario (401, 403, 404, 422). */
   async function obtener<T>(ruta: string, parametros?: Parametros, senal?: AbortSignal): Promise<T> {
     // Solo rutas del mismo origen: la clave nunca debe poder ir a otro servidor. Se valida ANTES del bucle: no es un corte, no se reintenta.
-    if (!ruta.startsWith("/") || ruta.startsWith("//")) throw new ErrorApi(0, "Ruta no permitida.", true);
+    if (!/^\/(?![/\\])[^\\\t\r\n]*$/.test(ruta)) throw new ErrorApi(0, "Ruta no permitida.", true); // también rechaza «/\host», que el navegador lee como «//host»
     const url = ruta + consulta(parametros);
     for (let intento = 0; ; intento++) {
       try {

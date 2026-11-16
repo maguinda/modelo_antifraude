@@ -150,7 +150,11 @@ export function Transacciones({ cliente, alExpirar }: Props) {
           pagina={mostrada}
           porPagina={datos?.porPagina ?? porPagina}
           ocupado={cargando}
-          alCambiarPagina={(p) => cambiar({ pagina: p <= 1 ? null : String(p) })}
+          alCambiarPagina={(p) => {
+            // si la página ya está pedida (falló y se ve la anterior), pulsar de nuevo es reintentar, no ensuciar el historial
+            if (p === pedida) recargar();
+            else cambiar({ pagina: p <= 1 ? null : String(p) });
+          }}
           alCambiarTamano={(t) => cambiar({ limite: String(t), pagina: null })}
         />
       ) : null}

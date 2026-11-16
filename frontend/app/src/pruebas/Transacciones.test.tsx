@@ -98,6 +98,23 @@ describe("pantalla de transacciones", () => {
     expect(screen.getByText("AF-0001")).toBeTruthy();
   });
 
+  it("«Siguiente» tras un fallo reintenta esa misma página sin llenar el historial", async () => {
+    const s = servidorFalso(60);
+    let falla = false;
+    const f = (async (e: RequestInfo | URL, i?: RequestInit) => (falla ? respuesta(500, { detail: "se cayó" }) : s.fetcher(e, i))) as typeof fetch;
+    montar(f);
+    await screen.findByText("AF-0001");
+    falla = true;
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await screen.findByRole("alert");
+    falla = false;
+    const empujar = vi.spyOn(window.history, "pushState");
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    expect(await screen.findByText("AF-0026")).toBeTruthy();
+    expect(empujar).not.toHaveBeenCalled();
+    empujar.mockRestore();
+  });
+
   it("si falla la PRIMERA carga no queda una tabla vacía: solo el aviso con «Reintentar», y reintentar funciona", async () => {
     const s = servidorFalso(10);
     let falla = true;
