@@ -111,9 +111,8 @@ python -m modelo_ia.despliegue.respaldo_pg verificar /respaldos/antifraude_XXXXX
 python -m modelo_ia.despliegue.respaldo_pg restaurar /respaldos/antifraude_XXXXXXXX_XXXXXX.afbk [--forzar]
 ```
 Hace falta `pg_dump` y `pg_restore` **de la misma versión mayor que el servidor de PostgreSQL o más nueva** (la imagen del servicio NO los trae: agrega el
-cliente de PostgreSQL de esa versión, o corre el respaldo en la máquina donde esté). La imagen trae una opción para instalarlo: `docker build --build-arg INCLUIR_CLIENTE_POSTGRES=1 --build-arg VERSION_CLIENTE_POSTGRES=16` (apagada por omisión y **sin probar**: esa construcción no se ha ejecutado). Una copia de SQLite y una de PostgreSQL no se confunden: cada herramienta rechaza la del otro motor.
-Probado con `pg_dump` 16 contra PostgreSQL 16: copia, verificación, restauración tras perder todo y rechazo de archivos alterados; **no probado** dentro del contenedor del servicio
-ni con una base grande. La vigilancia (`vigilancia.py`) con PostgreSQL revisa la salud de la API, el certificado y la edad de la última copia, no el archivo de la base.
+cliente de PostgreSQL de esa versión, o corre el respaldo en la máquina donde esté). La imagen trae una opción para instalarlo: `docker build --build-arg INCLUIR_CLIENTE_POSTGRES=1 --build-arg VERSION_CLIENTE_POSTGRES=16` (apagada por omisión; **construida y probada**: trae `pg_dump` y `pg_restore` 16.16, verifica la huella de la clave del repositorio oficial de PostgreSQL y no deja `curl` ni `gnupg`).
+Probado dentro de la imagen del servicio con `pg_dump` 16.16 contra PostgreSQL 16: copia, verificación, **perderlo todo** y restaurar (los datos y la auditoría vuelven), y rechazo de archivos alterados; **no probado** con una base grande. **Con PostgreSQL en Docker:** la imagen trae `MODELO_IA_BD=/datos/api.sqlite3`; el programa se niega a recibir las dos bases, así que en el servicio pon `MODELO_IA_BD=` (vacío) junto con `MODELO_IA_BD_URL_ARCHIVO`. La vigilancia (`vigilancia.py`) con PostgreSQL revisa la salud de la API, el certificado y la edad de la última copia, no el archivo de la base.
 
 **A. Copia de seguridad y restauración de verdad.**
 ```
@@ -192,8 +191,7 @@ Caddy real: al desplegar, comprueba que 25 claves inventadas seguidas desde tu c
 
 ## Endurecer con el tiempo
 
-- **Pantallas aparte (opcional, no probado con Caddy real):** por omisión la API entrega las pantallas de `frontend/`. Si quieres que las entregue Caddy y la API
-  solo responda datos, sigue los pasos de la cabecera de `Caddyfile.pantallas-aparte` y valida con `caddy validate` y `curl -sI` antes de producción.
+- **Pantallas aparte (opcional, probada con Caddy real):** por omisión la API entrega las pantallas de `frontend/`. Si quieres que las entregue Caddy y la API solo responda datos, sigue los pasos de la cabecera de `Caddyfile.pantallas-aparte` (`MODELO_IA_PANTALLAS=0` en la API y `../frontend:/srv/frontend:ro` en Caddy). Probada el 15-nov-2026 con `caddy validate` (las dos configuraciones son válidas) y con Caddy 2 delante de la imagen del servicio: `/panel` y `/dashboard` con su CSP y `no-store` puestas por Caddy, `/estaticos/*` servidos, `/init/panel-config.js` desde la API, `/v1/metricas` (también con barra final y en mayúsculas) y `/estaticos/tienda/*` en 404, e intentos de salir de `/srv/frontend` (`..`, `%2e%2e`) en 404; en Chromium y WebKit a 390 px cargan sin desborde y sin errores (WebKit muestra el aviso conocido de las políticas «solo observar»). **No probado:** un certificado real con dominio público y `curl -sI` contra un servidor de producción.
 - **Política de contenido (`MODELO_IA_CSP`):** déjala en `report-only` unos días, revisa que las
   pantallas y `/docs` funcionen y los avisos del navegador estén vacíos, y entonces pásala a
   `enforce` (cambia `.env` y `docker compose up -d`).

@@ -18,7 +18,7 @@ propios, sin pasos de compilación y sin terceros.
 | Modo | Cómo | Cuándo |
 |---|---|---|
 | **Con la API** (por omisión) | La API sirve esta carpeta (`MODELO_IA_FRONTEND` cambia dónde está). | Desarrollo, demo y el despliegue actual. |
-| **Aparte** | `MODELO_IA_PANTALLAS=0` en la API; el servidor web (Caddy) entrega esta carpeta con las mismas cabeceras (CSP). Ver `despliegue/Caddyfile.pantallas-aparte`. | Cuando el frontend se despliegue por separado. **Variante preparada y no probada con Caddy real.** |
+| **Aparte** | `MODELO_IA_PANTALLAS=0` en la API; el servidor web (Caddy) entrega esta carpeta con las mismas cabeceras (CSP). Ver `despliegue/Caddyfile.pantallas-aparte`. | Cuando el frontend se despliegue por separado. **Variante probada con Caddy 2 real (ver `despliegue/LEEME.md`).** |
 
 En los dos modos todo sigue en el mismo origen (la API detrás del mismo servidor web), así que no hace falta CORS.
 
