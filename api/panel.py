@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response
 
+from . import documentacion
 from .documentacion import FRONTEND
 
 # Sin scripts ni estilos en línea y sin terceros. Primero se observa; luego se bloquea (ver Ajustes.csp_modo).
@@ -45,7 +46,24 @@ def registrar_panel(
         include_in_schema=False,
         response_class=HTMLResponse,
     )
+    registrar_app(app, cabeceras)
     registrar_config_panel(app, clave_demo)
+
+
+def registrar_app(app: FastAPI, cabeceras: dict) -> bool:
+    """/app: el panel de analistas nuevo (React). Solo se publica si está compilado (frontend/app/dist); mismas cabeceras (CSP) que /panel y /dashboard."""
+    index = documentacion.DIST_APP / "index.html"
+    if not index.is_file():
+        return False
+    pagina = index.read_text(encoding="utf-8")
+    app.add_api_route(
+        "/app",
+        lambda: HTMLResponse(pagina, headers=cabeceras),
+        methods=["GET"],
+        include_in_schema=False,
+        response_class=HTMLResponse,
+    )
+    return True
 
 
 def registrar_config_panel(app: FastAPI, clave_demo: Optional[str] = None) -> None:

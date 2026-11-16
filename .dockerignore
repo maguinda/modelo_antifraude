@@ -16,3 +16,5 @@ api/certificados_locales
 despliegue/.env
 despliegue/secretos
 despliegue/respaldos
+frontend/app/node_modules
+frontend/app/dist

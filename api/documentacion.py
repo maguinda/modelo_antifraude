@@ -28,6 +28,9 @@ SECCIONES_FRONTEND = (
     "comun",
     "sdk",
 )  # se publican en /estaticos/<sección>/..., igual que antes de separarlas
+DIST_APP = (
+    FRONTEND / "app" / "dist"
+)  # lo compilado del panel React (frontend/app); no se versiona: lo genera `npm run build` (la imagen Docker lo hace sola)
 NOMBRE_ESQUEMA = "APIKeyHeader"  # nombre con el que FastAPI registra la cabecera X-API-Key
 PARAMETROS_SWAGGER = {
     "persistAuthorization": True,
@@ -80,6 +83,10 @@ def montar_estaticos(app: FastAPI, servir_pantallas: bool) -> None:
     """Publica los archivos de /estaticos: los de la documentación (backend) y, si se pide, las pantallas de la carpeta frontend/.
     Las pantallas se montan ANTES para que /estaticos/panel/... salga de allí y no de la carpeta de la documentación."""
     if servir_pantallas:
+        if (
+            DIST_APP / "index.html"
+        ).is_file():  # el panel React: solo existe compilado (npm run build); sin compilar, no se publica nada
+            app.mount("/estaticos/app", StaticFiles(directory=str(DIST_APP)), name="estaticos_app")
         for seccion in SECCIONES_FRONTEND:
             app.mount(
                 f"/estaticos/{seccion}", StaticFiles(directory=str(FRONTEND / seccion)), name=f"estaticos_{seccion}"

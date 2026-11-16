@@ -2,6 +2,16 @@
 #     docker build -f despliegue/Dockerfile -t antifraude:0.3.0 .
 # (o con `docker compose up -d --build` desde la carpeta despliegue/, que ya lo hace).
 # Mejora pendiente: fijar la imagen base por su «digest» (python:3.12-slim@sha256:...) una vez construida la primera vez en el servidor.
+# Etapa 1: compila el panel React (frontend/app). Solo Node vive aquí; la imagen final NO lleva Node ni node_modules, solo los archivos compilados.
+# `npm ci --ignore-scripts`: versiones exactas del package-lock y sin scripts de instalación de terceros.
+FROM node:24-slim AS panel
+WORKDIR /panel
+COPY frontend/app/package.json frontend/app/package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY frontend/app/ ./
+RUN npm run build
+
+# Etapa 2: el servicio.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -37,6 +47,7 @@ RUN pip install -r /tmp/requirements.txt && rm /tmp/requirements.txt
 
 # El código queda en solo lectura para el usuario del servicio (es de root); solo /datos y /respaldos son escribibles.
 COPY . /app/modelo_ia
+COPY --from=panel /panel/dist /app/modelo_ia/frontend/app/dist
 RUN mkdir -p /datos /respaldos && chown antifraude:antifraude /datos /respaldos
 
 ENV PYTHONPATH=/app \

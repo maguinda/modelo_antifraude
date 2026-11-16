@@ -2589,3 +2589,42 @@ def test_los_errores_inesperados_y_los_de_base_caida_salen_con_las_mismas_cabece
         for h in esperadas:
             assert r.headers.get(h) == normal.headers.get(h), (estado, h)
         assert "falla inesperada" not in r.text and "locked" not in r.text
+
+
+def _dist_falso(tmp_path):
+    d = tmp_path / "dist"
+    (d / "assets").mkdir(parents=True)
+    (d / "index.html").write_text(
+        '<!doctype html><html><head><script type="module" src="/estaticos/app/assets/a.js"></script></head><body><div id="raiz"></div></body></html>',
+        encoding="utf-8",
+    )
+    (d / "assets" / "a.js").write_text("console.log(1)", encoding="utf-8")
+    return d
+
+
+def test_el_panel_react_compilado_se_sirve_en_app_con_la_csp_del_panel_y_sus_archivos_en_estaticos_app(
+    tmp_path, artefacto, monkeypatch
+):
+    monkeypatch.setattr(documentacion, "DIST_APP", _dist_falso(tmp_path))
+    c = TestClient(construir_contexto(tmp_path / "a", artefacto).app)
+    r = c.get("/app")
+    assert r.status_code == 200 and 'id="raiz"' in r.text
+    assert "script-src 'self'" in r.headers["content-security-policy-report-only"]  # primero se observa, como /panel
+    assert r.headers["cache-control"] == "no-store"
+    assert c.get("/estaticos/app/assets/a.js").status_code == 200
+    assert (
+        c.get("/estaticos/app/%2e%2e/%2e%2e/api/app.py").status_code == 404
+    )  # no se puede salir de la carpeta compilada
+    e = TestClient(construir_contexto(tmp_path / "b", artefacto, csp_modo="enforce").app).get("/app")
+    assert "frame-ancestors 'none'" in e.headers["content-security-policy"]
+    assert "content-security-policy-report-only" not in e.headers
+
+
+def test_sin_compilar_o_con_las_pantallas_aparte_no_hay_app_y_lo_demas_sigue_igual(tmp_path, artefacto, monkeypatch):
+    monkeypatch.setattr(documentacion, "DIST_APP", tmp_path / "no_existe")
+    c = TestClient(construir_contexto(tmp_path / "a", artefacto).app)
+    assert c.get("/app").status_code == 404 and c.get("/estaticos/app/assets/a.js").status_code == 404
+    assert c.get("/panel").status_code == 200 and c.get("/dashboard").status_code == 200
+    monkeypatch.setattr(documentacion, "DIST_APP", _dist_falso(tmp_path))
+    aparte = TestClient(construir_contexto(tmp_path / "b", artefacto, servir_pantallas=False).app)
+    assert aparte.get("/app").status_code == 404 and aparte.get("/estaticos/app/assets/a.js").status_code == 404

@@ -2,7 +2,9 @@
 
 Levanta un servidor de PRUEBA (base desechable, ~400 pagos) y la app ya compilada (`npm run build` + `vite preview`, con la API por proxy).
 Bloquea y cuenta cualquier petición que no sea GET: esta pantalla no escribe. Requiere Node y `npm ci` hecho en frontend/app.
-Uso: python modelo_ia/pruebas_navegador/app_react.py
+Uso: python modelo_ia/pruebas_navegador/app_react.py          (la app por `vite preview`, con la API por proxy)
+     python modelo_ia/pruebas_navegador/app_react.py --api    (la app servida por la PROPIA API en /app, con la CSP en modo BLOQUEO:
+                                                               cualquier script o estilo que la política no permita aparece como error de consola)
 """
 
 import json
@@ -25,7 +27,8 @@ CAPTURAS.mkdir()
 carpeta = S / "demo"
 PUERTO_API, PUERTO_APP = 8774, 5199
 API = f"http://127.0.0.1:{PUERTO_API}"
-URL = f"http://127.0.0.1:{PUERTO_APP}/estaticos/app/"
+VIA_API = "--api" in sys.argv
+URL = f"{API}/app" if VIA_API else f"http://127.0.0.1:{PUERTO_APP}/estaticos/app/"
 procesos = []
 
 
@@ -49,12 +52,22 @@ def esperar(url, veces=120):
     return False
 
 
+def capturar(pag, errores_consola, ruta):
+    """Captura de pantalla SIN contar los avisos de consola que ella misma provoca: en WebKit Playwright inyecta un estilo al capturar y la CSP en
+    modo bloqueo lo rechaza (comprobado: sin capturas, la app da 0 avisos). Así un aviso real de la app sí se ve."""
+    antes = len(errores_consola)
+    pag.screenshot(path=str(ruta))
+    del errores_consola[antes:]
+
+
 MIDE_44 = (
     "Array.from(document.querySelectorAll('a, button, select, input')).filter(e => e.offsetParent !== null && "
     "e.getBoundingClientRect().height < 43.5 && !e.closest('[hidden]')).map(e => (e.className || e.tagName) + ':' + Math.round(e.getBoundingClientRect().height))"
 )
 resultados = []
 try:
+    compilado = subprocess.run(["npm", "run", "build"], cwd=str(APP), capture_output=True, text=True, timeout=300)
+    assert compilado.returncode == 0, "npm run build falló:\n" + compilado.stdout[-1500:] + compilado.stderr[-1500:]
     lanzar(
         [
             sys.executable,
@@ -67,6 +80,7 @@ try:
             "--reiniciar",
         ],
         cwd=str(RAIZ),
+        env={**os.environ, **({"MODELO_IA_CSP": "enforce"} if VIA_API else {})},
     )
     assert esperar(API + "/v1/salud"), "el servidor de prueba no arrancó"
     subprocess.run(
@@ -92,13 +106,12 @@ try:
     )
     claves = (carpeta / "claves_demo.txt").read_text(encoding="utf-8")
     k_ana = next(l.split("=", 1)[1].strip() for l in claves.splitlines() if l.startswith("ANALISTA="))
-    compilado = subprocess.run(["npm", "run", "build"], cwd=str(APP), capture_output=True, text=True, timeout=300)
-    assert compilado.returncode == 0, "npm run build falló:\n" + compilado.stdout[-1500:] + compilado.stderr[-1500:]
-    lanzar(
-        ["npx", "vite", "preview", "--port", str(PUERTO_APP), "--strictPort", "--host", "127.0.0.1"],
-        cwd=str(APP),
-        env={**__import__("os").environ, "MODELO_IA_DESTINO": API},
-    )
+    if not VIA_API:
+        lanzar(
+            ["npx", "vite", "preview", "--port", str(PUERTO_APP), "--strictPort", "--host", "127.0.0.1"],
+            cwd=str(APP),
+            env={**os.environ, "MODELO_IA_DESTINO": API},
+        )
     assert esperar(URL), "la app compilada no arrancó"
 
     PERFILES = [
@@ -156,7 +169,7 @@ try:
             r["controles_menores_a_44px"] = (
                 pag.evaluate(MIDE_44) if nombre in ("320 px", "iPhone 13", "Pixel 5") else "n/a"
             )
-            pag.screenshot(path=str(CAPTURAS / f"{motor}_{nombre.replace(' ', '_')}_p1.png"))
+            capturar(pag, errores_consola, CAPTURAS / f"{motor}_{nombre.replace(' ', '_')}_p1.png")
             # carga lenta: la tabla no se vacía y los botones se bloquean
             estado["modo"] = "lento"
             primero = pag.locator("tbody tr td[data-etiqueta='Seguimiento']").first.inner_text()
@@ -170,7 +183,7 @@ try:
                 "document.activeElement && document.activeElement.textContent === 'Siguiente'"
             )
             r["durante_carga_tabla_marcada_ocupada"] = pag.locator("section[aria-busy='true']").count() == 1
-            pag.screenshot(path=str(CAPTURAS / f"{motor}_{nombre.replace(' ', '_')}_cargando.png"))
+            capturar(pag, errores_consola, CAPTURAS / f"{motor}_{nombre.replace(' ', '_')}_cargando.png")
             for ret in retenidas:
                 ret.continue_()
             pag.wait_for_function(
