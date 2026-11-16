@@ -201,13 +201,15 @@ def _escribir_privado(destino: Path, contenido: bytes) -> None:
         ) from None
 
 
-def limpiar_restos(carpeta: Path, edad_horas: float = 1.0, ahora: Optional[float] = None) -> List[str]:
+def limpiar_restos(carpeta: Path, edad_horas: float = 2.0, ahora: Optional[float] = None) -> List[str]:
     """Borra lo que dejó una copia que murió a medias (kill -9, falta de memoria, se fue la luz): las carpetas temporales `afbk_*` / `afbkpg_*` (con la copia SIN cifrar
-    adentro) y los `.tmp` de más de `edad_horas`. Solo toca esos nombres y solo lo viejo: una copia que se está haciendo ahora mismo no se borra."""
+    adentro) y los `.tmp` de más de `edad_horas` (2 por omisión: más que el tiempo máximo de pg_dump, así no se borra una copia que otro proceso está haciendo). Solo toca esos nombres y solo lo viejo: una copia que se está haciendo ahora mismo no se borra."""
     limite = (ahora if ahora is not None else time.time()) - edad_horas * 3600
     borradas: List[str] = []
     for p in Path(carpeta).glob("*"):
         try:
+            if p.is_symlink():  # un enlace no es un resto de copia: no se toca (ni se anota como borrado)
+                continue
             viejo = p.stat().st_mtime < limite
             if p.is_dir() and re.fullmatch(r"afbk(pg)?_[A-Za-z0-9_]+", p.name) and viejo:
                 shutil.rmtree(p, ignore_errors=True)

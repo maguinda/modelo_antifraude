@@ -621,7 +621,7 @@ def test_los_restos_de_una_copia_que_murio_a_medias_se_borran_solo_si_son_viejos
     from modelo_ia.despliegue import respaldo
 
     ahora = time.time()
-    viejo_hace = ahora - 3 * 3600
+    viejo_hace = ahora - 3 * 3600  # más de las 2 horas de margen
     for nombre in ("afbk_abc123", "afbkpg_xyz789"):  # carpetas temporales con la copia SIN cifrar adentro
         d = tmp_path / nombre
         d.mkdir()
@@ -646,7 +646,11 @@ def test_los_restos_de_una_copia_que_murio_a_medias_se_borran_solo_si_son_viejos
 def test_el_dockerfile_trae_pg_dump_solo_si_se_pide_y_por_omision_no_cambia_la_imagen():
     texto = _leer("Dockerfile")
     assert "ARG INCLUIR_CLIENTE_POSTGRES=0" in texto and 'if [ "$INCLUIR_CLIENTE_POSTGRES" = "1" ]' in texto
-    assert "postgresql-client-${VERSION_CLIENTE_POSTGRES}" in texto and "sin probar" in _leer("LEEME.md")
+    assert (
+        "postgresql-client-${VERSION_CLIENTE_POSTGRES}" in texto
+        and "construida y probada" in _leer("LEEME.md")
+        and "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8" in texto
+    )
 
 
 def test_al_crear_una_copia_se_limpian_antes_los_restos_viejos_de_una_que_murio(tmp_path):
@@ -669,3 +673,29 @@ def test_al_crear_una_copia_se_limpian_antes_los_restos_viejos_de_una_que_murio(
     os.utime(resto, (viejo, viejo))
     x = respaldo.crear(bd, carpeta, frase)
     assert x["archivo"].exists() and not resto.exists()  # lo viejo y sin cifrar ya no está
+
+
+def test_limpiar_restos_no_toca_los_enlaces_ni_borra_lo_de_hace_poco_mas_de_una_hora(tmp_path):
+    """Dos detalles de la revisión: un enlace a otra carpeta no se toca ni se anota como borrado, y el margen es de 2 horas (el límite de pg_dump es 1 hora)."""
+    import os
+    import time
+
+    from modelo_ia.despliegue import respaldo
+
+    afuera = tmp_path / "otra_cosa"
+    afuera.mkdir()
+    (afuera / "importante.txt").write_text("no se borra")
+    viejo = time.time() - 5 * 3600
+    os.utime(
+        afuera, (viejo, viejo)
+    )  # el destino del enlace es VIEJO: sin la guarda, el enlace parecería un resto candidato a borrarse
+    carpeta = tmp_path / "respaldos"
+    carpeta.mkdir()
+    enlace = carpeta / "afbk_enlace"
+    enlace.symlink_to(afuera, target_is_directory=True)
+    hace_90_min = time.time() - 90 * 60
+    en_curso = carpeta / "afbkpg_larga"  # un pg_dump que lleva 90 minutos: antes se habría borrado
+    en_curso.mkdir()
+    os.utime(en_curso, (hace_90_min, hace_90_min))
+    assert respaldo.limpiar_restos(carpeta) == []
+    assert enlace.is_symlink() and (afuera / "importante.txt").exists() and en_curso.exists()

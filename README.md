@@ -242,7 +242,7 @@ El mismo programa funciona sobre **PostgreSQL 16** con `MODELO_IA_BD_URL=postgre
   rotación y la misma copia afuera que el respaldo de SQLite, pero la copia la saca `pg_dump` (formato custom, consistente aunque el servicio escriba) y se restaura con
   `pg_restore` en **una transacción**. La contraseña viaja por el entorno del proceso, no por la línea de comandos. Hace falta `pg_dump`/`pg_restore` de la **misma
   versión mayor que el servidor o más nueva** (la imagen del servicio no los trae). Una copia de SQLite y una de PostgreSQL no se confunden: cada herramienta rechaza la del otro.
-  Probado con `pg_dump` 16 contra PostgreSQL 16 (copia, verificación, restaurar tras perderlo todo, archivos alterados); no probado dentro del contenedor del servicio ni con una
+  Probado dentro de la imagen del servicio con `pg_dump` 16.16 contra PostgreSQL 16 (copia, verificación, restaurar tras perderlo todo, archivos alterados); no probado con una
   base grande. **Hazla también antes de actualizar** una base con datos: el programa no guarda copia previa en PostgreSQL. El respaldo de SQLite (`respaldo.py`) y la vigilancia de archivos solo sirven con SQLite; con PostgreSQL la vigilancia revisa la API, el certificado y la edad de la última copia.
 - **Pasar los datos de SQLite a PostgreSQL** (`admin migrar-a-postgres`): copia TODO a una base NUEVA y vacía, y verifica antes de confirmar.
   Pasos: (1) pon la base de SQLite al día con `MODELO_IA_BD=/ruta/base.sqlite3 python -m modelo_ia.api.admin migrar`; (2) crea la base de PostgreSQL vacía (colación
