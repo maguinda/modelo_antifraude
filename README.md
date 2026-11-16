@@ -723,6 +723,10 @@ identificadores por pago: el del comercio, el de seguimiento (para personas) y e
   puntaje, calidad (modo degradado, sin estado, latencia).
 - `/v1/panel/vinculos`: varios clientes desde una misma IP, un mismo dispositivo con varios
   clientes, un cliente con varias IPs y ráfagas desde una IP.
+  Cada bloque se pagina con `limite` (1–200, por omisión 50) y `desplazamiento` (0–1000), y
+  `paginacion.hay_mas` avisa si hay otra página. Las ráfagas se calculan sobre las 200 IPs con más
+  pagos. Una página cuesta lo mismo que otra (el costo es la agregación): con 1 millón de pagos,
+  5,7 s sin filtro y 0,6 s con 7 días; acota por fechas.
 - `/v1/panel/comercios`: lista para el filtro (solo analistas y administradores).
 
 **Qué garantiza:** analistas y administradores ven todos los comercios; un comercio solo ve lo suyo
