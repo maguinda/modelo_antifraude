@@ -4672,7 +4672,7 @@
     },
     "/v1/panel/vinculos": {
       "get": {
-        "description": "Varios clientes desde una misma IP, varios clientes con un mismo dispositivo, un cliente con varias IPs y ráfagas de pagos desde una IP. `minimo` es cuántos clientes, IPs o pagos hacen falta para listarlo. Cada fila trae un `filtro` para ver esos pagos.",
+        "description": "Varios clientes desde una misma IP, varios clientes con un mismo dispositivo, un cliente con varias IPs y ráfagas de pagos desde una IP. `minimo` es cuántos clientes, IPs o pagos hacen falta para listarlo. Cada fila trae un `filtro` para ver esos pagos. Cada bloque se pagina con `limite` y `desplazamiento`; `paginacion.hay_mas` dice si hay otra página.",
         "operationId": "panel_vinculos",
         "parameters": [
           {
@@ -4684,6 +4684,34 @@
               "maximum": 1000,
               "minimum": 2,
               "title": "Minimo",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filas por bloque (cada bloque se pagina igual).",
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Filas por bloque (cada bloque se pagina igual).",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filas que se saltan en cada bloque.",
+            "in": "query",
+            "name": "desplazamiento",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Filas que se saltan en cada bloque.",
+              "maximum": 1000,
+              "minimum": 0,
+              "title": "Desplazamiento",
               "type": "integer"
             }
           },

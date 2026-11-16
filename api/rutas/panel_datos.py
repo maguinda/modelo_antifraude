@@ -75,16 +75,18 @@ def panel_resumen(f: Filtros = Depends(filtros_panel), consultas: ConsultasPanel
     summary="Patrones entre pagos: misma IP, mismo dispositivo, ráfagas",
     operation_id="panel_vinculos",
     description="Varios clientes desde una misma IP, varios clientes con un mismo dispositivo, un cliente con varias IPs y ráfagas de pagos desde una IP. "
-    "`minimo` es cuántos clientes, IPs o pagos hacen falta para listarlo. Cada fila trae un `filtro` para ver esos pagos.",
+    "`minimo` es cuántos clientes, IPs o pagos hacen falta para listarlo. Cada fila trae un `filtro` para ver esos pagos. Cada bloque se pagina con `limite` y `desplazamiento`; `paginacion.hay_mas` dice si hay otra página.",
     response_model=Dict[str, Any],
     responses=_err_panel,
 )
 def panel_vinculos(
     f: Filtros = Depends(filtros_panel),
     minimo: int = Query(3, ge=2, le=1000),
+    limite: int = Query(50, ge=1, le=200, description="Filas por bloque (cada bloque se pagina igual)."),
+    desplazamiento: int = Query(0, ge=0, le=1000, description="Filas que se saltan en cada bloque."),
     consultas: ConsultasPanel = Depends(obtener_consultas),
 ):
-    return consultas.vinculos(f, minimo)
+    return consultas.vinculos(f, minimo, limite=limite, desplazamiento=desplazamiento)
 
 
 @router.get(

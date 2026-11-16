@@ -107,7 +107,7 @@ class FalsasConsultas:
         self.llamadas.append(("resumen", f, con_analistas))
         return self.datos_resumen
 
-    def vinculos(self, con, f, minimo):
+    def vinculos(self, con, f, minimo, limite=50, desplazamiento=0):
         self.llamadas.append(("vinculos", f, minimo))
         return self.datos_vinculos
 

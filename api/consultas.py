@@ -449,19 +449,35 @@ class ConsultasPanel:
         }
 
     # ------------------------------------------------------------------ vínculos: patrones entre pagos
-    def vinculos(self, f: Filtros, minimo: int, ventana_minutos: int = 10) -> Dict:
+    def vinculos(
+        self, f: Filtros, minimo: int, ventana_minutos: int = 10, limite: int = 50, desplazamiento: int = 0
+    ) -> Dict:
+        """Los cuatro bloques, cada uno paginado igual (`limite` y `desplazamiento`). `paginacion.hay_mas` dice, por bloque, si existe otra página
+        (sin contar el total: eso obligaría a agregar todo dos veces). Sin parámetros responde lo mismo que antes (50 por bloque) más la clave `paginacion`."""
         with self.alm.lectura(instantanea=True) as con:
-            v = self.alm.consultas.vinculos(con, f, minimo)
+            v = self.alm.consultas.vinculos(con, f, minimo, limite, desplazamiento)
         ips, disp, clientes, candidatas = v["ips"], v["dispositivos"], v["clientes"], v["candidatas"]
+        rafagas = self._rafagas(candidatas, minimo, ventana_minutos)
         return {
             "minimo": minimo,
-            "misma_ip_varios_clientes": [dict(r, filtro={"ip": r["codigo"]}) for r in ips],
-            "mismo_dispositivo_varios_clientes": [dict(r, filtro={"dispositivo": r["codigo"]}) for r in disp],
+            "misma_ip_varios_clientes": [dict(r, filtro={"ip": r["codigo"]}) for r in ips[:limite]],
+            "mismo_dispositivo_varios_clientes": [dict(r, filtro={"dispositivo": r["codigo"]}) for r in disp[:limite]],
             "cliente_con_varias_ips": [
-                dict(r, filtro={"id_cliente": r["id_cliente"], "comercio_id": r["comercio_id"]}) for r in clientes
+                dict(r, filtro={"id_cliente": r["id_cliente"], "comercio_id": r["comercio_id"]})
+                for r in clientes[:limite]
             ],
-            "rafagas_por_ip": self._rafagas(candidatas, minimo, ventana_minutos),
+            "rafagas_por_ip": rafagas[desplazamiento : desplazamiento + limite],
             "ventana_rafaga_minutos": ventana_minutos,
+            "paginacion": {
+                "limite": limite,
+                "desplazamiento": desplazamiento,
+                "hay_mas": {
+                    "misma_ip_varios_clientes": len(ips) > limite,
+                    "mismo_dispositivo_varios_clientes": len(disp) > limite,
+                    "cliente_con_varias_ips": len(clientes) > limite,
+                    "rafagas_por_ip": len(rafagas) > desplazamiento + limite,
+                },
+            },
         }
 
     @staticmethod

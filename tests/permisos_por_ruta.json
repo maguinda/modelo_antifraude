@@ -1498,6 +1498,7 @@
    "minimo",
    "misma_ip_varios_clientes",
    "mismo_dispositivo_varios_clientes",
+   "paginacion",
    "rafagas_por_ip",
    "ventana_rafaga_minutos"
   ]
@@ -1510,6 +1511,7 @@
    "minimo",
    "misma_ip_varios_clientes",
    "mismo_dispositivo_varios_clientes",
+   "paginacion",
    "rafagas_por_ip",
    "ventana_rafaga_minutos"
   ]
@@ -1534,6 +1536,7 @@
    "minimo",
    "misma_ip_varios_clientes",
    "mismo_dispositivo_varios_clientes",
+   "paginacion",
    "rafagas_por_ip",
    "ventana_rafaga_minutos"
   ]
@@ -1546,6 +1549,7 @@
    "minimo",
    "misma_ip_varios_clientes",
    "mismo_dispositivo_varios_clientes",
+   "paginacion",
    "rafagas_por_ip",
    "ventana_rafaga_minutos"
   ]
