@@ -57,7 +57,8 @@ def capturar(pag, errores_consola, ruta):
     modo bloqueo lo rechaza (comprobado: sin capturas, la app da 0 avisos). Así un aviso real de la app sí se ve."""
     antes = len(errores_consola)
     pag.screenshot(path=str(ruta))
-    del errores_consola[antes:]
+    # solo se descarta ese aviso conocido; cualquier otro error que llegue durante la captura se conserva
+    errores_consola[antes:] = [e for e in errores_consola[antes:] if "Refused to apply a stylesheet" not in e]
 
 
 MIDE_44 = (
