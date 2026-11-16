@@ -232,7 +232,7 @@ El mismo programa funciona sobre **PostgreSQL 16** con `MODELO_IA_BD_URL=postgre
 
 - **Cómo está hecho:** los repositorios no cambiaron. `repositorios/motor_pg.py` les da la misma interfaz que SQLite (marcadores `?`, filas por nombre o posición,
   `transaccion()` y `lectura()`); `repositorios/esquema_pg.py` trae el mismo esquema (tablas, índice parcial, triggers de «no se edita / no se borra» como funciones
-  de PostgreSQL) y las mismas cuatro migraciones; `errores_bd.py` agrupa los errores de los dos motores.
+  de PostgreSQL) y las mismas seis migraciones; `errores_bd.py` agrupa los errores de los dos motores.
 - **Una escritura a la vez:** cada escritura toma un candado de aviso de PostgreSQL (`pg_advisory_xact_lock`) al empezar, así que las garantías de siempre
   (un pago repetido se evalúa una sola vez, una revisión se resuelve una sola vez, un modelo en uso por rol) valen igual **entre procesos y entre servidores**.
   Es lo más conservador: no se rediseñaron las carreras. Más adelante se podría pasar a candados por fila si el rendimiento lo pide (hoy no hay medida que lo pida).
