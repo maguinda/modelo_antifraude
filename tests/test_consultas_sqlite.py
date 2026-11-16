@@ -50,7 +50,7 @@ CASOS = [
     ({"id_seguimiento": "af-aaaa-bbbb"}, ["e.id_seguimiento = ?"], ("AF-AAAA-BBBB",)),
     (
         {"regla": "R1"},
-        ["EXISTS (SELECT 1 FROM evaluacion_reglas er WHERE er.id_evaluacion = e.id AND er.regla = ?)"],
+        ["e.id IN (SELECT id_evaluacion FROM evaluacion_reglas WHERE regla = ?)"],
         ("R1",),
     ),
     ({"riesgo_min": 0.2}, ["e.probabilidad >= ?"], (0.2,)),

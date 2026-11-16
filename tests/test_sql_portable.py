@@ -120,7 +120,7 @@ def test_la_migracion_4_rellena_seq_reglas_y_minutos_desde_los_datos_viejos_y_ha
     ruta = tmp_path / "v3.sqlite3"
     base_v3(ruta)
     nuevo = Almacen(ruta, PEPPER)
-    assert nuevo.inicializar() == [4, 5]
+    assert nuevo.inicializar() == [4, 5, 6]
     con = sqlite3.connect(ruta)
     assert con.execute("SELECT id, seq FROM evaluaciones ORDER BY seq").fetchall() == [
         ("e1", 1),
@@ -367,7 +367,7 @@ def test_la_migracion_4_no_se_bloquea_con_reglas_dañadas_y_deja_esas_evaluacion
         )
     con.commit()
     con.close()
-    assert Almacen(ruta, PEPPER).inicializar() == [4, 5]  # antes, un solo texto dañado impedía arrancar
+    assert Almacen(ruta, PEPPER).inicializar() == [4, 5, 6]  # antes, un solo texto dañado impedía arrancar
     filas = (
         sqlite3.connect(ruta)
         .execute("SELECT id_evaluacion FROM evaluacion_reglas WHERE id_evaluacion LIKE 'x%'")
@@ -418,7 +418,7 @@ def test_la_migracion_5_crea_el_indice_en_una_base_de_la_version_anterior_sin_to
     assert not con.execute("SELECT 1 FROM sqlite_master WHERE name='ix_eval_modelo_deriva'").fetchone()
     antes = con.execute("SELECT COUNT(*) FROM comercios").fetchone()[0]
     nuevo = Almacen(ruta, PEPPER)
-    assert nuevo.inicializar() == [5] and nuevo.inicializar() == []
+    assert nuevo.inicializar() == [5, 6] and nuevo.inicializar() == []
     assert sqlite3.connect(ruta).execute("SELECT 1 FROM sqlite_master WHERE name='ix_eval_modelo_deriva'").fetchone()
     assert sqlite3.connect(ruta).execute("SELECT COUNT(*) FROM comercios").fetchone()[0] == antes and comercio > 1
     copias = nuevo.copias_previas()

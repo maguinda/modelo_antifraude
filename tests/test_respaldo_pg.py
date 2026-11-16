@@ -276,7 +276,7 @@ def test_una_base_de_una_version_anterior_tambien_se_respalda_y_se_restaura(herr
             c.execute(f'DROP SCHEMA "{esquema}" CASCADE')
         rpg.restaurar(x["archivo"], frase, url)
         assert contar(vieja, "comercios") == 2  # PLATAFORMA y la tienda
-        assert Almacen(url, "p" * 40).inicializar() == [4, 5]  # y se puede actualizar después, como siempre
+        assert Almacen(url, "p" * 40).inicializar() == [4, 5, 6]  # y se puede actualizar después, como siempre
     finally:
         with psycopg.connect(URL, autocommit=True) as c:
             c.execute(f'DROP SCHEMA IF EXISTS "{esquema}" CASCADE')

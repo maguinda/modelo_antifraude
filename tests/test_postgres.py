@@ -104,9 +104,9 @@ def test_una_base_nueva_se_migra_a_la_version_actual_una_sola_vez_y_el_estado_lo
     a = Almacen(pg, PEPPER)
     assert [m["aplicada"] is None for m in a.estado_migraciones()] == [
         True
-    ] * 5  # antes de migrar: nada aplicado, sin tocar la base
-    assert a.inicializar() == [1, 2, 3, 4, 5] and a.inicializar() == []
-    assert [m["id"] for m in a.estado_migraciones() if m["aplicada"]] == [1, 2, 3, 4, 5] and a.copias_previas() == []
+    ] * 6  # antes de migrar: nada aplicado, sin tocar la base
+    assert a.inicializar() == [1, 2, 3, 4, 5, 6] and a.inicializar() == []
+    assert [m["id"] for m in a.estado_migraciones() if m["aplicada"]] == [1, 2, 3, 4, 5, 6] and a.copias_previas() == []
 
 
 @necesita_pg
@@ -204,7 +204,7 @@ def test_tres_procesos_arrancando_a_la_vez_migran_cada_migracion_una_sola_vez(pg
             aplicadas = sorted(
                 int(n) for out, _ in salidas for n in out.decode().strip("[]\n ").split(",") if n.strip()
             )
-            assert aplicadas == [1, 2, 3, 4, 5], aplicadas  # entre los tres, cada migración exactamente una vez
+            assert aplicadas == [1, 2, 3, 4, 5, 6], aplicadas  # entre los tres, cada migración exactamente una vez
         finally:
             with psycopg.connect(URL, autocommit=True) as c:
                 c.execute(f'DROP SCHEMA "{esquema}" CASCADE')

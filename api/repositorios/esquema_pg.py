@@ -87,6 +87,11 @@ def m3(con: Any, registro_modelos: str) -> None:
         con.execute(s)
 
 
+def m6(con: Any, indices_busqueda: str) -> None:
+    for s in traducir_ddl(indices_busqueda):
+        con.execute(s)
+
+
 def m5(con: Any, indice_deriva: str) -> None:
     for s in traducir_ddl(indice_deriva):
         con.execute(s)

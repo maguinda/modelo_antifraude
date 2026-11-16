@@ -82,6 +82,13 @@ INDICE_DERIVA = """
 CREATE INDEX IF NOT EXISTS ix_eval_modelo_deriva ON evaluaciones (modelo_nombre, modelo_version, modelo_conjunto, creada, estado_origen, probabilidad);
 """
 
+# Migración 6: búsquedas por cliente o por transacción SIN saber el comercio (la caja de búsqueda del panel de analistas). Los índices que ya existen empiezan por
+# comercio_id y no sirven en PostgreSQL para eso (SQLite a veces los salta con estadísticas, pero no con muchos comercios).
+INDICES_BUSQUEDA = """
+CREATE INDEX IF NOT EXISTS ix_eval_cliente_global ON evaluaciones (id_cliente);
+CREATE INDEX IF NOT EXISTS ix_eval_transaccion_global ON evaluaciones (id_transaccion);
+"""
+
 # Migración 3 (no se mezcla con DDL: la migración 1 está congelada y se compara por huella)
 REGISTRO_MODELOS = """
 CREATE TABLE IF NOT EXISTS modelos_registro (
@@ -134,6 +141,7 @@ class Esquema:
                 self.m4_sql_portable,
             ),
             Migracion(5, "Índice de la consulta de deriva", self.m5_indice_deriva),
+            Migracion(6, "Índices de búsqueda por cliente y por transacción", self.m6_indices_busqueda),
         ]
 
     def migraciones_pg(self) -> List[Migracion]:
@@ -152,6 +160,9 @@ class Esquema:
                 lambda con: esquema_pg.m4(con, SQL_PORTABLE),
             ),
             Migracion(5, "Índice de la consulta de deriva", lambda con: esquema_pg.m5(con, INDICE_DERIVA)),
+            Migracion(
+                6, "Índices de búsqueda por cliente y por transacción", lambda con: esquema_pg.m6(con, INDICES_BUSQUEDA)
+            ),
         ]
 
     @staticmethod
@@ -270,6 +281,31 @@ class Esquema:
         for sentencia in sentencias(INDICE_DERIVA):
             con.execute(sentencia)
 
+    def m6_indices_busqueda(self, con: sqlite3.Connection) -> None:
+        """Migración 6: dos índices (repetible). No toca datos."""
+        for sentencia in sentencias(INDICES_BUSQUEDA):
+            con.execute(sentencia)
+
+    @staticmethod
+    def analizar_si_hace_falta(con: sqlite3.Connection, minimo_filas: int = 10_000) -> bool:
+        """SQLite elige el plan de cada consulta según estadísticas (`ANALYZE`) que este programa nunca calculaba: con millones de pagos eso volvía una consulta de
+        0,4 s en una de más de 40 s. Las calcula (1,9 s con 3 millones de pagos) si la tabla ya es grande y no hay estadísticas o la tabla creció o se achicó a más del doble."""
+        try:
+            filas = con.execute("SELECT COALESCE(MAX(seq), 0) FROM evaluaciones").fetchone()[0]
+        except sqlite3.Error:
+            return False  # base sin la tabla o sin la columna: nada que analizar todavía
+        if filas < minimo_filas:
+            return False
+        try:
+            previa = con.execute("SELECT stat FROM sqlite_stat1 WHERE tbl = 'evaluaciones' LIMIT 1").fetchone()
+            conocidas = int(str(previa[0]).split()[0]) if previa else 0
+        except (sqlite3.Error, ValueError, IndexError):
+            conocidas = 0
+        if conocidas and conocidas / 2 <= filas <= conocidas * 2:
+            return False
+        con.execute("ANALYZE")
+        return True
+
     def inicializar(self, migraciones: Optional[Sequence[Migracion]] = None) -> List[int]:
         """Pone la base al día aplicando las migraciones que falten (ver migraciones.py). Devuelve los números de las que aplicó esta vez.
 
@@ -281,13 +317,21 @@ class Esquema:
             con.execute("PRAGMA journal_mode=WAL")
         finally:
             con.close()
-        return aplicar(
+        hechas = aplicar(
             self.base.ruta,
             self.base.abrir,
             migraciones if migraciones is not None else self.migraciones(),
             self.hay_datos,
             ahora_iso,
         )
+        con = self.base.abrir()
+        try:
+            self.analizar_si_hace_falta(con)  # PostgreSQL lo hace solo (autovacuum); SQLite no
+        except sqlite3.Error:
+            pass  # las estadísticas son una mejora, nunca un motivo para no arrancar
+        finally:
+            con.close()
+        return hechas
 
     def estado_migraciones(self) -> List[Dict[str, Any]]:
         """Qué migraciones están aplicadas y cuáles faltan, sin tocar la base."""

@@ -38,7 +38,9 @@ def condiciones_de(f: Any) -> Tuple[List[str], tuple]:
     if f.id_seguimiento:
         agregar("e.id_seguimiento = ?", f.id_seguimiento.upper())
     if f.regla:
-        agregar("EXISTS (SELECT 1 FROM evaluacion_reglas er WHERE er.id_evaluacion = e.id AND er.regla = ?)", f.regla)
+        agregar(
+            "e.id IN (SELECT id_evaluacion FROM evaluacion_reglas WHERE regla = ?)", f.regla
+        )  # no EXISTS correlacionado: con millones de pagos y sin estadísticas SQLite lo ejecutaba recorriéndolos todos (más de 40 s)
     if f.riesgo_min is not None:
         agregar(
             "e.probabilidad >= ?", f.riesgo_min
