@@ -2612,9 +2612,13 @@ def test_el_panel_react_compilado_se_sirve_en_app_con_la_csp_del_panel_y_sus_arc
     assert "script-src 'self'" in r.headers["content-security-policy-report-only"]  # primero se observa, como /panel
     assert r.headers["cache-control"] == "no-store"
     assert c.get("/estaticos/app/assets/a.js").status_code == 200
-    assert (
-        c.get("/estaticos/app/%2e%2e/%2e%2e/api/app.py").status_code == 404
-    )  # no se puede salir de la carpeta compilada
+    (tmp_path / "senuelo.txt").write_text(
+        "secreto", encoding="utf-8"
+    )  # junto a dist: si se pudiera salir de la carpeta, esto sí se serviría
+    assert c.get("/estaticos/app/senuelo.txt").status_code == 404
+    for ataque in ("%2e%2e/senuelo.txt", "..%2fsenuelo.txt", "assets/%2e%2e/%2e%2e/senuelo.txt"):
+        salida = c.get("/estaticos/app/" + ataque)
+        assert salida.status_code in (400, 404) and "secreto" not in salida.text, ataque
     e = TestClient(construir_contexto(tmp_path / "b", artefacto, csp_modo="enforce").app).get("/app")
     assert "frame-ancestors 'none'" in e.headers["content-security-policy"]
     assert "content-security-policy-report-only" not in e.headers
@@ -2628,3 +2632,12 @@ def test_sin_compilar_o_con_las_pantallas_aparte_no_hay_app_y_lo_demas_sigue_igu
     monkeypatch.setattr(documentacion, "DIST_APP", _dist_falso(tmp_path))
     aparte = TestClient(construir_contexto(tmp_path / "b", artefacto, servir_pantallas=False).app)
     assert aparte.get("/app").status_code == 404 and aparte.get("/estaticos/app/assets/a.js").status_code == 404
+
+
+def test_una_carpeta_compilada_a_medias_sin_index_html_no_publica_nada(tmp_path, artefacto, monkeypatch):
+    medias = tmp_path / "dist"
+    (medias / "assets").mkdir(parents=True)
+    (medias / "assets" / "a.js").write_text("console.log(1)", encoding="utf-8")
+    monkeypatch.setattr(documentacion, "DIST_APP", medias)
+    c = TestClient(construir_contexto(tmp_path / "a", artefacto).app)
+    assert c.get("/app").status_code == 404 and c.get("/estaticos/app/assets/a.js").status_code == 404
