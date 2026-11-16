@@ -4672,7 +4672,7 @@
     },
     "/v1/panel/vinculos": {
       "get": {
-        "description": "Varios clientes desde una misma IP, varios clientes con un mismo dispositivo, un cliente con varias IPs y ráfagas de pagos desde una IP. `minimo` es cuántos clientes, IPs o pagos hacen falta para listarlo. Cada fila trae un `filtro` para ver esos pagos. Cada bloque se pagina con `limite` y `desplazamiento`; `paginacion.hay_mas` dice si hay otra página.",
+        "description": "Varios clientes desde una misma IP, varios clientes con un mismo dispositivo, un cliente con varias IPs y ráfagas de pagos desde una IP. `minimo` es cuántos clientes, IPs o pagos hacen falta para listarlo. Cada fila trae un `filtro` para ver esos pagos. Cada bloque se pagina con `limite` y `desplazamiento`; `paginacion.hay_mas` dice si hay otra página. Las ráfagas se calculan sobre las 200 IPs con más pagos, así que ese bloque tiene como máximo 200 filas.",
         "operationId": "panel_vinculos",
         "parameters": [
           {

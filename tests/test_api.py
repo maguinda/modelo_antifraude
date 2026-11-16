@@ -2012,6 +2012,23 @@ def test_los_vinculos_se_paginan_sin_repetir_ni_perder_filas_y_avisan_si_hay_mas
     )  # pasarse del final no es un error
 
 
+def test_un_comercio_no_ve_filas_ni_pistas_de_otro_al_paginar_los_vinculos(ctx):
+    _vinculos_de_prueba(ctx)
+    for i in range(3):  # el comercio B comparte las IPs 203.0.113.0, .1 y .2 con A
+        for k in range(3):
+            ctx.evaluar(pago_ip(f"B{k}{i}", f"CB{k}{i}", f"203.0.113.{k}", fecha_pago=f"2026-11-11T09:0{i}:00"), "B")
+    for quien, clientes, comercios in (("A", 3, 1), ("B", 3, 1), ("analista", 6, 2)):
+        vistas = []
+        for desde in (0, 1, 2):  # una fila por página, como se pagina de verdad
+            v = panel(ctx, "vinculos", quien, minimo=3, limite=1, desplazamiento=desde).json()
+            vistas += v["misma_ip_varios_clientes"]
+            assert v["paginacion"]["hay_mas"]["misma_ip_varios_clientes"] is (desde < 2), (quien, desde)
+        assert len(vistas) == 3 and {x["clientes"] for x in vistas} == {clientes}, quien
+        assert {x["comercios"] for x in vistas} == {comercios}, (
+            quien
+        )  # nadie ve que la IP se comparte con otro comercio
+
+
 def test_los_vinculos_sin_parametros_responden_lo_de_siempre_y_validan_los_limites(ctx):
     _vinculos_de_prueba(ctx)
     v = panel(ctx, "vinculos", minimo=3).json()

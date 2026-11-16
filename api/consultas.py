@@ -452,8 +452,10 @@ class ConsultasPanel:
     def vinculos(
         self, f: Filtros, minimo: int, ventana_minutos: int = 10, limite: int = 50, desplazamiento: int = 0
     ) -> Dict:
-        """Los cuatro bloques, cada uno paginado igual (`limite` y `desplazamiento`). `paginacion.hay_mas` dice, por bloque, si existe otra página
-        (sin contar el total: eso obligaría a agregar todo dos veces). Sin parámetros responde lo mismo que antes (50 por bloque) más la clave `paginacion`."""
+        """Los cuatro bloques, cada uno paginado con `limite` y `desplazamiento`. `paginacion.hay_mas` dice, por bloque, si existe otra página
+        (sin contar el total: eso obligaría a agregar todo dos veces). Sin parámetros responde lo mismo que antes (50 por bloque) más la clave `paginacion`.
+        OJO con las ráfagas: se calculan sobre las 200 IPs con más pagos (tope de la consulta), así que ese bloque llega como máximo a 200 filas aunque los otros
+        tres sigan paginando hasta la fila 1000."""
         with self.alm.lectura(instantanea=True) as con:
             v = self.alm.consultas.vinculos(con, f, minimo, limite, desplazamiento)
         ips, disp, clientes, candidatas = v["ips"], v["dispositivos"], v["clientes"], v["candidatas"]
@@ -507,7 +509,9 @@ class ConsultasPanel:
                         "filtro": {"ip": codigo},
                     }
                 )
-        return sorted(salida, key=lambda x: (-x["pagos_en_ventana"], x["codigo"]))[:50]
+        return sorted(
+            salida, key=lambda x: (-x["pagos_en_ventana"], x["codigo"])
+        )  # sin tope aquí: el corte por página lo hace `vinculos`
 
     # ------------------------------------------------------------------ comercios (para el filtro)
     def comercios(self) -> List[Dict]:
