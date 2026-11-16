@@ -21,10 +21,13 @@ export function useConsulta<T>(clave: string | null, cargador: (senal: AbortSign
   const [error, setError] = useState<Error | null>(null);
   const [recarga, setRecarga] = useState(0);
   const ultimoCargador = useRef(cargador);
-  ultimoCargador.current = cargador;
+  useEffect(() => {
+    ultimoCargador.current = cargador; // se declara antes del efecto de carga: ese ya ve el cargador de este render
+  });
 
   useEffect(() => {
     if (clave === null) {
+      setDatos(null);
       setCargando(false);
       return;
     }

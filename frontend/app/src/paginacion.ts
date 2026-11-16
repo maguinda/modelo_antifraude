@@ -15,6 +15,17 @@ export function hayMasAllaDelTope(total: number, porPagina: number): boolean {
   return total > paginasDe(total, porPagina) * porPagina;
 }
 
+/** La última página que el servidor deja pedir con este tamaño (su tope de desplazamiento). */
+export function paginaMaxima(porPagina: number): number {
+  return Math.floor(MAX_DESPLAZAMIENTO / Math.max(1, porPagina)) + 1;
+}
+
+/** Una página pedida (texto de la dirección) llevada a un número válido SIN conocer el total todavía: nunca pide más allá del tope del servidor. */
+export function limitarPagina(valor: unknown, porPagina: number): number {
+  const n = Math.floor(Number(valor));
+  return Math.min(Math.max(1, Number.isFinite(n) ? n : 1), paginaMaxima(porPagina));
+}
+
 /** Una página siempre válida: texto raro, cero, negativos o pasada del final (el total pudo bajar) caen en un límite, nunca en un error. */
 export function ajustarPagina(valor: unknown, total: number, porPagina: number): number {
   const n = Math.floor(Number(valor));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_DESPLAZAMIENTO, ajustarPagina, hayMasAllaDelTope, paginasDe, rango, tamanoValido } from "../paginacion";
+import { MAX_DESPLAZAMIENTO, ajustarPagina, hayMasAllaDelTope, limitarPagina, paginasDe, rango, tamanoValido } from "../paginacion";
 
 describe("paginación", () => {
   it("cuenta páginas (mínimo una, aunque no haya nada)", () => {
@@ -36,5 +36,18 @@ describe("paginación", () => {
       expect(hayMasAllaDelTope(3_000_000, tam)).toBe(true);
     }
     expect(hayMasAllaDelTope(390, 25)).toBe(false);
+  });
+  it("en el borde del tope: 100.000 pagos caben en páginas, 100.001 ya piden filtrar", () => {
+    for (const tam of [10, 50]) {
+      expect(hayMasAllaDelTope(100_000, tam)).toBe(false);
+      expect(hayMasAllaDelTope(100_001 + tam, tam)).toBe(true);
+      expect((paginasDe(100_000, tam) - 1) * tam).toBeLessThan(MAX_DESPLAZAMIENTO);
+    }
+  });
+  it("limitarPagina nunca pasa del tope y corrige lo raro", () => {
+    expect((limitarPagina(9999999, 25) - 1) * 25).toBeLessThanOrEqual(MAX_DESPLAZAMIENTO);
+    expect(limitarPagina(9999999, 25)).toBe(4001);
+    expect(limitarPagina("abc", 25)).toBe(1);
+    expect(limitarPagina(-3, 10)).toBe(1);
   });
 });
