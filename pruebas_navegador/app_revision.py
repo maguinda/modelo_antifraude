@@ -269,6 +269,15 @@ try:
             pag.wait_for_timeout(800)  # la pantalla exige una pausa entre armar y confirmar
             pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").click()
             pag.wait_for_selector("text=/Pago .*: aprobado\\./")
+            foco = pag.evaluate(
+                "() => (document.activeElement && document.activeElement.getAttribute('aria-label')) || null"
+            )
+            comprobar(r, "clic: tras guardar el foco queda en la región de avisos", foco == "Avisos de la cola", foco)
+            comprobar(
+                r,
+                "el medidor de riesgo tiene rol de imagen",
+                pag.locator('[role="img"][aria-label^="Riesgo"]').count() > 0,
+            )
             resueltas_esperadas += 1
             fila = bd("SELECT estado, decision_analista, nota FROM revisiones WHERE id_evaluacion=?", id1)[0]
             comprobar(
@@ -288,6 +297,12 @@ try:
             pag.locator("details[open]").get_by_role("button", name="Confirmar: rechazar").focus()
             pag.keyboard.press("Enter")
             pag.wait_for_selector("text=/Pago .*: rechazado\\./")
+            foco = pag.evaluate(
+                "() => (document.activeElement && document.activeElement.getAttribute('aria-label')) || null"
+            )
+            comprobar(
+                r, "teclado: tras guardar el foco queda en la región de avisos", foco == "Avisos de la cola", foco
+            )
             resueltas_esperadas += 1
             fila = bd("SELECT estado, decision_analista, nota FROM revisiones WHERE id_evaluacion=?", id2)[0]
             comprobar(

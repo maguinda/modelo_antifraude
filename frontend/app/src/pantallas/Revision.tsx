@@ -103,6 +103,7 @@ export function Revision({ cliente, alExpirar }: Props) {
     recargar();
   }, [recargar, limpiarAvisos]);
 
+  const regionAvisos = useRef<HTMLDivElement>(null); // a ella va el foco al guardar: la tarjeta desaparece al recargar y el foco no debe caer al <body>
   const consultaVista = useRef<string | null>(null); // la consulta de la lista que se VE ahora (se lee al pulsar, antes de esperar al servidor)
   consultaVista.current = datos?.clave ?? null;
 
@@ -115,6 +116,7 @@ export function Revision({ cliente, alExpirar }: Props) {
         await cliente.enviar(`/v1/revisiones/${encodeURIComponent(rev.id_evaluacion)}/resolver`, { decision, nota });
         setAviso({ texto: `Pago ${rev.id_transaccion}: ${decision === "APROBADA" ? "aprobado" : "rechazado"}.`, error: false });
         setCambioEnLaLista(null);
+        regionAvisos.current?.focus(); // quien usa teclado o lector de pantalla sigue desde el aviso, no desde el principio de la página
         recargar();
         return { tipo: "ok", decision };
       } catch (e) {
@@ -189,7 +191,7 @@ export function Revision({ cliente, alExpirar }: Props) {
         </button>
       </div>
 
-      <div role="status" aria-live="polite">
+      <div ref={regionAvisos} role="status" aria-live="polite" aria-label="Avisos de la cola" tabIndex={-1}>
         {aviso ? <p className={`aviso ${aviso.error ? "error" : ""}`}>{aviso.texto}</p> : null}
         {cambioEnLaLista !== null ? <p className="aviso">Cambió la lista ({numero(cambioEnLaLista)} pendientes). Pulsa Actualizar.</p> : null}
       </div>
