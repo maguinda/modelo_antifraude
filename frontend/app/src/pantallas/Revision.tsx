@@ -127,10 +127,12 @@ export function Revision({ cliente, alExpirar }: Props) {
         const r = resultadoDeError(e);
         if (r.tipo === "conflicto") {
           setAviso({ texto: "Esa revisión ya estaba resuelta: puede ser tu decisión anterior o la de un colega. Actualizando la lista.", error: true });
+          regionAvisos.current?.focus(); // la tarjeta saldrá al recargar: el foco no debe caer al <body>
           recargar();
         } else if (r.tipo === "sin_confirmar") {
           setAviso({ texto: r.mensaje, error: true });
           setSinConfirmar((x) => ({ ...x, [rev.id_evaluacion]: { transaccion: rev.id_transaccion, clave: claveAlPulsar } }));
+          regionAvisos.current?.focus(); // si al mirar cómo quedó la tarjeta ya no está, el foco no debe caer al <body> (la tarjeta está bloqueada: no hay nada que hacer en ella)
           recargar(); // se mira cómo quedó antes de dejar que alguien reintente (la tarjeta sigue bloqueada hasta entonces)
         } else if (r.tipo === "error") {
           setAviso({ texto: `No se pudo guardar: ${r.mensaje}`, error: true });

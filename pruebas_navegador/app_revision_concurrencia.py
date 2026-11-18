@@ -39,6 +39,7 @@ API = f"http://127.0.0.1:{PUERTO}"
 RESOLVER = re.compile(r"/v1/revisiones/[^/]+/resolver$")
 RONDAS = int(sys.argv[1]) if len(sys.argv) > 1 else 30
 procesos = []
+FOCO = "() => (document.activeElement && document.activeElement.getAttribute('aria-label')) || null"
 
 
 def esperar(url, veces=120):
@@ -177,6 +178,10 @@ try:
                     fallos.append(
                         f"{motor_b} ronda {ronda}: no hay UN ganador (A ok={ok_a}/perdió={perdio_a}, B ok={ok_b}/perdió={perdio_b})"
                     )
+                for x in (a, b):  # el ganador y el que recibió el 409: el foco queda en los avisos, no cae al <body>
+                    foco = x.pag.evaluate(FOCO)
+                    if foco != "Avisos de la cola":
+                        fallos.append(f"{motor_b} ronda {ronda}: el foco de {x.nombre} está en {foco!r}")
                 esperada = {"A": "APROBADA", "B": "RECHAZADA"}.get(ganador or "")
                 if fila != ("resuelta", esperada):
                     fallos.append(f"{motor_b} ronda {ronda}: la base dice {fila} y la pantalla ganadora fue {ganador}")
