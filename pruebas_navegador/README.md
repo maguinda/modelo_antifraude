@@ -46,3 +46,5 @@ Prueba EN VIVO de la cola de revisión del panel React, la única pantalla que e
 
 ## app_revision_concurrencia.py
 Ataque de **concurrencia** a la cola de revisión: dos analistas, en dos navegadores (pares Chromium+Chromium y Chromium+WebKit), deciden el MISMO pago a la vez, uno aprobando y el otro rechazando; las dos escrituras se retienen y se sueltan juntas. Por defecto 30 rondas por par (`python modelo_ia/pruebas_navegador/app_revision_concurrencia.py [rondas]`). Invariante por ronda: gana EXACTAMENTE una decisión, la base guarda la del ganador y la otra pantalla dice «ya estaba resuelta». Invariante final: sin pagos resueltos dos veces y cuentas de la base iguales a las rondas. Base desechable; solo permite escribir en `/resolver`.
+
+Los dos scripts `app_revision*.py` eligen un **puerto libre al azar** (nunca escriben contra un servidor ajeno que ya esté vivo en uno fijo) y esperan a que el servidor termine al cerrarlo; `app_revision_concurrencia.py` borra su carpeta temporal si todo salió bien.

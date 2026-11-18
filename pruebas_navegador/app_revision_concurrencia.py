@@ -10,7 +10,9 @@ Solo se permite escribir en `/v1/revisiones/<id>/resolver`. Uso: python modelo_i
 import os
 import re
 import signal
+import socket
 import sqlite3
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,11 +22,19 @@ from pathlib import Path
 import httpx
 from playwright.sync_api import sync_playwright
 
+
+def puerto_libre():
+    """Un puerto que nadie usa ahora: así la prueba nunca escribe contra un servidor ajeno que ya esté vivo en uno fijo."""
+    with socket.socket() as c:
+        c.bind(("127.0.0.1", 0))
+        return c.getsockname()[1]
+
+
 RAIZ = Path(__file__).resolve().parents[2]
 APP = RAIZ / "modelo_ia" / "frontend" / "app"
 S = Path(tempfile.mkdtemp(prefix="pruebas_app_concurrencia_"))
 carpeta = S / "demo"
-PUERTO = 8779
+PUERTO = puerto_libre()
 API = f"http://127.0.0.1:{PUERTO}"
 RESOLVER = re.compile(r"/v1/revisiones/[^/]+/resolver$")
 RONDAS = int(sys.argv[1]) if len(sys.argv) > 1 else 30
@@ -192,6 +202,9 @@ finally:
     for pr in procesos:
         try:
             os.killpg(pr.pid, signal.SIGTERM)
-        except ProcessLookupError:
+            pr.wait(timeout=15)
+        except (ProcessLookupError, subprocess.TimeoutExpired):
             pass
+if not fallos:
+    shutil.rmtree(S, ignore_errors=True)  # si hubo fallos se conserva la carpeta (servidor.log) para investigar
 sys.exit(1 if fallos else 0)

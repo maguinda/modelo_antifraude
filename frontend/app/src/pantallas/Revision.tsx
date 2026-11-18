@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiltrosRevisionForm } from "../componentes/FiltrosRevision";
 import { Paginacion } from "../componentes/Paginacion";
 import { TarjetaRevision, resultadoDeError, type ResultadoResolver } from "../componentes/TarjetaRevision";
@@ -9,12 +9,13 @@ import { useParametrosUrl } from "../hooks/useParametrosUrl";
 import { ajustarPagina, limitarPagina, tamanoValido } from "../paginacion";
 import { ErrorApi, type Cliente } from "../red/cliente";
 import type { ComercioFiltro, DecisionAnalista, PaginaRevisiones, Revision as TipoRevision } from "../red/tipos";
+import { veredictoSinConfirmar, type SinConfirmar } from "../veredicto";
 import estilos from "./Revision.module.css";
 
 const CADA_CUANTO_VIGILAR_MS = 20000;
 
 /** Lo que llegó + CON QUÉ se pidió: las etiquetas de la pantalla salen de aquí, no de los filtros de ahora (mientras llega lo nuevo se ve lo viejo, con sus propias etiquetas). */
-type PaginaCargada = PaginaRevisiones & { pagina: number; porPagina: number; estado: FiltrosRevision["estado"]; conFiltros: boolean };
+type PaginaCargada = PaginaRevisiones & { clave: string; pagina: number; porPagina: number; estado: FiltrosRevision["estado"]; conFiltros: boolean };
 interface Aviso {
   texto: string;
   error: boolean;
@@ -36,7 +37,7 @@ export function Revision({ cliente, alExpirar }: Props) {
   const [aviso, setAviso] = useState<Aviso | null>(null);
   const [cambioEnLaLista, setCambioEnLaLista] = useState<number | null>(null);
   /** Pagos cuya decisión quedó sin confirmar: no se deja decidir de nuevo hasta mirar cómo quedaron (otra lectura de la lista). */
-  const [sinConfirmar, setSinConfirmar] = useState<Record<string, string>>({});
+  const [sinConfirmar, setSinConfirmar] = useState<Record<string, SinConfirmar>>({});
   const limpiarAvisos = useCallback(() => {
     setAviso(null);
     setCambioEnLaLista(null);
@@ -47,7 +48,7 @@ export function Revision({ cliente, alExpirar }: Props) {
   const clave = JSON.stringify([filtros, porPagina, pedida]);
   const { datos, cargando, error, recargar } = useConsulta<PaginaCargada>(clave, async (senal) => {
     const r = await cliente.obtener<PaginaRevisiones>("/v1/revisiones", aParametrosApi(filtros, porPagina, (pedida - 1) * porPagina), senal);
-    return { ...r, pagina: pedida, porPagina, estado: filtros.estado, conFiltros: hayFiltros(filtros) };
+    return { ...r, clave, pagina: pedida, porPagina, estado: filtros.estado, conFiltros: hayFiltros(filtros) };
   });
 
   const total = datos?.total ?? 0;
@@ -83,17 +84,16 @@ export function Revision({ cliente, alExpirar }: Props) {
     };
   }, [cliente, filtros, datos]);
 
-  // Llegó una lectura nueva de la lista: se mira cómo quedaron los pagos sin confirmar, se dice y se desbloquean.
+  // Llegó una lectura nueva de la lista: se mira cómo quedaron los pagos sin confirmar DE ESA MISMA CONSULTA, se dice y se desbloquean.
+  // (Los de otra consulta —otro filtro u otra página— siguen bloqueados: que no aparezcan ahí no prueba nada.)
   useEffect(() => {
-    const ids = Object.keys(sinConfirmar);
-    if (!ids.length || !datos) return;
-    const siguenPendientes = new Set(datos.revisiones.filter((r) => r.estado === "pendiente").map((r) => r.id_evaluacion));
-    const ya = ids.filter((id) => !siguenPendientes.has(id));
-    const siguen = ids.filter((id) => siguenPendientes.has(id));
-    if (ya.length) setAviso({ texto: `El pago ${sinConfirmar[ya[0] as string]} ya no aparece como pendiente en esta lista: se guardó una decisión (la tuya o la de otra persona). Míralo en «Resueltas».`, error: false });
-    else setAviso({ texto: `El pago ${sinConfirmar[siguen[0] as string]} sigue pendiente: la decisión no se guardó. Puedes decidir de nuevo.`, error: true });
-    setSinConfirmar({});
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega una lectura nueva
+    if (!datos || !Object.keys(sinConfirmar).length) return;
+    const pendientesAhora = new Set(datos.revisiones.filter((r) => r.estado === "pendiente").map((r) => r.id_evaluacion));
+    const { aviso: nuevo, resto } = veredictoSinConfirmar(sinConfirmar, datos.clave, pendientesAhora);
+    if (!nuevo) return;
+    setAviso(nuevo);
+    setSinConfirmar(resto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega una lectura nueva; si dependiera de `sinConfirmar`, dispararía al marcar un pago (antes de la verificación)
   }, [datos]);
 
   const actualizar = useCallback(() => {
@@ -102,8 +102,12 @@ export function Revision({ cliente, alExpirar }: Props) {
     recargar();
   }, [recargar, limpiarAvisos]);
 
+  const consultaVista = useRef<string | null>(null); // la consulta de la lista que se VE ahora (se lee al pulsar, antes de esperar al servidor)
+  consultaVista.current = datos?.clave ?? null;
+
   const resolver = useCallback(
     async (rev: TipoRevision, decision: DecisionAnalista, nota: string | null): Promise<ResultadoResolver> => {
+      const claveAlPulsar = consultaVista.current;
       setAviso(null);
       try {
         await cliente.enviar(`/v1/revisiones/${encodeURIComponent(rev.id_evaluacion)}/resolver`, { decision, nota });
@@ -122,7 +126,7 @@ export function Revision({ cliente, alExpirar }: Props) {
           recargar();
         } else if (r.tipo === "sin_confirmar") {
           setAviso({ texto: r.mensaje, error: true });
-          setSinConfirmar((x) => ({ ...x, [rev.id_evaluacion]: rev.id_transaccion }));
+          if (claveAlPulsar !== null) setSinConfirmar((x) => ({ ...x, [rev.id_evaluacion]: { transaccion: rev.id_transaccion, clave: claveAlPulsar } }));
           recargar(); // se mira cómo quedó antes de dejar que alguien reintente (la tarjeta sigue bloqueada hasta entonces)
         } else if (r.tipo === "error") {
           setAviso({ texto: `No se pudo guardar: ${r.mensaje}`, error: true });
