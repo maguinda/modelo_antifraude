@@ -77,7 +77,7 @@ export function TarjetaRevision({ rev, alResolver, bloqueada = false }: Props) {
       <details className={estilos.item}>
         <summary>
           <div className={estilos.filaCola}>
-            <span className={`${estilos.medidor} ${nivel ? estilos[nivel] : ""}`} aria-label={pct === null ? "Sin puntaje" : `Riesgo ${pct} por ciento`}>
+            <span className={`${estilos.medidor} ${nivel ? estilos[nivel] : ""}`} role="img" aria-label={pct === null ? "Sin puntaje" : `Riesgo ${pct} por ciento`}>
               {pct === null ? "—" : `${pct}%`}
             </span>
             <div className={estilos.cuerpo}>
@@ -167,11 +167,14 @@ export function TarjetaRevision({ rev, alResolver, bloqueada = false }: Props) {
                     );
                   })}
                 </div>
-                {confirmando ? (
-                  <p className={estilos.meta} role="status">
-                    Pulsa «Confirmar: {TEXTO[confirmando].verbo}» para guardar la decisión, o «Cancelar».
-                  </p>
-                ) : null}
+                {/* La región existe SIEMPRE (vacía) y solo cambia su contenido: los lectores de pantalla no anuncian de forma fiable una región que aparece ya con el texto puesto. */}
+                <div role="status">
+                  {confirmando ? (
+                    <p className={estilos.meta}>
+                      Pulsa «Confirmar: {TEXTO[confirmando].verbo}» para guardar la decisión, o «Cancelar».
+                    </p>
+                  ) : null}
+                </div>
               </>
             ) : (
               <p className={estilos.meta}>
