@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ErrorApi } from "../red/cliente";
 import type { DecisionAnalista, Revision } from "../red/tipos";
 import { ETIQUETAS_DATO, hace, nivelRiesgo, pesos, valorDato } from "../formato";
@@ -34,6 +34,17 @@ export function TarjetaRevision({ rev, alResolver, bloqueada = false }: Props) {
   const enviandoYa = useRef(false); // sincrónico: dos eventos en el mismo instante no ven el estado de React ya actualizado
   const armadaEn = useRef(0);
   const bloqueado = enviando || bloqueada;
+  // Durante la pausa anti doble toque «Confirmar» se anuncia como no disponible (no queda un botón que parece activo y no responde).
+  const [enPausa, setEnPausa] = useState(false);
+  useEffect(() => {
+    if (!confirmando) {
+      setEnPausa(false);
+      return;
+    }
+    setEnPausa(true);
+    const t = setTimeout(() => setEnPausa(false), ESPERA_CONFIRMAR_MS);
+    return () => clearTimeout(t);
+  }, [confirmando]);
   const pct = rev.puntaje_riesgo === null || rev.puntaje_riesgo === undefined ? null : Math.round(rev.puntaje_riesgo * 100);
   const nivel = nivelRiesgo(rev.puntaje_riesgo);
   const resumen = rev.resumen_pago ?? {};
@@ -145,7 +156,10 @@ export function TarjetaRevision({ rev, alResolver, bloqueada = false }: Props) {
                         key={d}
                         type="button"
                         className={`${estilos[t.clase]} ${pendiente ? estilos.confirmar : ""}`}
-                        aria-disabled={bloqueado}
+                        aria-disabled={bloqueado || (pendiente && enPausa)}
+                        onKeyDown={(e) => {
+                          if (e.repeat) e.preventDefault(); // una tecla mantenida pulsada no repite el clic (armar y confirmar sin soltar)
+                        }}
                         onClick={() => (cancela ? setConfirmando(null) : void pulsar(d))}
                       >
                         {cancela ? "Cancelar" : pendiente ? `Confirmar: ${t.verbo}` : t.boton}

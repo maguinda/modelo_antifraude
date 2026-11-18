@@ -1,5 +1,5 @@
 // Arreglos de la cola de revisión tras la revisión del PR #59: doble toque, avisos que no se limpian y resultado desconocido al escribir.
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { crearCliente } from "../red/cliente";
@@ -119,8 +119,12 @@ describe("3. si no se sabe si se guardó, la tarjeta no deja decidir otra vez a 
 
   it("mientras la recarga no termina, los botones siguen bloqueados; al terminar (y seguir pendiente) se desbloquean", async () => {
     const s = servidorDeRevisiones(1);
+    let intentos = 0; // escrituras que SALIERON del navegador (se cuentan aquí: el corte nunca llega al servidor falso)
     const caida = (async (e: RequestInfo | URL, i?: RequestInit) => {
-      if ((i?.method ?? "GET") === "POST") throw new TypeError("Failed to fetch"); // corte: no se sabe
+      if ((i?.method ?? "GET") === "POST") {
+        intentos += 1;
+        throw new TypeError("Failed to fetch"); // corte: no se sabe
+      }
       return s.fetcher(e, i);
     }) as typeof fetch;
     let soltar!: () => void;
@@ -146,9 +150,11 @@ describe("3. si no se sabe si se guardó, la tarjeta no deja decidir otra vez a 
     await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
     await esperar(PAUSA_DE_CONFIRMAR);
     await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
-    expect(posts(s)).toHaveLength(0); // el POST con corte nunca llegó al servidor falso; y no se mandó otro
+    expect(intentos).toBe(1); // ningún intento más salió de la tarjeta bloqueada
+    expect(within(t).queryByRole("button", { name: "Confirmar: aprobar" })).toBeNull(); // ni siquiera dejó armar la confirmación
     soltar();
     await waitFor(() => expect(desactivado(within(t).getByRole("button", { name: "Aprobar" }))).toBe(false));
+    expect(await screen.findByText(/TX1 sigue pendiente: la decisión no se guardó/)).toBeTruthy();
   });
 
   it("si la recarga muestra que el pago YA NO está pendiente, lo dice (se guardó o lo resolvió otra persona)", async () => {
@@ -180,5 +186,78 @@ describe("3. si no se sabe si se guardó, la tarjeta no deja decidir otra vez a 
     await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
     expect(await screen.findByText(/ya estaba resuelta/)).toBeTruthy();
     expect(screen.queryByText(/otra persona/)).toBeNull();
+  });
+});
+
+describe("4. el veredicto de «no se sabe» solo vale para la MISMA consulta", () => {
+  /** Un servidor cuya escritura da 504 sin guardar y cuya lectura n.º `retenerDesde` tarda hasta que se suelte. */
+  function conResolverCaido() {
+    const s = servidorDeRevisiones(2, [{ estado: "resuelta" }]);
+    s.fallos.resolver = () => respuesta(504, { detail: "proxy" });
+    return s;
+  }
+
+  it("si cambias de filtro con la tarjeta bloqueada, NO se afirma «se guardó»; al volver, se mira y se dice cómo quedó", async () => {
+    const s = conResolverCaido();
+    let soltar!: () => void;
+    const compuerta = new Promise<void>((r) => (soltar = r));
+    let lecturas = 0;
+    const f = (async (e: RequestInfo | URL, i?: RequestInit) => {
+      const url = new URL(String(e), "http://x");
+      if (url.pathname === "/v1/revisiones" && (i?.method ?? "GET") === "GET") {
+        lecturas += 1;
+        if (lecturas === 2) await compuerta; // la lectura de verificación tarda
+      }
+      return s.fetcher(e, i);
+    }) as typeof fetch;
+    montar(f);
+    const t = await primera();
+    await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    await esperar(PAUSA_DE_CONFIRMAR);
+    await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
+    await screen.findByText(/No se pudo confirmar si se guardó/);
+    // antes de que llegue la verificación, cambia a «Resueltas»: ese pago no está ahí, y eso NO significa que se guardó
+    await userEvent.selectOptions(screen.getByLabelText("Mostrar"), "resuelta");
+    await screen.findByText("1 resuelta");
+    expect(screen.queryByText(/ya no aparece como pendiente/)).toBeNull();
+    expect(screen.queryByText(/se guardó una decisión/)).toBeNull();
+    // al volver a «Pendientes» se mira de verdad: el servidor NO lo guardó, sigue pendiente
+    await userEvent.selectOptions(screen.getByLabelText("Mostrar"), "pendiente");
+    expect(await screen.findByText(/TX1 sigue pendiente: la decisión no se guardó/)).toBeTruthy();
+    expect(desactivado(within((await screen.findAllByRole("listitem"))[0] as HTMLElement).getByRole("button", { name: "Aprobar" }))).toBe(false);
+    soltar();
+  });
+
+  it("si la recarga falla, la tarjeta sigue bloqueada, y «Actualizar» la desbloquea", async () => {
+    const s = conResolverCaido();
+    montar(s.fetcher);
+    const t = await primera();
+    await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    await esperar(PAUSA_DE_CONFIRMAR);
+    s.fallos.lista = () => respuesta(500, { detail: "se cayó" }); // la verificación fallará
+    await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
+    await screen.findByText(/No se pudo cargar: se cayó/);
+    expect(desactivado(within(t).getByRole("button", { name: "Aprobar" }))).toBe(true);
+    delete s.fallos.lista;
+    await userEvent.click(screen.getByRole("button", { name: "Actualizar" }));
+    await waitFor(() => expect(desactivado(within(t).getByRole("button", { name: "Aprobar" }))).toBe(false));
+  });
+});
+
+describe("5. accesibilidad de la pausa de confirmación", () => {
+  it("durante la pausa «Confirmar» se anuncia como no disponible, y después sí", async () => {
+    montar(servidorDeRevisiones(1).fetcher);
+    const t = await primera();
+    await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    expect(desactivado(within(t).getByRole("button", { name: "Confirmar: aprobar" }))).toBe(true);
+    await waitFor(() => expect(desactivado(within(t).getByRole("button", { name: "Confirmar: aprobar" }))).toBe(false), { timeout: 2000 });
+  });
+
+  it("una tecla Enter mantenida (auto-repetición) no activa los botones", async () => {
+    montar(servidorDeRevisiones(1).fetcher);
+    const t = await primera();
+    const boton = within(t).getByRole("button", { name: "Aprobar" });
+    expect(fireEvent.keyDown(boton, { key: "Enter", repeat: true })).toBe(false); // se cancela la repetición
+    expect(fireEvent.keyDown(boton, { key: "Enter", repeat: false })).toBe(true); // una pulsación normal no se toca
   });
 });
