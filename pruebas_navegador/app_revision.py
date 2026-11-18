@@ -90,6 +90,7 @@ try:
     )
     procesos.append(p)
     assert esperar(API + "/v1/salud"), "el servidor de prueba no arrancó"
+    assert p.poll() is None, "el servidor propio ya terminó: el puerto lo contesta OTRO proceso, no se sigue"
     subprocess.run(
         [
             sys.executable,
@@ -326,7 +327,9 @@ try:
             pag.wait_for_timeout(800)  # la pantalla exige una pausa entre armar y confirmar
             pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").click()
             pag.wait_for_selector("text=/No se pudo confirmar si se guardó|sigue pendiente/")
-            pag.wait_for_selector("text=/sigue pendiente: la decisión no se guardó/")  # tras mirar la lista, lo dice
+            pag.wait_for_selector(
+                "text=/sigue pendiente: no se ve guardada la decisión todavía/"
+            )  # tras mirar la lista, lo dice
             comprobar(r, "con el corte NO dice «aprobado»", pag.locator("text=/aprobado\\./").count() == 0)
             comprobar(
                 r,
@@ -458,6 +461,10 @@ finally:
     for pr in procesos:
         try:
             os.killpg(pr.pid, signal.SIGTERM)
-            pr.wait(timeout=15)
-        except (ProcessLookupError, subprocess.TimeoutExpired):
+            try:
+                pr.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                os.killpg(pr.pid, signal.SIGKILL)  # no quiso terminar: se fuerza
+                pr.wait(timeout=5)
+        except ProcessLookupError:
             pass

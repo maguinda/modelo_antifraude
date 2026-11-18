@@ -154,7 +154,7 @@ describe("3. si no se sabe si se guardó, la tarjeta no deja decidir otra vez a 
     expect(within(t).queryByRole("button", { name: "Confirmar: aprobar" })).toBeNull(); // ni siquiera dejó armar la confirmación
     soltar();
     await waitFor(() => expect(desactivado(within(t).getByRole("button", { name: "Aprobar" }))).toBe(false));
-    expect(await screen.findByText(/TX1 sigue pendiente: la decisión no se guardó/)).toBeTruthy();
+    expect(await screen.findByText(/TX1 sigue pendiente: no se ve guardada la decisión todavía/)).toBeTruthy();
   });
 
   it("si la recarga muestra que el pago YA NO está pendiente, lo dice (se guardó o lo resolvió otra persona)", async () => {
@@ -201,12 +201,15 @@ describe("4. el veredicto de «no se sabe» solo vale para la MISMA consulta", (
     const s = conResolverCaido();
     let soltar!: () => void;
     const compuerta = new Promise<void>((r) => (soltar = r));
-    let lecturas = 0;
+    let hubo504 = false;
+    let retenida = false;
     const f = (async (e: RequestInfo | URL, i?: RequestInit) => {
       const url = new URL(String(e), "http://x");
-      if (url.pathname === "/v1/revisiones" && (i?.method ?? "GET") === "GET") {
-        lecturas += 1;
-        if (lecturas === 2) await compuerta; // la lectura de verificación tarda
+      const metodo = i?.method ?? "GET";
+      if (metodo === "POST") hubo504 = true;
+      if (hubo504 && !retenida && url.pathname === "/v1/revisiones" && metodo === "GET") {
+        retenida = true;
+        await compuerta; // la PRIMERA lectura después de la escritura (la de verificación) tarda
       }
       return s.fetcher(e, i);
     }) as typeof fetch;
@@ -223,7 +226,7 @@ describe("4. el veredicto de «no se sabe» solo vale para la MISMA consulta", (
     expect(screen.queryByText(/se guardó una decisión/)).toBeNull();
     // al volver a «Pendientes» se mira de verdad: el servidor NO lo guardó, sigue pendiente
     await userEvent.selectOptions(screen.getByLabelText("Mostrar"), "pendiente");
-    expect(await screen.findByText(/TX1 sigue pendiente: la decisión no se guardó/)).toBeTruthy();
+    expect(await screen.findByText(/TX1 sigue pendiente: no se ve guardada la decisión todavía/)).toBeTruthy();
     expect(desactivado(within((await screen.findAllByRole("listitem"))[0] as HTMLElement).getByRole("button", { name: "Aprobar" }))).toBe(false);
     soltar();
   });

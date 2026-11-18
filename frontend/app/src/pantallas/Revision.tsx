@@ -13,6 +13,7 @@ import { veredictoSinConfirmar, type SinConfirmar } from "../veredicto";
 import estilos from "./Revision.module.css";
 
 const CADA_CUANTO_VIGILAR_MS = 20000;
+const CLAVE_SIN_LISTA = "\u0000sin-lista";
 
 /** Lo que llegó + CON QUÉ se pidió: las etiquetas de la pantalla salen de aquí, no de los filtros de ahora (mientras llega lo nuevo se ve lo viejo, con sus propias etiquetas). */
 type PaginaCargada = PaginaRevisiones & { clave: string; pagina: number; porPagina: number; estado: FiltrosRevision["estado"]; conFiltros: boolean };
@@ -93,7 +94,7 @@ export function Revision({ cliente, alExpirar }: Props) {
     if (!nuevo) return;
     setAviso(nuevo);
     setSinConfirmar(resto);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega una lectura nueva; si dependiera de `sinConfirmar`, dispararía al marcar un pago (antes de la verificación)
+    // `sinConfirmar` no está en las dependencias A PROPÓSITO: solo debe correr cuando llega una lectura nueva; si dependiera de él, dispararía al marcar un pago (antes de la verificación).
   }, [datos]);
 
   const actualizar = useCallback(() => {
@@ -107,7 +108,8 @@ export function Revision({ cliente, alExpirar }: Props) {
 
   const resolver = useCallback(
     async (rev: TipoRevision, decision: DecisionAnalista, nota: string | null): Promise<ResultadoResolver> => {
-      const claveAlPulsar = consultaVista.current;
+      // Sin lista a la vista (no debería pasar: la tarjeta sale de ella) se usa una clave que ninguna lectura real iguala: falla CERRADO, bloqueada hasta «Actualizar».
+      const claveAlPulsar = consultaVista.current ?? CLAVE_SIN_LISTA;
       setAviso(null);
       try {
         await cliente.enviar(`/v1/revisiones/${encodeURIComponent(rev.id_evaluacion)}/resolver`, { decision, nota });
@@ -126,7 +128,7 @@ export function Revision({ cliente, alExpirar }: Props) {
           recargar();
         } else if (r.tipo === "sin_confirmar") {
           setAviso({ texto: r.mensaje, error: true });
-          if (claveAlPulsar !== null) setSinConfirmar((x) => ({ ...x, [rev.id_evaluacion]: { transaccion: rev.id_transaccion, clave: claveAlPulsar } }));
+          setSinConfirmar((x) => ({ ...x, [rev.id_evaluacion]: { transaccion: rev.id_transaccion, clave: claveAlPulsar } }));
           recargar(); // se mira cómo quedó antes de dejar que alguien reintente (la tarjeta sigue bloqueada hasta entonces)
         } else if (r.tipo === "error") {
           setAviso({ texto: `No se pudo guardar: ${r.mensaje}`, error: true });
