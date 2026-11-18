@@ -38,7 +38,43 @@ describe("foco al resolver un pago", () => {
     const confirmar = within(t).getByRole("button", { name: "Confirmar: aprobar" });
     await userEvent.click(confirmar);
     await screen.findByText(/No se pudo guardar: se cayó/);
-    expect(document.activeElement).not.toBe(screen.getByRole("status", { name: "Avisos de la cola" }));
+    // el foco sigue en EL MISMO botón que se pulsó (no cae al <body> ni salta a los avisos)
+    expect(document.activeElement).toBe(confirmar);
+    expect(document.activeElement).toBe(within(t).getByRole("button", { name: "Aprobar" }));
+  });
+
+  it("si otra persona ya la resolvió (409), la tarjeta desaparece al recargar y el foco va a los avisos, no al <body>", async () => {
+    const s = servidorDeRevisiones(2);
+    montar(s.fetcher);
+    const t = await primera();
+    s.todas[0]!.estado = "resuelta"; // otra persona la resolvió mientras esta pantalla la mostraba
+    await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    await esperar(800);
+    await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
+    await screen.findByText(/ya estaba resuelta/);
+    await screen.findByText("1 pendiente"); // la lista se recargó y la tarjeta salió
+    expect(document.body.contains(t)).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole("status", { name: "Avisos de la cola" }));
+  });
+
+  it("si no se sabe si se guardó (corte), el foco también va a los avisos: la tarjeta puede salir al mirar cómo quedó", async () => {
+    const s = servidorDeRevisiones(2);
+    const f = (async (e: RequestInfo | URL, i?: RequestInit) => {
+      if ((i?.method ?? "GET") === "POST") {
+        s.todas[0]!.estado = "resuelta"; // el servidor SÍ la guardó, pero la respuesta se perdió
+        throw new TypeError("Failed to fetch");
+      }
+      return s.fetcher(e, i);
+    }) as typeof fetch;
+    montar(f);
+    const t = await primera();
+    await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    await esperar(800);
+    await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
+    await screen.findByText(/TX1 ya no aparece como pendiente/);
+    await screen.findByText("1 pendiente");
+    expect(document.body.contains(t)).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole("status", { name: "Avisos de la cola" }));
   });
 });
 

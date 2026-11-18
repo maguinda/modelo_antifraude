@@ -40,6 +40,9 @@ API = f"http://127.0.0.1:{PUERTO}"
 URL = f"{API}/app"
 procesos = []
 RESOLVER = re.compile(r"/v1/revisiones/[^/]+/resolver$")
+FOCO = (
+    "() => (document.activeElement && document.activeElement.getAttribute('aria-label')) || null"  # dónde está el foco
+)
 MIDE_44 = (
     "Array.from(document.querySelectorAll('main a, main button, main select, main input, main textarea, summary')).filter(e => e.offsetParent !== null "
     "&& e.getBoundingClientRect().height < 43.5 && !e.closest('[hidden]')).map(e => (e.className || e.tagName) + ':' + Math.round(e.getBoundingClientRect().height))"
@@ -326,6 +329,8 @@ try:
             pag.wait_for_timeout(800)  # la pantalla exige una pausa entre armar y confirmar
             pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").click()
             pag.wait_for_selector("text=/ya estaba resuelta/")
+            foco = pag.evaluate(FOCO)
+            comprobar(r, "409: el foco va a la región de avisos", foco == "Avisos de la cola", foco)
             fila = bd("SELECT decision_analista, nota FROM revisiones WHERE id_evaluacion=?", id3)[0]
             comprobar(
                 r,
@@ -345,6 +350,10 @@ try:
             pag.wait_for_selector(
                 "text=/sigue pendiente: no se ve guardada la decisión todavía/"
             )  # tras mirar la lista, lo dice
+            foco = pag.evaluate(FOCO)
+            comprobar(
+                r, "sin confirmar (no se guardó): el foco va a la región de avisos", foco == "Avisos de la cola", foco
+            )
             comprobar(r, "con el corte NO dice «aprobado»", pag.locator("text=/aprobado\\./").count() == 0)
             comprobar(
                 r,
@@ -363,6 +372,10 @@ try:
             pag.locator("details[open]").get_by_role("button", name="Confirmar: rechazar").click()
             pag.wait_for_selector("text=/No se pudo confirmar si se guardó|ya no aparece como pendiente/")
             pag.wait_for_selector("text=/ya no aparece como pendiente/")  # tras mirar la lista, dice que se guardó
+            foco = pag.evaluate(FOCO)
+            comprobar(
+                r, "sin confirmar (se guardó): el foco va a la región de avisos", foco == "Avisos de la cola", foco
+            )
             modo["post"] = "normal"
             pag.wait_for_timeout(1200)
             resueltas_esperadas += 1
