@@ -35,6 +35,12 @@ export function Revision({ cliente, alExpirar }: Props) {
   const pedida = limitarPagina(params.get("pagina"), porPagina);
   const [aviso, setAviso] = useState<Aviso | null>(null);
   const [cambioEnLaLista, setCambioEnLaLista] = useState<number | null>(null);
+  /** Pagos cuya decisión quedó sin confirmar: no se deja decidir de nuevo hasta mirar cómo quedaron (otra lectura de la lista). */
+  const [sinConfirmar, setSinConfirmar] = useState<Record<string, string>>({});
+  const limpiarAvisos = useCallback(() => {
+    setAviso(null);
+    setCambioEnLaLista(null);
+  }, []);
 
   const comercios = useConsulta<ComercioFiltro[]>("comercios", (senal) => cliente.obtener<ComercioFiltro[]>("/v1/panel/comercios", {}, senal));
 
@@ -77,11 +83,24 @@ export function Revision({ cliente, alExpirar }: Props) {
     };
   }, [cliente, filtros, datos]);
 
+  // Llegó una lectura nueva de la lista: se mira cómo quedaron los pagos sin confirmar, se dice y se desbloquean.
+  useEffect(() => {
+    const ids = Object.keys(sinConfirmar);
+    if (!ids.length || !datos) return;
+    const siguenPendientes = new Set(datos.revisiones.filter((r) => r.estado === "pendiente").map((r) => r.id_evaluacion));
+    const ya = ids.filter((id) => !siguenPendientes.has(id));
+    const siguen = ids.filter((id) => siguenPendientes.has(id));
+    if (ya.length) setAviso({ texto: `El pago ${sinConfirmar[ya[0] as string]} ya no aparece como pendiente en esta lista: se guardó una decisión (la tuya o la de otra persona). Míralo en «Resueltas».`, error: false });
+    else setAviso({ texto: `El pago ${sinConfirmar[siguen[0] as string]} sigue pendiente: la decisión no se guardó. Puedes decidir de nuevo.`, error: true });
+    setSinConfirmar({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega una lectura nueva
+  }, [datos]);
+
   const actualizar = useCallback(() => {
-    setAviso(null);
-    setCambioEnLaLista(null);
+    limpiarAvisos();
+    setSinConfirmar({}); // quien pulsa Actualizar ya sabe que no se confirmó: se desbloquea
     recargar();
-  }, [recargar]);
+  }, [recargar, limpiarAvisos]);
 
   const resolver = useCallback(
     async (rev: TipoRevision, decision: DecisionAnalista, nota: string | null): Promise<ResultadoResolver> => {
@@ -99,11 +118,12 @@ export function Revision({ cliente, alExpirar }: Props) {
         }
         const r = resultadoDeError(e);
         if (r.tipo === "conflicto") {
-          setAviso({ texto: "Esa revisión ya la resolvió otra persona. Actualizando la lista.", error: true });
+          setAviso({ texto: "Esa revisión ya estaba resuelta: puede ser tu decisión anterior o la de un colega. Actualizando la lista.", error: true });
           recargar();
         } else if (r.tipo === "sin_confirmar") {
           setAviso({ texto: r.mensaje, error: true });
-          recargar(); // se mira cómo quedó antes de dejar que alguien reintente
+          setSinConfirmar((x) => ({ ...x, [rev.id_evaluacion]: rev.id_transaccion }));
+          recargar(); // se mira cómo quedó antes de dejar que alguien reintente (la tarjeta sigue bloqueada hasta entonces)
         } else if (r.tipo === "error") {
           setAviso({ texto: `No se pudo guardar: ${r.mensaje}`, error: true });
         }
@@ -113,7 +133,10 @@ export function Revision({ cliente, alExpirar }: Props) {
     [cliente, recargar, alExpirar],
   );
 
-  const aplicar = (f: FiltrosRevision) => cambiar(filtrosAUrl(f));
+  const aplicar = (f: FiltrosRevision) => {
+    limpiarAvisos();
+    cambiar(filtrosAUrl(f));
+  };
 
   const items = datos?.revisiones ?? [];
   const altos = items.filter((x) => x.puntaje_riesgo !== null && x.puntaje_riesgo >= 0.6).length;
@@ -162,7 +185,7 @@ export function Revision({ cliente, alExpirar }: Props) {
 
       <div role="status" aria-live="polite">
         {aviso ? <p className={`aviso ${aviso.error ? "error" : ""}`}>{aviso.texto}</p> : null}
-        {cambioEnLaLista !== null && !aviso ? <p className="aviso">Cambió la lista ({numero(cambioEnLaLista)} pendientes). Pulsa Actualizar.</p> : null}
+        {cambioEnLaLista !== null ? <p className="aviso">Cambió la lista ({numero(cambioEnLaLista)} pendientes). Pulsa Actualizar.</p> : null}
       </div>
 
       {error && !esAuth(error) ? (
@@ -178,7 +201,7 @@ export function Revision({ cliente, alExpirar }: Props) {
       {!sinDatosAun ? (
         <ul className={`${estilos.lista} ${cargando ? estilos.refrescando : ""}`}>
           {items.map((rev) => (
-            <TarjetaRevision key={rev.id_evaluacion} rev={rev} alResolver={resolver} />
+            <TarjetaRevision key={rev.id_evaluacion} rev={rev} alResolver={resolver} bloqueada={rev.id_evaluacion in sinConfirmar} />
           ))}
         </ul>
       ) : null}
@@ -193,11 +216,15 @@ export function Revision({ cliente, alExpirar }: Props) {
           alCambiarPagina={(p) => {
             if (p === pedida) recargar();
             else {
+              limpiarAvisos();
               cambiar({ pagina: p <= 1 ? null : String(p) });
               window.scrollTo(0, 0);
             }
           }}
-          alCambiarTamano={(t) => cambiar({ limite: String(t), pagina: null })}
+          alCambiarTamano={(t) => {
+            limpiarAvisos();
+            cambiar({ limite: String(t), pagina: null });
+          }}
         />
       ) : null}
     </section>

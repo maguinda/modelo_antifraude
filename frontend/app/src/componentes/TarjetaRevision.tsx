@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ErrorApi } from "../red/cliente";
 import type { DecisionAnalista, Revision } from "../red/tipos";
 import { ETIQUETAS_DATO, hace, nivelRiesgo, pesos, valorDato } from "../formato";
@@ -15,17 +15,25 @@ interface Props {
   rev: Revision;
   /** Envía la decisión. Nunca lanza: devuelve qué pasó (la pantalla decide el aviso y si recarga la lista). */
   alResolver: (rev: Revision, decision: DecisionAnalista, nota: string | null) => Promise<ResultadoResolver>;
+  /** La pantalla no sabe si la decisión anterior se guardó y está mirando cómo quedó: mientras tanto no se puede decidir. */
+  bloqueada?: boolean;
 }
+
+/** Tiempo mínimo entre armar la confirmación y poder confirmar: un doble toque no se salta el aviso. */
+export const ESPERA_CONFIRMAR_MS = 600;
 
 const TEXTO: Record<DecisionAnalista, { verbo: string; clase: "ok" | "mal"; boton: string }> = {
   APROBADA: { verbo: "aprobar", clase: "ok", boton: "Aprobar" },
   RECHAZADA: { verbo: "rechazar", clase: "mal", boton: "Rechazar" },
 };
 
-export function TarjetaRevision({ rev, alResolver }: Props) {
+export function TarjetaRevision({ rev, alResolver, bloqueada = false }: Props) {
   const [nota, setNota] = useState("");
   const [confirmando, setConfirmando] = useState<DecisionAnalista | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const enviandoYa = useRef(false); // sincrónico: dos eventos en el mismo instante no ven el estado de React ya actualizado
+  const armadaEn = useRef(0);
+  const bloqueado = enviando || bloqueada;
   const pct = rev.puntaje_riesgo === null || rev.puntaje_riesgo === undefined ? null : Math.round(rev.puntaje_riesgo * 100);
   const nivel = nivelRiesgo(rev.puntaje_riesgo);
   const resumen = rev.resumen_pago ?? {};
@@ -33,15 +41,20 @@ export function TarjetaRevision({ rev, alResolver }: Props) {
   const porQue = haySenales(rev.senales) || rev.motivos.length > 0 || rev.reglas_activadas.length > 0;
 
   const pulsar = async (decision: DecisionAnalista) => {
-    if (enviando) return; // el doble clic no manda dos escrituras
+    if (enviandoYa.current || bloqueada) return; // el doble clic no manda dos escrituras
     if (confirmando !== decision) {
+      armadaEn.current = performance.now();
       setConfirmando(decision); // primer clic: pide confirmar
       return;
     }
+    if (performance.now() - armadaEn.current < ESPERA_CONFIRMAR_MS) return; // un doble toque no confirma a ciegas
+    enviandoYa.current = true;
     setEnviando(true);
     const r = await alResolver(rev, decision, nota.trim() ? nota : null);
     // si salió bien, la lista se recarga y esta tarjeta desaparece; en cualquier otro caso se puede volver a intentar
+    // (si no se sabe si se guardó, la pantalla la deja `bloqueada` hasta mirar cómo quedó)
     if (r.tipo !== "ok") {
+      enviandoYa.current = false;
       setEnviando(false);
       setConfirmando(null);
     }
@@ -132,7 +145,7 @@ export function TarjetaRevision({ rev, alResolver }: Props) {
                         key={d}
                         type="button"
                         className={`${estilos[t.clase]} ${pendiente ? estilos.confirmar : ""}`}
-                        aria-disabled={enviando}
+                        aria-disabled={bloqueado}
                         onClick={() => (cancela ? setConfirmando(null) : void pulsar(d))}
                       >
                         {cancela ? "Cancelar" : pendiente ? `Confirmar: ${t.verbo}` : t.boton}
@@ -169,7 +182,8 @@ export function TarjetaRevision({ rev, alResolver }: Props) {
 export function resultadoDeError(e: unknown): ResultadoResolver {
   if (e instanceof ErrorApi) {
     if (e.estado === 409) return { tipo: "conflicto" };
-    if (e.estado === 0)
+    // sin respuesta (0) o con un corte del proxy (502/503/504): el servidor pudo haber guardado la decisión
+    if (e.estado === 0 || e.estado === 502 || e.estado === 503 || e.estado === 504)
       return { tipo: "sin_confirmar", mensaje: "No se pudo confirmar si se guardó la decisión. Actualiza la lista antes de volver a intentarlo." };
     return { tipo: "error", mensaje: e.message };
   }

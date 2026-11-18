@@ -138,6 +138,10 @@ try:
                     if modo["post"] == "cortar":
                         envios["cortados"] += 1
                         return route.abort()
+                    if modo["post"] == "perder_504":
+                        route.fetch()  # el servidor SÍ lo guarda...
+                        envios["llegaron"] += 1
+                        return route.fulfill(status=504, body="gateway timeout")  # ...pero el proxy contesta 504
                     if modo["post"] == "perder_respuesta":
                         route.fetch()  # el servidor SÍ lo guarda...
                         envios["llegaron"] += 1
@@ -217,6 +221,31 @@ try:
             def id_de_la_abierta():
                 return pag.locator("details[open] textarea").first.get_attribute("id").replace("nota-", "")
 
+            # --- 0) DOBLE TOQUE sobre «Aprobar»: solo arma la confirmación, NO escribe
+            id0 = id_de_la_abierta()
+            llegaron0 = envios["llegaron"]
+            pag.locator("details[open]").get_by_role("button", name="Aprobar", exact=True).dblclick()
+            pag.wait_for_timeout(300)
+            comprobar(
+                r,
+                "doble toque: no llegó ninguna escritura",
+                envios["llegaron"] == llegaron0,
+                envios["llegaron"] - llegaron0,
+            )
+            comprobar(
+                r,
+                "doble toque: el pago sigue pendiente en la base",
+                bd("SELECT estado FROM revisiones WHERE id_evaluacion=?", id0)[0][0] == "pendiente",
+            )
+            comprobar(
+                r,
+                "doble toque: sigue pidiendo confirmar",
+                pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").count() == 1,
+            )
+            pag.locator("details[open]").get_by_role(
+                "button", name="Cancelar", exact=True
+            ).click()  # deja la tarjeta como estaba
+
             # --- 1) APROBAR con nota (clic): primer clic NO escribe; se confirma
             id1 = id_de_la_abierta()
             pag.locator("details[open] textarea").first.fill("verificado por teléfono")
@@ -227,6 +256,7 @@ try:
                 "el primer clic no escribe",
                 bd("SELECT COUNT(*) FROM revisiones WHERE estado='resuelta'")[0][0] == antes,
             )
+            pag.wait_for_timeout(800)  # la pantalla exige una pausa entre armar y confirmar
             pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").click()
             pag.wait_for_selector("text=/Pago .*: aprobado\\./")
             resueltas_esperadas += 1
@@ -244,6 +274,7 @@ try:
             id2 = id_de_la_abierta()
             pag.locator("details[open]").get_by_role("button", name="Rechazar", exact=True).focus()
             pag.keyboard.press("Enter")
+            pag.wait_for_timeout(800)  # la pantalla exige una pausa entre armar y confirmar
             pag.locator("details[open]").get_by_role("button", name="Confirmar: rechazar").focus()
             pag.keyboard.press("Enter")
             pag.wait_for_selector("text=/Pago .*: rechazado\\./")
@@ -267,8 +298,9 @@ try:
             resueltas_esperadas += 1
             comprobar(r, "la otra persona sí pudo resolver", otro.status_code == 200, otro.status_code)
             pag.locator("details[open]").get_by_role("button", name="Aprobar", exact=True).click()
+            pag.wait_for_timeout(800)  # la pantalla exige una pausa entre armar y confirmar
             pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").click()
-            pag.wait_for_selector("text=/ya la resolvió otra persona/")
+            pag.wait_for_selector("text=/ya estaba resuelta/")
             fila = bd("SELECT decision_analista, nota FROM revisiones WHERE id_evaluacion=?", id3)[0]
             comprobar(
                 r,
@@ -282,8 +314,10 @@ try:
             id4 = id_de_la_abierta()
             modo["post"] = "cortar"
             pag.locator("details[open]").get_by_role("button", name="Aprobar", exact=True).click()
+            pag.wait_for_timeout(800)  # la pantalla exige una pausa entre armar y confirmar
             pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").click()
-            pag.wait_for_selector("text=/No se pudo confirmar si se guardó/")
+            pag.wait_for_selector("text=/No se pudo confirmar si se guardó|sigue pendiente/")
+            pag.wait_for_selector("text=/sigue pendiente: la decisión no se guardó/")  # tras mirar la lista, lo dice
             comprobar(r, "con el corte NO dice «aprobado»", pag.locator("text=/aprobado\\./").count() == 0)
             comprobar(
                 r,
@@ -298,8 +332,10 @@ try:
             llegaron_antes = envios["llegaron"]
             modo["post"] = "perder_respuesta"
             pag.locator("details[open]").get_by_role("button", name="Rechazar", exact=True).click()
+            pag.wait_for_timeout(800)  # la pantalla exige una pausa entre armar y confirmar
             pag.locator("details[open]").get_by_role("button", name="Confirmar: rechazar").click()
-            pag.wait_for_selector("text=/No se pudo confirmar si se guardó/")
+            pag.wait_for_selector("text=/No se pudo confirmar si se guardó|ya no aparece como pendiente/")
+            pag.wait_for_selector("text=/ya no aparece como pendiente/")  # tras mirar la lista, dice que se guardó
             modo["post"] = "normal"
             pag.wait_for_timeout(1200)
             resueltas_esperadas += 1
@@ -319,6 +355,32 @@ try:
                 r,
                 "respuesta perdida: tras recargar ya no está entre las pendientes",
                 pag.locator(f"#nota-{id5}").count() == 0,
+            )
+
+            # --- 5b) El PROXY contesta 504 pero el servidor SÍ guardó: se trata como «no se sabe», no como «no se guardó»
+            abrir_primera()
+            id5b = id_de_la_abierta()
+            llegaron_antes = envios["llegaron"]
+            modo["post"] = "perder_504"
+            pag.locator("details[open]").get_by_role("button", name="Aprobar", exact=True).click()
+            pag.wait_for_timeout(800)
+            pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").click()
+            pag.wait_for_selector("text=/ya no aparece como pendiente/")
+            modo["post"] = "normal"
+            pag.wait_for_timeout(800)
+            resueltas_esperadas += 1
+            comprobar(r, "504: NO dice «No se pudo guardar»", pag.locator("text=/No se pudo guardar/").count() == 0)
+            comprobar(
+                r,
+                "504: llegó UNA sola escritura (no se reintentó)",
+                envios["llegaron"] - llegaron_antes == 1,
+                envios["llegaron"] - llegaron_antes,
+            )
+            comprobar(
+                r,
+                "504: quedó resuelta una vez en la base",
+                bd("SELECT estado, decision_analista FROM revisiones WHERE id_evaluacion=?", id5b)[0]
+                == ("resuelta", "APROBADA"),
             )
 
             # --- 6) filtros y paginación

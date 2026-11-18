@@ -12,6 +12,9 @@ function montar(fetcher: typeof fetch, alExpirar = vi.fn()) {
 const posts = (s: ReturnType<typeof servidorDeRevisiones>) => s.llamadas.filter((l) => l.metodo === "POST");
 const lecturas = (s: ReturnType<typeof servidorDeRevisiones>) => s.llamadas.filter((l) => l.url.pathname === "/v1/revisiones" && l.metodo === "GET");
 
+/** La pantalla exige una pausa entre armar la confirmación y confirmar (un doble toque no confirma a ciegas). */
+const esperarConfirmar = () => new Promise<void>((r) => setTimeout(r, 800));
+
 beforeEach(() => window.history.replaceState(null, "", "/app?vista=revision"));
 afterEach(() => vi.useRealTimers());
 
@@ -90,6 +93,7 @@ describe("cola de revisión: resolver un pago", () => {
     const t = await abrirPrimera();
     await userEvent.type(within(t).getByLabelText("Nota (opcional)"), "  cliente conocido  ");
     await userEvent.click(within(t).getByRole("button", { name: "Rechazar" }));
+    await esperarConfirmar();
     await userEvent.click(within(t).getByRole("button", { name: "Confirmar: rechazar" }));
     expect(await screen.findByText("Pago TX1: rechazado.")).toBeTruthy();
     expect(posts(s)).toHaveLength(1);
@@ -104,6 +108,7 @@ describe("cola de revisión: resolver un pago", () => {
     montar(s.fetcher);
     const t = await abrirPrimera();
     await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    await esperarConfirmar();
     await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
     await screen.findByText("Pago TX1: aprobado.");
     expect(posts(s)[0]?.cuerpo).toEqual({ decision: "APROBADA", nota: null });
@@ -124,6 +129,7 @@ describe("cola de revisión: resolver un pago", () => {
     const t = await abrirPrimera();
     await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
     const confirmar = within(t).getByRole("button", { name: "Confirmar: aprobar" });
+    await esperarConfirmar();
     await userEvent.click(confirmar);
     await userEvent.click(confirmar);
     await userEvent.click(confirmar);
@@ -139,8 +145,9 @@ describe("cola de revisión: resolver un pago", () => {
     const t = await abrirPrimera();
     s.todas[0]!.estado = "resuelta"; // otra persona la resolvió mientras esta pantalla la mostraba
     await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    await esperarConfirmar();
     await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
-    expect(await screen.findByText(/ya la resolvió otra persona/)).toBeTruthy();
+    expect(await screen.findByText(/ya estaba resuelta/)).toBeTruthy();
     expect(posts(s)).toHaveLength(1);
     await screen.findByText("1 pendiente");
   });
@@ -151,6 +158,7 @@ describe("cola de revisión: resolver un pago", () => {
     montar(s.fetcher);
     const t = await abrirPrimera();
     await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    await esperarConfirmar();
     await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
     expect(await screen.findByText("No se pudo guardar: se cayó")).toBeTruthy();
     expect(within(t).getByRole("button", { name: "Aprobar" }).getAttribute("aria-disabled")).toBe("false");
@@ -167,6 +175,7 @@ describe("cola de revisión: resolver un pago", () => {
     const t = await abrirPrimera();
     const antes = lecturas(s).length;
     await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    await esperarConfirmar();
     await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
     expect(await screen.findByText(/No se pudo confirmar si se guardó/)).toBeTruthy();
     expect(screen.queryByText(/aprobado\./)).toBeNull();
@@ -179,6 +188,7 @@ describe("cola de revisión: resolver un pago", () => {
     const alExpirar = montar(s.fetcher);
     const t = await abrirPrimera();
     await userEvent.click(within(t).getByRole("button", { name: "Aprobar" }));
+    await esperarConfirmar();
     await userEvent.click(within(t).getByRole("button", { name: "Confirmar: aprobar" }));
     await waitFor(() => expect(alExpirar).toHaveBeenCalled());
   });
