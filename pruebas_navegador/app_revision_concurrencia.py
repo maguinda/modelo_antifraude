@@ -123,6 +123,7 @@ try:
     )
     procesos.append(p)
     assert esperar(API + "/v1/salud"), "el servidor de prueba no arrancó"
+    assert p.poll() is None, "el servidor propio ya terminó: el puerto lo contesta OTRO proceso, no se sigue"
     subprocess.run(
         [sys.executable, "-W", "ignore", "-m", "modelo_ia.api.cargar_ejemplos", "--url", API]
         + ["--carpeta", str(carpeta), "--n", "1000", "--dias", "10"],
@@ -202,8 +203,12 @@ finally:
     for pr in procesos:
         try:
             os.killpg(pr.pid, signal.SIGTERM)
-            pr.wait(timeout=15)
-        except (ProcessLookupError, subprocess.TimeoutExpired):
+            try:
+                pr.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                os.killpg(pr.pid, signal.SIGKILL)  # no quiso terminar: se fuerza
+                pr.wait(timeout=5)
+        except ProcessLookupError:
             pass
 if not fallos:
     shutil.rmtree(S, ignore_errors=True)  # si hubo fallos se conserva la carpeta (servidor.log) para investigar

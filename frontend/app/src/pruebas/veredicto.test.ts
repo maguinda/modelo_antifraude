@@ -12,9 +12,9 @@ describe("veredicto de los pagos sin confirmar", () => {
     expect(r.resto).toEqual({});
   });
 
-  it("un pago que sigue pendiente: dice que no se guardó", () => {
+  it("un pago que sigue pendiente: dice que no se ve guardada", () => {
     const r = veredictoSinConfirmar({ a: e("TX1") }, "K1", new Set(["a"]));
-    expect(r.aviso?.texto).toMatch(/TX1 sigue pendiente: la decisión no se guardó/);
+    expect(r.aviso?.texto).toMatch(/TX1 sigue pendiente: no se ve guardada la decisión todavía/);
     expect(r.aviso?.error).toBe(true);
     expect(r.resto).toEqual({});
   });

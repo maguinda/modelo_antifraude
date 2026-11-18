@@ -41,7 +41,7 @@ export function veredictoSinConfirmar(
     partes.push(
       `${ya.length} pagos (${lista(ya)}) ya no aparecen como pendientes en esta página: lo más probable es que se haya guardado una decisión en cada uno (la tuya o la de otra persona). Míralos en «Resueltas».`,
     );
-  if (siguen.length === 1) partes.push(`El pago ${siguen[0]} sigue pendiente: la decisión no se guardó. Puedes decidir de nuevo.`);
-  else if (siguen.length > 1) partes.push(`${siguen.length} pagos (${lista(siguen)}) siguen pendientes: no se guardó la decisión. Puedes decidir de nuevo.`);
+  if (siguen.length === 1) partes.push(`El pago ${siguen[0]} sigue pendiente: no se ve guardada la decisión todavía. Puedes decidir de nuevo; si ya se había guardado, el sistema te lo avisará.`);
+  else if (siguen.length > 1) partes.push(`${siguen.length} pagos (${lista(siguen)}) siguen pendientes: no se ve guardada su decisión todavía. Puedes decidir de nuevo; si ya se había guardado, el sistema te lo avisará.`);
   return { aviso: { texto: partes.join(" "), error: siguen.length > 0 }, resto };
 }
