@@ -1,0 +1,28 @@
+.pantalla > * + * {
+  margin-top: var(--e4);
+}
+.encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+}
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--e4);
+  min-height: 8rem; /* con pocas filas o cargando, la lista no se encoge de golpe */
+  transition: opacity 0.15s;
+}
+.refrescando {
+  opacity: 0.55;
+}
+.vacio,
+.cargando {
+  padding: var(--e5);
+  text-align: center;
+  color: var(--texto-suave);
+}

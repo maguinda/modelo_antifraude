@@ -2,7 +2,7 @@
 
 Primera pieza del frontend nuevo. **Convive con las pantallas actuales** (`panel/`, `dashboard/`, `tienda/`): no las reemplaza ni cambia sus direcciones. Se migra pantalla por pantalla, en PRs aparte.
 
-Hoy incluye una pantalla: **Transacciones**, con paginación. La entrega la API en **`/app`** (archivos en `/estaticos/app/`) **si está compilada** (`frontend/app/dist`); sin compilar, `/app` no existe y todo lo demás sigue igual. La imagen Docker la compila sola (etapa de Node; la imagen final no lleva Node). En desarrollo se ve con `npm run dev`.
+Hoy incluye dos pantallas: **Transacciones** (lectura, con paginación) y **Revisión manual** (`?vista=revision`, la única que ESCRIBE: aprobar o rechazar un pago). La entrega la API en **`/app`** (archivos en `/estaticos/app/`) **si está compilada** (`frontend/app/dist`); sin compilar, `/app` no existe y todo lo demás sigue igual. La imagen Docker la compila sola (etapa de Node; la imagen final no lleva Node). En desarrollo se ve con `npm run dev`.
 
 ## Comandos (Node 24)
 ```bash
@@ -27,3 +27,10 @@ python modelo_ia/pruebas_navegador/app_react.py --api  # lo mismo, servida por l
 - **Teclado y lectores de pantalla:** los botones de página usan `aria-disabled` (no `disabled`), así el foco no se pierde al paginar; la barra dice «Cargando…» en una zona `aria-live`. Cuando la página corregida por el total difiere de la pedida, se reemplaza la entrada del historial (no se empuja), para que «atrás» no quede atrapado.
 - **La barra coincide con las filas:** muestra la página de los datos que se ven, no la pedida; si falla un cambio de página, sigue diciendo la anterior.
 - **Tope:** el backend no acepta un desplazamiento mayor a 100.000 filas. Más allá se avisa que hay que afinar con filtros (fecha, comercio…).
+
+## Revisión manual (la pantalla que escribe)
+- Reglas de seguridad al decidir: el primer clic solo pide **confirmar** (no escribe); un doble clic manda **una** escritura; la escritura **nunca se reintenta sola** (repetirla podría duplicarla); si no hay respuesta, la pantalla **no dice «guardado»**: avisa que no se sabe, recarga la lista y deja decidir de nuevo solo si el pago sigue pendiente; si otra persona ya lo resolvió (409) lo dice y recarga.
+- La lista se vigila cada 20 s (solo cuenta; no redibuja, para no perder una nota a medio escribir) y se pausa con la pestaña oculta.
+- Los filtros viven en la dirección y se sanean (un valor raro se descarta). Las etiquetas del contador salen de los datos que se ven, no de los filtros recién elegidos.
+- **Diferencias con `/panel` (a propósito):** la clave NO se guarda en `sessionStorage` (al recargar hay que volver a entrar) y no hay entrada automática de la demo. Menos cómodo, menos superficie ante un XSS.
+- Prueba en vivo: `python modelo_ia/pruebas_navegador/app_revision.py` (ver `pruebas_navegador/README.md`).

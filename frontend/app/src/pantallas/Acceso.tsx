@@ -2,14 +2,16 @@ import { useState, type FormEvent } from "react";
 
 interface Props {
   mensaje?: string;
+  /** Se está comprobando la clave: el botón no se puede pulsar dos veces. */
+  ocupado?: boolean;
   alEntrar: (clave: string) => void;
 }
 
-export function Acceso({ mensaje, alEntrar }: Props) {
+export function Acceso({ mensaje, ocupado = false, alEntrar }: Props) {
   const [clave, setClave] = useState("");
   const enviar = (e: FormEvent) => {
     e.preventDefault();
-    if (clave.trim()) alEntrar(clave.trim());
+    if (clave.trim() && !ocupado) alEntrar(clave.trim());
   };
   return (
     <section className="tarjeta acceso" aria-labelledby="tituloAcceso">
@@ -20,8 +22,8 @@ export function Acceso({ mensaje, alEntrar }: Props) {
           <label htmlFor="clave">Clave de analista</label>
           <input id="clave" type="password" autoComplete="off" value={clave} onChange={(e) => setClave(e.target.value)} />
         </div>
-        <button type="submit" className="btn azul" disabled={!clave.trim()}>
-          Entrar
+        <button type="submit" className="btn azul" aria-disabled={!clave.trim() || ocupado}>
+          {ocupado ? "Comprobando…" : "Entrar"}
         </button>
       </form>
       {mensaje ? (
