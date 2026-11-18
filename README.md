@@ -4,9 +4,73 @@ Modelo de aprendizaje automático que, dado un pago, calcula la probabilidad de 
 decide **aprobar, revisar o bloquear**. Es la base técnica del producto antifraude para pymes de
 comercio electrónico.
 
-**Estado actual (versión 0.1.0, etapa 1):** línea base con regresión logística, entrenada con datos
-**sintéticos** (inventados). No es un producto listo para vender; es el punto de partida sobre el
-que se va mejorando, etapa por etapa.
+## Proyecto final de Inteligencia Artificial (leer esto primero)
+
+**Equipo:** Marlon Aguinda y Harrinson Adelmo Mahecha Arias. Fundación Universitaria Compensar,
+Ingeniería de Software. Docente: William Andrés Aguilar Rodríguez.
+
+**Qué es:** un modelo que mira un pago de comercio electrónico y decide si se **aprueba**, se
+**rechaza** o queda **en revisión** por una persona. Está dentro de una API (FastAPI) y la consumen
+tres pantallas web: una tienda de prueba (el comprador), un dashboard y un panel de analistas.
+
+**Problema:** las pymes pierden dinero por fraude en pagos y también por frenar compras legítimas
+(falsos positivos). El valor del modelo se mide en pesos: lo que cuesta el fraude que se escapa más
+lo que cuestan las falsas alarmas.
+
+**Datos (importante):** son **sintéticos**, creados por nosotros con generadores de semilla fija
+(`datos/generadores/`). No hay datos de personas reales. Todo lo medido aquí vale para probar el
+método, **no** para afirmar cuánto fraude detectaría en un comercio real. Eso falta (piloto con datos
+reales). División por **fecha**, no al azar: entrenamiento hasta junio, validación julio y agosto,
+prueba de septiembre en adelante. El umbral de decisión se elige en validación y se aplica en prueba.
+
+**Modelos:** se compararon cuatro (regresión logística, árbol de decisión, Random Forest y Gradient
+Boosting) con el dataset de 500 mil pagos: sin modelo, el fraude de la prueba cuesta 5.484 millones de
+COP y Gradient Boosting lo baja a 165 millones (tabla de «Resultados actuales»). El modelo **en uso**
+(`gradient_boosting_completo_v0.3.0`) es la versión completa, entrenada con el dataset de **1 millón**
+de pagos: calidad del ranking 0,922, recall 0,930, precisión 0,451 y costo de 244 millones de COP frente
+a 4.927 millones sin modelo, sobre datos sintéticos de prueba. Por eso las tablas muestran cifras
+distintas para Gradient Boosting: son datos y variables distintos, no un error. Incluso dentro del millón, el GB «completo» da 273,9 millones en la tabla de variables y 244 en el modelo en uso, porque este último agrega el historial por comercio y las etiquetas tardías. La regresión logística
+queda guardada como alternativa porque explica cada decisión. Cifras completas en [Resultados actuales](#resultados-actuales-prueba-septiembre-a-12-de-noviembre-datos-sintéticos)
+y [Modelos entrenados con toda la información](#modelos-entrenados-con-toda-la-información-dataset-de-1-millón).
+
+**Cómo ejecutarlo (5 pasos, Python 3.9 o 3.12, las versiones probadas):**
+
+```bash
+# 1. Clonar con este nombre de carpeta (el código se importa como «modelo_ia»)
+mkdir proyecto && cd proyecto
+git clone https://github.com/maguinda/modelo_antifraude.git modelo_ia
+
+# 2. Entorno e instalación
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r modelo_ia/requirements.txt
+
+# 3. Levantar la demo (los modelos entrenados ya vienen en el repositorio; no hace falta entrenar)
+python -m modelo_ia.api.demo
+
+# 4. Abrir en el navegador (la demo solo se ve desde tu computador)
+#    http://127.0.0.1:8000/tienda      tienda de prueba: el comprador paga y ve la decisión
+#    http://127.0.0.1:8000/docs        Swagger: probar la API con 12 pagos de ejemplo
+#    http://127.0.0.1:8000/dashboard   resumen, transacciones y vínculos
+#    http://127.0.0.1:8000/panel       analista: aprobar o rechazar pagos en revisión
+
+# 5. Pruebas del código (opcional)
+python -m pytest modelo_ia/tests
+```
+
+Las claves de la demo se guardan en `modelo_ia/api/demo/claves_demo.txt` (se crean al primer arranque;
+solo sirven en esa base de demostración). En `/docs` el comercio ya viene autorizado.
+
+**Arquitectura en una línea:** pantalla web → API REST (`POST /v1/evaluaciones`) → variables del
+pago e historial del cliente → modelo → decisión y puntaje → si queda en revisión, la ve un analista.
+Detalle en [Cómo está organizada la API](#cómo-está-organizada-la-api-api).
+
+**Qué NO está hecho (lo decimos de frente):** no hay sitio desplegado en la nube (solo local);
+los proveedores de IP, identidad y segundo factor son simulados; falta validar con datos reales de
+fraude y probar en celular real. Lista completa en [Lo que NO existe todavía](#lo-que-no-existe-todavía).
+
+**Estado del resto del documento:** de aquí en adelante es la documentación técnica completa del
+proyecto, escrita por etapas. Si un texto de una etapa vieja dice «versión 0.1.0» o «modelo actual:
+regresión logística», manda lo de arriba.
 
 **Contenido**
 
@@ -361,6 +425,8 @@ cliente nuevo y cambio de credenciales.
 
 ## Resultados actuales (prueba: septiembre a 12 de noviembre, datos sintéticos)
 
+*Esta tabla es de la etapa comparativa (dataset de 500 mil pagos). El modelo en uso hoy es el de la sección de 1 millón, más abajo.*
+
 Sin modelo, el fraude de la prueba cuesta unos **5.484 millones de COP**.
 
 | Modelo | Calidad del ranking | Costo (millones COP) | Falsas alarmas |
@@ -370,9 +436,9 @@ Sin modelo, el fraude de la prueba cuesta unos **5.484 millones de COP**.
 | Random Forest | 0,92 | 201 | 7.105 |
 | Gradient Boosting | 0,94 | 165 | 4.475 |
 
-El costo usa un supuesto de 15.000 COP por cada falsa alarma. Gradient Boosting es el más barato; la
-regresión logística es el modelo actual porque explica cada decisión y entrena en menos de un
-segundo.
+El costo usa un supuesto de 15.000 COP por cada falsa alarma. Gradient Boosting es el más barato. En
+esta etapa se eligió la regresión logística porque explica cada decisión y entrena en menos de un
+segundo; después el modelo en uso pasó a Gradient Boosting (ver la sección de 1 millón).
 
 ## Modelos entrenados con toda la información (dataset de 1 millón)
 
@@ -421,7 +487,7 @@ Modelos guardados (`modelos_guardados/`). **El modelo en uso es
 `gradient_boosting_completo_v0.3.0`**: entrenado con el historial **por comercio** (como lo calcula
 la API) y con etiquetas tardías, sobre el dataset de versión 2 con 30 % de movilidad. En la prueba:
 calidad (AP) 0,922, recall 0,930, precisión 0,451, 4.957 falsas alarmas y 244 millones de costo (sin
-modelo: 4.928). Junto a él queda `logistica_completo_v0.3.0`, que es explicable (AP 0,876, costo 389
+modelo: 4.927). Junto a él queda `logistica_completo_v0.3.0`, que es explicable (AP 0,876, costo 389
 millones). Las versiones 0.1.0 y 0.2.0 se conservan como historial. Gradient Boosting todavía **no
 da motivos** por variable; la logística sí. Las reglas activadas siempre se informan.
 
