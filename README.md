@@ -28,8 +28,8 @@ Boosting) con el dataset de 500 mil pagos: sin modelo, el fraude de la prueba cu
 COP y Gradient Boosting lo baja a 165 millones (tabla de «Resultados actuales»). El modelo **en uso**
 (`gradient_boosting_completo_v0.3.0`) es la versión completa, entrenada con el dataset de **1 millón**
 de pagos: calidad del ranking 0,922, recall 0,930, precisión 0,451 y costo de 244 millones de COP frente
-a 4.927 millones sin modelo, sobre datos sintéticos de prueba. Por eso las dos tablas muestran cifras
-distintas para Gradient Boosting: son datos y variables distintos, no un error. La regresión logística
+a 4.927 millones sin modelo, sobre datos sintéticos de prueba. Por eso las tablas muestran cifras
+distintas para Gradient Boosting: son datos y variables distintos, no un error. Incluso dentro del millón, el GB «completo» da 273,9 millones en la tabla de variables y 244 en el modelo en uso, porque este último agrega el historial por comercio y las etiquetas tardías. La regresión logística
 queda guardada como alternativa porque explica cada decisión. Cifras completas en [Resultados actuales](#resultados-actuales-prueba-septiembre-a-12-de-noviembre-datos-sintéticos)
 y [Modelos entrenados con toda la información](#modelos-entrenados-con-toda-la-información-dataset-de-1-millón).
 
@@ -436,9 +436,9 @@ Sin modelo, el fraude de la prueba cuesta unos **5.484 millones de COP**.
 | Random Forest | 0,92 | 201 | 7.105 |
 | Gradient Boosting | 0,94 | 165 | 4.475 |
 
-El costo usa un supuesto de 15.000 COP por cada falsa alarma. Gradient Boosting es el más barato; la
-regresión logística es el modelo actual porque explica cada decisión y entrena en menos de un
-segundo.
+El costo usa un supuesto de 15.000 COP por cada falsa alarma. Gradient Boosting es el más barato. En
+esta etapa se eligió la regresión logística porque explica cada decisión y entrena en menos de un
+segundo; después el modelo en uso pasó a Gradient Boosting (ver la sección de 1 millón).
 
 ## Modelos entrenados con toda la información (dataset de 1 millón)
 
@@ -487,7 +487,7 @@ Modelos guardados (`modelos_guardados/`). **El modelo en uso es
 `gradient_boosting_completo_v0.3.0`**: entrenado con el historial **por comercio** (como lo calcula
 la API) y con etiquetas tardías, sobre el dataset de versión 2 con 30 % de movilidad. En la prueba:
 calidad (AP) 0,922, recall 0,930, precisión 0,451, 4.957 falsas alarmas y 244 millones de costo (sin
-modelo: 4.928). Junto a él queda `logistica_completo_v0.3.0`, que es explicable (AP 0,876, costo 389
+modelo: 4.927). Junto a él queda `logistica_completo_v0.3.0`, que es explicable (AP 0,876, costo 389
 millones). Las versiones 0.1.0 y 0.2.0 se conservan como historial. Gradient Boosting todavía **no
 da motivos** por variable; la logística sí. Las reglas activadas siempre se informan.
 
