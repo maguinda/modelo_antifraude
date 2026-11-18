@@ -24,13 +24,16 @@ reales). División por **fecha**, no al azar: entrenamiento hasta junio, validac
 prueba de septiembre en adelante. El umbral de decisión se elige en validación y se aplica en prueba.
 
 **Modelos:** se compararon cuatro (regresión logística, árbol de decisión, Random Forest y Gradient
-Boosting). El modelo en uso es `gradient_boosting_completo_v0.3.0` (calidad del ranking
-0,922, recall 0,930, precisión 0,451, costo 244 millones de COP frente a 4.928 sin modelo, sobre
-datos sintéticos de prueba). La regresión logística queda guardada como alternativa porque explica
-cada decisión. Cifras completas en [Resultados actuales](#resultados-actuales-prueba-septiembre-a-12-de-noviembre-datos-sintéticos)
+Boosting) con el dataset de 500 mil pagos: sin modelo, el fraude de la prueba cuesta 5.484 millones de
+COP y Gradient Boosting lo baja a 165 millones (tabla de «Resultados actuales»). El modelo **en uso**
+(`gradient_boosting_completo_v0.3.0`) es la versión completa, entrenada con el dataset de **1 millón**
+de pagos: calidad del ranking 0,922, recall 0,930, precisión 0,451 y costo de 244 millones de COP frente
+a 4.927 millones sin modelo, sobre datos sintéticos de prueba. Por eso las dos tablas muestran cifras
+distintas para Gradient Boosting: son datos y variables distintos, no un error. La regresión logística
+queda guardada como alternativa porque explica cada decisión. Cifras completas en [Resultados actuales](#resultados-actuales-prueba-septiembre-a-12-de-noviembre-datos-sintéticos)
 y [Modelos entrenados con toda la información](#modelos-entrenados-con-toda-la-información-dataset-de-1-millón).
 
-**Cómo ejecutarlo (5 pasos, Python 3.9 o superior):**
+**Cómo ejecutarlo (5 pasos, Python 3.9 o 3.12, las versiones probadas):**
 
 ```bash
 # 1. Clonar con este nombre de carpeta (el código se importa como «modelo_ia»)
@@ -421,6 +424,8 @@ cliente nuevo y cambio de credenciales.
 4. **Cada modelo guardado dice con qué datos se entrenó** (huella del archivo) y que eran sintéticos.
 
 ## Resultados actuales (prueba: septiembre a 12 de noviembre, datos sintéticos)
+
+*Esta tabla es de la etapa comparativa (dataset de 500 mil pagos). El modelo en uso hoy es el de la sección de 1 millón, más abajo.*
 
 Sin modelo, el fraude de la prueba cuesta unos **5.484 millones de COP**.
 
