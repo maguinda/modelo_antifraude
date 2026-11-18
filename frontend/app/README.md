@@ -29,7 +29,10 @@ python modelo_ia/pruebas_navegador/app_react.py --api  # lo mismo, servida por l
 - **Tope:** el backend no acepta un desplazamiento mayor a 100.000 filas. Más allá se avisa que hay que afinar con filtros (fecha, comercio…).
 
 ## Revisión manual (la pantalla que escribe)
-- Reglas de seguridad al decidir: el primer clic solo pide **confirmar** (no escribe); un doble clic manda **una** escritura; la escritura **nunca se reintenta sola** (repetirla podría duplicarla); si no hay respuesta, la pantalla **no dice «guardado»**: avisa que no se sabe, recarga la lista y deja decidir de nuevo solo si el pago sigue pendiente; si otra persona ya lo resolvió (409) lo dice y recarga.
+- Reglas de seguridad al decidir: el primer clic solo pide **confirmar** (no escribe) y **no se puede confirmar en los primeros 0,6 s** (un doble toque en «Aprobar» o «Rechazar» no se salta el aviso); un doble clic manda **una** escritura; la escritura **nunca se reintenta sola** (repetirla podría duplicarla).
+- Si no se sabe si se guardó (sin respuesta, tiempo agotado o un corte 502/503/504 del proxy), la pantalla **no dice «guardado»**: avisa que no se sabe, recarga la lista y **mantiene bloqueada esa tarjeta** hasta que llegue la lectura nueva. Entonces dice cómo quedó: «ya no aparece como pendiente» (se guardó la decisión, tuya o de otra persona) o «sigue pendiente» (no se guardó; se puede decidir de nuevo). Si la recarga falla, la tarjeta sigue bloqueada hasta pulsar «Actualizar».
+- Si otra persona ya lo resolvió (409) lo dice («ya estaba resuelta: puede ser tu decisión anterior o la de un colega») y recarga.
+- Los avisos («Pago X: aprobado.», errores) se borran al aplicar filtros, cambiar de página o cambiar el tamaño de página; el aviso «Cambió la lista» se muestra aunque haya otro aviso.
 - La lista se vigila cada 20 s (solo cuenta; no redibuja, para no perder una nota a medio escribir) y se pausa con la pestaña oculta.
 - Los filtros viven en la dirección y se sanean (un valor raro se descarta). Las etiquetas del contador salen de los datos que se ven, no de los filtros recién elegidos.
 - **Diferencias con `/panel` (a propósito):** la clave NO se guarda en `sessionStorage` (al recargar hay que volver a entrar) y no hay entrada automática de la demo. Menos cómodo, menos superficie ante un XSS.
