@@ -134,3 +134,34 @@ def test_los_modelos_no_aceptan_campos_nuevos_en_silencio():
             and clase is not esquemas_panel.BaseModel
         ):
             assert clase.model_config.get("extra") != "allow", nombre
+
+
+def test_el_escenario_si_incluye_pagos_en_modo_degradado_sin_puntaje_ni_decision_del_modelo(ctx_con_datos):
+    """Sin esto, la igualdad de arriba podría pasar sin haber visto nunca un puntaje nulo (un campo `Optional` que alguien volviera obligatorio)."""
+    ctx = ctx_con_datos
+    filas = ctx.cliente.get(
+        "/v1/panel/transacciones", params={"modo": "degradado", "limite": 50}, headers=ctx.h("admin")
+    ).json()
+    assert filas["total"] >= 2
+    assert all(f["puntaje_riesgo"] is None and f["decision_modelo"] is None for f in filas["transacciones"])
+    _igual(ctx, "transacciones", "transacciones", "admin", modo="degradado")
+    d = _igual(ctx, "detalle", "transacciones/" + ctx.id_pendiente, "admin")  # degradado y pendiente de analista
+    assert d["puntaje_riesgo"] is None and d["decision"]["del_modelo"] is None and d["decision"]["final"] is None
+
+
+@pytest.mark.solo_sqlite
+def test_un_pago_con_monto_nulo_en_la_base_no_rompe_ni_el_listado_ni_el_detalle_ni_el_resumen(ctx_con_datos):
+    """El API exige monto, pero la columna acepta NULL (filas viejas o cargadas a mano): el panel debe seguir respondiendo 200, no 500."""
+    import sqlite3
+
+    ctx = ctx_con_datos
+    con = sqlite3.connect(ctx.bd)
+    con.execute("UPDATE evaluaciones SET monto_cop = NULL WHERE id = ?", (ctx.id_pendiente,))
+    con.commit()
+    con.close()
+    lista = _igual(ctx, "transacciones", "transacciones", "admin", limite=200)
+    assert any(f["monto_cop"] is None for f in lista["transacciones"])
+    d = _igual(ctx, "detalle", "transacciones/" + ctx.id_pendiente, "admin")
+    assert d["identificadores"]["id_evaluacion"] == ctx.id_pendiente
+    _igual(ctx, "resumen", "resumen", "admin")
+    _igual(ctx, "vinculos", "vinculos", "admin", minimo=2)
