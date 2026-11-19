@@ -32,10 +32,14 @@ interface Props {
  * Lleva el foco a los avisos SOLO si se perdería: está en el <body> o dentro de la tarjeta que se acaba de resolver (que va a desaparecer).
  * Si quien usa la pantalla ya está en otra tarjeta (por ejemplo escribiendo una nota), o en cualquier otro control, no se le quita.
  */
-function enfocarAvisosSiSePierde(region: HTMLElement | null, idRevision: string) {
+function enfocarAvisosSiSePierde(region: HTMLElement | null, idRevision: string): boolean {
   const activo = document.activeElement;
   const enLaTarjeta = activo?.closest("[data-revision]")?.getAttribute("data-revision") === idRevision;
-  if (!activo || activo === document.body || enLaTarjeta) region?.focus();
+  if (!activo || activo === document.body || enLaTarjeta) {
+    region?.focus();
+    return true;
+  }
+  return false; // se dejó donde estaba: la pantalla lo vuelve a mirar cuando llegue la lista nueva
 }
 
 const esAuth = (e: unknown) => e instanceof ErrorApi && (e.estado === 401 || e.estado === 403);
@@ -114,6 +118,18 @@ export function Revision({ cliente, alExpirar }: Props) {
   }, [recargar, limpiarAvisos]);
 
   const regionAvisos = useRef<HTMLDivElement>(null); // a ella va el foco al guardar: la tarjeta desaparece al recargar y el foco no debe caer al <body>
+  /** Se dejó el foco en otra tarjeta: si esa tarjeta también sale al recargar, el foco cae al <body> y hay que recogerlo cuando llegue la lista nueva. */
+  const vigilarFoco = useRef(false);
+  const llevarFocoAAvisos = useCallback((idRevision: string) => {
+    if (!enfocarAvisosSiSePierde(regionAvisos.current, idRevision)) vigilarFoco.current = true;
+  }, []);
+  useEffect(() => {
+    if (!vigilarFoco.current || !datos) return;
+    vigilarFoco.current = false;
+    const activo = document.activeElement;
+    if (!activo || activo === document.body) regionAvisos.current?.focus();
+    // solo cuando llega una lista nueva (por eso `datos` es la única dependencia)
+  }, [datos]);
   const consultaVista = useRef<string | null>(null); // la consulta de la lista que se VE ahora (se lee al pulsar, antes de esperar al servidor)
   consultaVista.current = datos?.clave ?? null;
 
@@ -126,7 +142,7 @@ export function Revision({ cliente, alExpirar }: Props) {
         await cliente.enviar(`/v1/revisiones/${encodeURIComponent(rev.id_evaluacion)}/resolver`, { decision, nota });
         setAviso({ texto: `Pago ${rev.id_transaccion}: ${decision === "APROBADA" ? "aprobado" : "rechazado"}.`, error: false });
         setCambioEnLaLista(null);
-        enfocarAvisosSiSePierde(regionAvisos.current, rev.id_evaluacion); // quien usa teclado o lector de pantalla sigue desde el aviso, no desde el principio de la página
+        llevarFocoAAvisos(rev.id_evaluacion); // quien usa teclado o lector de pantalla sigue desde el aviso, no desde el principio de la página
         recargar();
         return { tipo: "ok", decision };
       } catch (e) {
@@ -137,12 +153,12 @@ export function Revision({ cliente, alExpirar }: Props) {
         const r = resultadoDeError(e);
         if (r.tipo === "conflicto") {
           setAviso({ texto: "Esa revisión ya estaba resuelta: puede ser tu decisión anterior o la de un colega. Actualizando la lista.", error: true });
-          enfocarAvisosSiSePierde(regionAvisos.current, rev.id_evaluacion); // la tarjeta saldrá al recargar: el foco no debe caer al <body>
+          llevarFocoAAvisos(rev.id_evaluacion); // la tarjeta saldrá al recargar: el foco no debe caer al <body>
           recargar();
         } else if (r.tipo === "sin_confirmar") {
           setAviso({ texto: r.mensaje, error: true });
           setSinConfirmar((x) => ({ ...x, [rev.id_evaluacion]: { transaccion: rev.id_transaccion, clave: claveAlPulsar } }));
-          enfocarAvisosSiSePierde(regionAvisos.current, rev.id_evaluacion); // si al mirar cómo quedó la tarjeta ya no está, el foco no debe caer al <body> (la tarjeta está bloqueada: no hay nada que hacer en ella)
+          llevarFocoAAvisos(rev.id_evaluacion); // si al mirar cómo quedó la tarjeta ya no está, el foco no debe caer al <body> (la tarjeta está bloqueada: no hay nada que hacer en ella)
           recargar(); // se mira cómo quedó antes de dejar que alguien reintente (la tarjeta sigue bloqueada hasta entonces)
         } else if (r.tipo === "error") {
           setAviso({ texto: `No se pudo guardar: ${r.mensaje}`, error: true });
@@ -150,7 +166,7 @@ export function Revision({ cliente, alExpirar }: Props) {
         return r;
       }
     },
-    [cliente, recargar, alExpirar],
+    [cliente, recargar, alExpirar, llevarFocoAAvisos],
   );
 
   const aplicar = (f: FiltrosRevision) => {

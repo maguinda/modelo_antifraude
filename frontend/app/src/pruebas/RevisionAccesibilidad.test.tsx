@@ -1,5 +1,5 @@
 // Accesibilidad de la cola de revisión: foco tras guardar, regiones de estado que se anuncian y rol del medidor de riesgo.
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { crearCliente } from "../red/cliente";
@@ -156,8 +156,52 @@ describe("el foco NO se le quita a quien ya está en otra tarjeta", () => {
     montar(fetcher);
     const { notaB } = await confirmarEnAYEscribirEnB();
     soltar();
-    await screen.findByText(/No se pudo confirmar si se guardó|sigue pendiente/);
+    await screen.findByText(/TX1 sigue pendiente: no se ve guardada la decisión todavía/); // el veredicto final, no un texto intermedio
     expect(document.activeElement).toBe(notaB);
+  });
+
+  it("éxito: si la OTRA tarjeta (donde estabas) también sale de la lista al recargar, el foco no se queda en el <body>: va a los avisos", async () => {
+    const s = servidorDeRevisiones(2);
+    const { fetcher, soltar } = conEscrituraRetenida(s, "pasar");
+    montar(fetcher);
+    await confirmarEnAYEscribirEnB(() => {
+      s.todas[1]!.estado = "resuelta"; // otra persona resuelve la tarjeta B mientras tanto
+    });
+    soltar();
+    await screen.findByText("Pago TX1: aprobado.");
+    await screen.findByText("No hay pagos con esos filtros."); // las dos tarjetas salieron
+    expect(document.activeElement).toBe(screen.getByRole("status", { name: "Avisos de la cola" }));
+  });
+
+  it("409: lo mismo cuando la otra tarjeta también sale de la lista", async () => {
+    const s = servidorDeRevisiones(2);
+    const { fetcher, soltar } = conEscrituraRetenida(s, "pasar");
+    montar(fetcher);
+    await confirmarEnAYEscribirEnB(() => {
+      s.todas[0]!.estado = "resuelta"; // la A ya la resolvió otra persona (409)...
+      s.todas[1]!.estado = "resuelta"; // ...y la B también
+    });
+    soltar();
+    await screen.findByText(/ya estaba resuelta/);
+    await screen.findByText("No hay pagos con esos filtros.");
+    expect(document.activeElement).toBe(screen.getByRole("status", { name: "Avisos de la cola" }));
+  });
+
+  it("la segunda comprobación es de UNA sola vez: una recarga posterior no le quita el foco a nadie", async () => {
+    const s = servidorDeRevisiones(3);
+    const { fetcher, soltar } = conEscrituraRetenida(s, "pasar");
+    montar(fetcher);
+    const { notaB } = await confirmarEnAYEscribirEnB(); // el foco se deja en la nota de B: se anota «vigilar»
+    soltar();
+    await screen.findByText("Pago TX1: aprobado.");
+    await screen.findByText("2 pendientes");
+    expect(document.activeElement).toBe(notaB); // B sigue en la lista: no se toca el foco y se consume la anotación
+    notaB.blur(); // ahora no hay foco en ningún sitio...
+    const lecturasAntes = s.llamadas.filter((l) => l.url.pathname === "/v1/revisiones" && l.metodo === "GET").length;
+    fireEvent.click(screen.getByRole("button", { name: "Actualizar" })); // ...y llega otra lista (sin mover el foco al botón)
+    await waitFor(() => expect(s.llamadas.filter((l) => l.url.pathname === "/v1/revisiones" && l.metodo === "GET").length).toBeGreaterThan(lecturasAntes));
+    await waitFor(() => expect(document.querySelector('section[aria-busy="false"]')).not.toBeNull()); // la lista nueva ya está pintada
+    expect(document.activeElement).toBe(document.body); // nada lo robó: la anotación era de una sola vez
   });
 
   it("control: si el foco se quedó en el <body> (no está en ninguna tarjeta), SÍ va a los avisos", async () => {
