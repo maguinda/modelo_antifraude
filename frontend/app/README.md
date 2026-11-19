@@ -38,4 +38,5 @@ python modelo_ia/pruebas_navegador/app_react.py --api  # lo mismo, servida por l
 - La lista se vigila cada 20 s (solo cuenta; no redibuja, para no perder una nota a medio escribir) y se pausa con la pestaña oculta.
 - Los filtros viven en la dirección y se sanean (un valor raro se descarta). Las etiquetas del contador salen de los datos que se ven, no de los filtros recién elegidos.
 - **Sin entrada automática de la demo** (a propósito): menos cómodo, menos superficie ante un XSS. La clave tampoco se guarda en `sessionStorage` (ver la viñeta de diferencias de arriba).
+- **Tipos de la API:** `src/red/api.generado.ts` se genera del contrato (`python -m modelo_ia.api.exportar_tipos_ts`, desde la carpeta que contiene `modelo_ia/`); NO se edita a mano y una prueba de Python falla si está desactualizado. `src/red/tipos.ts` solo les da nombres cortos. Orden al cambiar la API: modelo de respuesta → `python -m modelo_ia.api.exportar_openapi` → `exportar_tipos_ts`.
 - Prueba en vivo: `python modelo_ia/pruebas_navegador/app_revision.py` (ver `pruebas_navegador/README.md`).
