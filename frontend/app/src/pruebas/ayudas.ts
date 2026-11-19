@@ -8,7 +8,9 @@ export function transaccion(n: number): Transaccion {
   return {
     id_evaluacion: `ev${n}`,
     id_seguimiento: `AF-${String(n).padStart(4, "0")}`,
+    comercio_id: 2,
     comercio: "Tienda",
+    id_transaccion: `TX${n}`,
     id_cliente: `CLI${n}`,
     fecha: "2026-11-01T10:00:00",
     monto_cop: 1000 * n,
@@ -52,7 +54,7 @@ export function revision(n: number, cambios: Partial<Revision> = {}): Revision {
     estado: "pendiente",
     resuelta_en: null,
     resuelta_por: null,
-    senales: null,
+    senales: { suben: [], bajan: [], puntaje_tipico: null }, // la API siempre manda el objeto (vacío si no hay señales), nunca null
     resumen_pago: { monto_cop: 1000 * n, id_cliente: `CLI${n}`, metodo_pago: "VISA" },
     ...cambios,
   };
@@ -89,7 +91,7 @@ export function servidorDeRevisiones(pendientes: number, extra: Partial<Revision
       const desde = Number(url.searchParams.get("desplazamiento") ?? 0);
       return respuesta(200, {
         total: delEstado.length,
-        monto_total_cop: delEstado.reduce((s, r) => s + Number(r.resumen_pago.monto_cop ?? 0), 0),
+        monto_total_cop: delEstado.reduce((s, r) => s + Number(r.resumen_pago?.monto_cop ?? 0), 0),
         revisiones: delEstado.slice(desde, desde + limite),
       });
     }
