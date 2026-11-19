@@ -73,7 +73,7 @@ export function TarjetaRevision({ rev, alResolver, bloqueada = false }: Props) {
   const otra = (d: DecisionAnalista): DecisionAnalista => (d === "APROBADA" ? "RECHAZADA" : "APROBADA");
 
   return (
-    <li>
+    <li data-revision={rev.id_evaluacion}>
       <details className={estilos.item}>
         <summary>
           <div className={estilos.filaCola}>
