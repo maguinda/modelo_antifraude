@@ -124,6 +124,9 @@ export function Revision({ cliente, alExpirar }: Props) {
     if (!enfocarAvisosSiSePierde(regionAvisos.current, idRevision)) vigilarFoco.current = true;
   }, []);
   useEffect(() => {
+    if (error) vigilarFoco.current = false; // la recarga falló: no llegará lista nueva que vigilar, y la anotación no debe quedar viva para una lectura posterior
+  }, [error]);
+  useEffect(() => {
     if (!vigilarFoco.current || !datos) return;
     vigilarFoco.current = false;
     const activo = document.activeElement;
