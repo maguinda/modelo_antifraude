@@ -106,7 +106,7 @@ try:
             "--carpeta",
             str(carpeta),
             "--n",
-            "400",
+            "700",  # margen: cada perfil resuelve ~8 pagos y no debe quedarse sin pendientes
             "--dias",
             "10",
         ],
@@ -429,6 +429,7 @@ try:
 
             # --- 5c) NO robar el foco: confirmo en la tarjeta A (la escritura queda retenida), paso a escribir en la B y suelto la respuesta
             abrir_primera()
+            pendientes_5c = contador()
             modo["post"] = "retener"
             pag.locator("details[open]").get_by_role("button", name="Aprobar", exact=True).click()
             pag.wait_for_timeout(800)
@@ -437,7 +438,8 @@ try:
                 if retenidas:
                     break
                 pag.wait_for_timeout(50)
-            comprobar(r, "retenida: la escritura quedó esperando", len(retenidas) == 1, len(retenidas))
+            if len(retenidas) != 1:  # sin escritura retenida el paso no tiene sentido: se corta con un mensaje claro
+                raise AssertionError(f"5c: la escritura no quedó retenida ({len(retenidas)} retenidas)")
             segunda = pag.locator("ul li details").nth(1)
             segunda.locator("summary").click()
             nota_b = segunda.locator("textarea")
@@ -447,13 +449,58 @@ try:
             envios["llegaron"] += 1
             retenidas.pop().continue_()
             pag.wait_for_selector("text=/Pago .*: aprobado\\./")
-            pag.wait_for_timeout(400)
+            pag.wait_for_function(  # la lista ya se recargó (una pendiente menos): el foco se mira DESPUÉS, sin dormir a ciegas
+                "(n) => Number((document.querySelector('.chip[role=status]').innerText.match(/[\\d.]+/)||[0])[0].replace('.','')) === n",
+                arg=pendientes_5c - 1,
+            )
             foco_id = pag.evaluate("() => (document.activeElement && document.activeElement.id) || null")
             comprobar(r, "no roba el foco: sigue en la nota de la otra tarjeta", foco_id == id_nota_b, foco_id)
             resueltas_esperadas += 1
             abierta = pag.locator("ul li details").first  # se deja la pantalla como estaba: tarjeta cerrada
             if abierta.evaluate("e => e.open"):
                 abierta.locator("summary").click()
+
+            # --- 5d) la OTRA tarjeta (donde estoy escribiendo) también sale al recargar: el foco no se queda en el <body>
+            abrir_primera()
+            pendientes_5d = contador()
+            modo["post"] = "retener"
+            pag.locator("details[open]").get_by_role("button", name="Aprobar", exact=True).click()
+            pag.wait_for_timeout(800)
+            pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").click()
+            for _ in range(60):
+                if retenidas:
+                    break
+                pag.wait_for_timeout(50)
+            if len(retenidas) != 1:
+                raise AssertionError(f"5d: la escritura no quedó retenida ({len(retenidas)} retenidas)")
+            segunda = pag.locator("ul li details").nth(1)
+            segunda.locator("summary").click()
+            nota_b = segunda.locator("textarea")
+            nota_b.click()
+            id_b = nota_b.get_attribute("id").replace("nota-", "")
+            otra = httpx.post(  # otra persona resuelve la tarjeta B mientras la respuesta de A está en camino
+                f"{API}/v1/revisiones/{id_b}/resolver",
+                json={"decision": "RECHAZADA", "nota": "otra persona"},
+                headers={"X-API-Key": k_ana},
+            )
+            comprobar(r, "5d: la otra persona sí pudo resolver la B", otra.status_code == 200, otra.status_code)
+            resueltas_esperadas += 1
+            modo["post"] = "normal"
+            envios["llegaron"] += 1
+            retenidas.pop().continue_()
+            pag.wait_for_selector("text=/Pago .*: aprobado\\./")
+            pag.wait_for_function(  # las dos tarjetas salieron (dos pendientes menos)
+                "(n) => Number((document.querySelector('.chip[role=status]').innerText.match(/[\\d.]+/)||[0])[0].replace('.','')) === n",
+                arg=pendientes_5d - 2,
+            )
+            resueltas_esperadas += 1
+            foco = pag.evaluate(FOCO)
+            comprobar(
+                r,
+                "5d: si la otra tarjeta también sale, el foco va a los avisos (no al <body>)",
+                foco == "Avisos de la cola",
+                foco,
+            )
 
             # --- 6) filtros y paginación
             pag.click("button:has-text('Filtros')") if pag.locator("button.alternar-filtros").is_visible() else None
