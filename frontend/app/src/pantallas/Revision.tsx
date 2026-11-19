@@ -28,6 +28,16 @@ interface Props {
   alExpirar: () => void;
 }
 
+/**
+ * Lleva el foco a los avisos SOLO si se perdería: está en el <body> o dentro de la tarjeta que se acaba de resolver (que va a desaparecer).
+ * Si quien usa la pantalla ya está en otra tarjeta (por ejemplo escribiendo una nota), o en cualquier otro control, no se le quita.
+ */
+function enfocarAvisosSiSePierde(region: HTMLElement | null, idRevision: string) {
+  const activo = document.activeElement;
+  const enLaTarjeta = activo?.closest("[data-revision]")?.getAttribute("data-revision") === idRevision;
+  if (!activo || activo === document.body || enLaTarjeta) region?.focus();
+}
+
 const esAuth = (e: unknown) => e instanceof ErrorApi && (e.estado === 401 || e.estado === 403);
 
 export function Revision({ cliente, alExpirar }: Props) {
@@ -116,7 +126,7 @@ export function Revision({ cliente, alExpirar }: Props) {
         await cliente.enviar(`/v1/revisiones/${encodeURIComponent(rev.id_evaluacion)}/resolver`, { decision, nota });
         setAviso({ texto: `Pago ${rev.id_transaccion}: ${decision === "APROBADA" ? "aprobado" : "rechazado"}.`, error: false });
         setCambioEnLaLista(null);
-        regionAvisos.current?.focus(); // quien usa teclado o lector de pantalla sigue desde el aviso, no desde el principio de la página
+        enfocarAvisosSiSePierde(regionAvisos.current, rev.id_evaluacion); // quien usa teclado o lector de pantalla sigue desde el aviso, no desde el principio de la página
         recargar();
         return { tipo: "ok", decision };
       } catch (e) {
@@ -127,12 +137,12 @@ export function Revision({ cliente, alExpirar }: Props) {
         const r = resultadoDeError(e);
         if (r.tipo === "conflicto") {
           setAviso({ texto: "Esa revisión ya estaba resuelta: puede ser tu decisión anterior o la de un colega. Actualizando la lista.", error: true });
-          regionAvisos.current?.focus(); // la tarjeta saldrá al recargar: el foco no debe caer al <body>
+          enfocarAvisosSiSePierde(regionAvisos.current, rev.id_evaluacion); // la tarjeta saldrá al recargar: el foco no debe caer al <body>
           recargar();
         } else if (r.tipo === "sin_confirmar") {
           setAviso({ texto: r.mensaje, error: true });
           setSinConfirmar((x) => ({ ...x, [rev.id_evaluacion]: { transaccion: rev.id_transaccion, clave: claveAlPulsar } }));
-          regionAvisos.current?.focus(); // si al mirar cómo quedó la tarjeta ya no está, el foco no debe caer al <body> (la tarjeta está bloqueada: no hay nada que hacer en ella)
+          enfocarAvisosSiSePierde(regionAvisos.current, rev.id_evaluacion); // si al mirar cómo quedó la tarjeta ya no está, el foco no debe caer al <body> (la tarjeta está bloqueada: no hay nada que hacer en ella)
           recargar(); // se mira cómo quedó antes de dejar que alguien reintente (la tarjeta sigue bloqueada hasta entonces)
         } else if (r.tipo === "error") {
           setAviso({ texto: `No se pudo guardar: ${r.mensaje}`, error: true });

@@ -142,6 +142,7 @@ try:
                 "post": "normal"
             }  # normal | cortar (no llega) | perder_respuesta (llega, pero el navegador no lo sabe)
             envios = {"llegaron": 0, "cortados": 0}
+            retenidas = []  # escrituras que se dejan esperando hasta soltarlas a mano
 
             def ruta(route, request):
                 if request.method != "GET":
@@ -151,6 +152,9 @@ try:
                     if modo["post"] == "cortar":
                         envios["cortados"] += 1
                         return route.abort()
+                    if modo["post"] == "retener":
+                        retenidas.append(route)  # se queda esperando: da tiempo a mover el foco
+                        return None
                     if modo["post"] == "perder_504":
                         route.fetch()  # el servidor SÍ lo guarda...
                         envios["llegaron"] += 1
@@ -422,6 +426,34 @@ try:
                 bd("SELECT estado, decision_analista FROM revisiones WHERE id_evaluacion=?", id5b)[0]
                 == ("resuelta", "APROBADA"),
             )
+
+            # --- 5c) NO robar el foco: confirmo en la tarjeta A (la escritura queda retenida), paso a escribir en la B y suelto la respuesta
+            abrir_primera()
+            modo["post"] = "retener"
+            pag.locator("details[open]").get_by_role("button", name="Aprobar", exact=True).click()
+            pag.wait_for_timeout(800)
+            pag.locator("details[open]").get_by_role("button", name="Confirmar: aprobar").click()
+            for _ in range(60):
+                if retenidas:
+                    break
+                pag.wait_for_timeout(50)
+            comprobar(r, "retenida: la escritura quedó esperando", len(retenidas) == 1, len(retenidas))
+            segunda = pag.locator("ul li details").nth(1)
+            segunda.locator("summary").click()
+            nota_b = segunda.locator("textarea")
+            nota_b.click()
+            id_nota_b = nota_b.get_attribute("id")
+            modo["post"] = "normal"
+            envios["llegaron"] += 1
+            retenidas.pop().continue_()
+            pag.wait_for_selector("text=/Pago .*: aprobado\\./")
+            pag.wait_for_timeout(400)
+            foco_id = pag.evaluate("() => (document.activeElement && document.activeElement.id) || null")
+            comprobar(r, "no roba el foco: sigue en la nota de la otra tarjeta", foco_id == id_nota_b, foco_id)
+            resueltas_esperadas += 1
+            abierta = pag.locator("ul li details").first  # se deja la pantalla como estaba: tarjeta cerrada
+            if abierta.evaluate("e => e.open"):
+                abierta.locator("summary").click()
 
             # --- 6) filtros y paginación
             pag.click("button:has-text('Filtros')") if pag.locator("button.alternar-filtros").is_visible() else None

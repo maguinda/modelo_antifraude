@@ -97,3 +97,79 @@ describe("regiones que se anuncian", () => {
     expect(within(t).getByRole("img", { name: "Riesgo 70 por ciento" })).toBeTruthy();
   });
 });
+
+describe("el foco NO se le quita a quien ya está en otra tarjeta", () => {
+  /** El servidor responde a la escritura solo cuando se suelta la compuerta: da tiempo a mover el foco. */
+  function conEscrituraRetenida(s: ReturnType<typeof servidorDeRevisiones>, alSoltar: "pasar" | "cortar") {
+    let soltar!: () => void;
+    const compuerta = new Promise<void>((r) => (soltar = r));
+    const fetcher = (async (e: RequestInfo | URL, i?: RequestInit) => {
+      if ((i?.method ?? "GET") === "POST") {
+        await compuerta;
+        if (alSoltar === "cortar") throw new TypeError("Failed to fetch");
+      }
+      return s.fetcher(e, i);
+    }) as typeof fetch;
+    return { fetcher, soltar };
+  }
+
+  /** Confirma en la tarjeta A (la escritura queda retenida) y pasa a escribir una nota en la B. */
+  async function confirmarEnAYEscribirEnB(antes: () => void = () => {}) {
+    const [a, b] = (await screen.findAllByRole("listitem")) as [HTMLElement, HTMLElement];
+    antes(); // p. ej. otra persona resuelve el pago mientras esta pantalla lo muestra
+    await userEvent.click(within(a).getByRole("button", { name: "Aprobar" }));
+    await esperar(800);
+    await userEvent.click(within(a).getByRole("button", { name: "Confirmar: aprobar" }));
+    const notaB = within(b).getByLabelText("Nota (opcional)") as HTMLTextAreaElement;
+    await userEvent.click(notaB);
+    expect(document.activeElement).toBe(notaB);
+    return { a, notaB };
+  }
+
+  it("éxito: si mientras tanto estás escribiendo en OTRA tarjeta, la respuesta no te roba el foco", async () => {
+    const s = servidorDeRevisiones(2);
+    const { fetcher, soltar } = conEscrituraRetenida(s, "pasar");
+    montar(fetcher);
+    const { notaB } = await confirmarEnAYEscribirEnB();
+    soltar();
+    await screen.findByText("Pago TX1: aprobado.");
+    await screen.findByText("1 pendiente");
+    expect(document.activeElement).toBe(notaB);
+  });
+
+  it("409: lo mismo, el foco se queda en la nota de la otra tarjeta", async () => {
+    const s = servidorDeRevisiones(2);
+    const { fetcher, soltar } = conEscrituraRetenida(s, "pasar");
+    montar(fetcher);
+    const { notaB } = await confirmarEnAYEscribirEnB(() => {
+      s.todas[0]!.estado = "resuelta"; // otra persona ya la resolvió
+    });
+    soltar();
+    await screen.findByText(/ya estaba resuelta/);
+    await screen.findByText("1 pendiente");
+    expect(document.activeElement).toBe(notaB);
+  });
+
+  it("«no se sabe si se guardó» (corte): lo mismo", async () => {
+    const s = servidorDeRevisiones(2);
+    const { fetcher, soltar } = conEscrituraRetenida(s, "cortar");
+    montar(fetcher);
+    const { notaB } = await confirmarEnAYEscribirEnB();
+    soltar();
+    await screen.findByText(/No se pudo confirmar si se guardó|sigue pendiente/);
+    expect(document.activeElement).toBe(notaB);
+  });
+
+  it("control: si el foco se quedó en el <body> (no está en ninguna tarjeta), SÍ va a los avisos", async () => {
+    const s = servidorDeRevisiones(2);
+    const { fetcher, soltar } = conEscrituraRetenida(s, "pasar");
+    montar(fetcher);
+    await confirmarEnAYEscribirEnB();
+    (document.activeElement as HTMLElement).blur(); // ya no hay foco en ningún sitio
+    expect(document.activeElement).toBe(document.body);
+    soltar();
+    await screen.findByText("Pago TX1: aprobado.");
+    await screen.findByText("1 pendiente");
+    expect(document.activeElement).toBe(screen.getByRole("status", { name: "Avisos de la cola" }));
+  });
+});
