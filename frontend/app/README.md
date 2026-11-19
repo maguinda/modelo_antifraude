@@ -2,7 +2,7 @@
 
 Primera pieza del frontend nuevo. **Convive con las pantallas actuales** (`panel/`, `dashboard/`, `tienda/`): no las reemplaza ni cambia sus direcciones. Se migra pantalla por pantalla, en PRs aparte.
 
-Hoy incluye dos pantallas: **Transacciones** (lectura, con paginación) y **Revisión manual** (`?vista=revision`, la única que ESCRIBE: aprobar o rechazar un pago). La entrega la API en **`/app`** (archivos en `/estaticos/app/`) **si está compilada** (`frontend/app/dist`); sin compilar, `/app` no existe y todo lo demás sigue igual. La imagen Docker la compila sola (etapa de Node; la imagen final no lleva Node). En desarrollo se ve con `npm run dev`.
+Hoy incluye tres pantallas: **Resumen** (`?vista=resumen`, solo lectura), **Transacciones** (lectura, con paginación) y **Revisión manual** (`?vista=revision`, la única que ESCRIBE: aprobar o rechazar un pago). La entrega la API en **`/app`** (archivos en `/estaticos/app/`) **si está compilada** (`frontend/app/dist`); sin compilar, `/app` no existe y todo lo demás sigue igual. La imagen Docker la compila sola (etapa de Node; la imagen final no lleva Node). En desarrollo se ve con `npm run dev`.
 
 ## Comandos (Node 24)
 ```bash
@@ -27,6 +27,12 @@ python modelo_ia/pruebas_navegador/app_react.py --api  # lo mismo, servida por l
 - **Teclado y lectores de pantalla:** los botones de página usan `aria-disabled` (no `disabled`), así el foco no se pierde al paginar; la barra dice «Cargando…» en una zona `aria-live`. Cuando la página corregida por el total difiere de la pedida, se reemplaza la entrada del historial (no se empuja), para que «atrás» no quede atrapado.
 - **La barra coincide con las filas:** muestra la página de los datos que se ven, no la pedida; si falla un cambio de página, sigue diciendo la anterior.
 - **Tope:** el backend no acepta un desplazamiento mayor a 100.000 filas. Más allá se avisa que hay que afinar con filtros (fecha, comercio…).
+
+## Resumen (solo lectura)
+- Indicadores, «Pagos por día», «Reglas más activadas», distribución del puntaje, calidad del servicio y las tablas de equipo y por comercio, con filtros de comercio y fechas **en la dirección** (se sanean: un valor raro se descarta; un rango al revés se avisa y no se pide). La lógica pura está en `src/resumen.ts`.
+- **Gráficas en SVG sin librerías**, cada una con su tabla de datos («Ver los datos en tabla») para quien no ve la gráfica. Respecto a la pantalla vieja: los encabezados van como el resto de la app nueva (sin la portada grande) y no se esconden tablas según el rol, porque entrar aquí ya exige clave de analista.
+- El nombre de cada comercio enlaza a `/dashboard#/transacciones?comercio_id=…` mientras Transacciones nueva no filtre por comercio.
+- Prueba en vivo: `python modelo_ia/pruebas_navegador/app_resumen.py` (compara con la pantalla vieja, con CSP en bloqueo).
 
 ## Revisión manual (la pantalla que escribe)
 - Reglas de seguridad al decidir: el primer clic solo pide **confirmar** (no escribe) y **no se puede confirmar en los primeros 0,6 s** (un doble toque en «Aprobar» o «Rechazar» no se salta el aviso; durante esa pausa «Confirmar» se anuncia como no disponible con `aria-disabled`, y una tecla Enter mantenida no repite el clic); un doble clic manda **una** escritura; la escritura **nunca se reintenta sola** (repetirla podría duplicarla).

@@ -3,10 +3,11 @@ import { useParametrosUrl } from "./hooks/useParametrosUrl";
 import { ErrorApi, crearCliente } from "./red/cliente";
 import type { Yo } from "./red/tipos";
 import { Acceso } from "./pantallas/Acceso";
+import { Resumen } from "./pantallas/Resumen";
 import { Revision } from "./pantallas/Revision";
 import { Transacciones } from "./pantallas/Transacciones";
 
-type Vista = "transacciones" | "revision";
+type Vista = "resumen" | "transacciones" | "revision";
 
 // Cada pantalla tiene sus propios parámetros en la dirección: al cambiar de pantalla se limpian todos (un «orden» de una no vale en la otra).
 const PARAMETROS_DE_PANTALLA = ["pagina", "limite", "orden", "estado", "q", "comercio_id", "monto_min", "desde", "hasta", "riesgo"];
@@ -23,7 +24,7 @@ export function App() {
   const [entrando, setEntrando] = useState(false);
   const [usuario, setUsuario] = useState<string | null>(null);
   const [params, cambiar] = useParametrosUrl();
-  const vista: Vista = params.get("vista") === "revision" ? "revision" : "transacciones";
+  const vista: Vista = params.get("vista") === "revision" ? "revision" : params.get("vista") === "resumen" ? "resumen" : "transacciones";
   const cliente = useMemo(() => (clave ? crearCliente(clave) : null), [clave]);
 
   const alExpirar = useCallback(() => {
@@ -84,9 +85,7 @@ export function App() {
           antifraude
         </a>
         <nav className="nav" aria-label="Secciones">
-          <a className="pildora-nav" href="/dashboard#/resumen">
-            Resumen
-          </a>
+          {enlace("resumen", "Resumen")}
           {enlace("transacciones", "Transacciones")}
           <a className="pildora-nav" href="/dashboard#/vinculos">
             Vínculos
@@ -113,6 +112,8 @@ export function App() {
         {cliente ? (
           vista === "revision" ? (
             <Revision cliente={cliente} alExpirar={alExpirar} />
+          ) : vista === "resumen" ? (
+            <Resumen cliente={cliente} alExpirar={alExpirar} />
           ) : (
             <Transacciones cliente={cliente} alExpirar={alExpirar} />
           )

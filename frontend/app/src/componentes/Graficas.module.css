@@ -1,0 +1,128 @@
+.grafica {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.grafica text {
+  font: 12px var(--sans);
+  fill: var(--texto-suave);
+}
+.eje {
+  stroke: var(--linea);
+  stroke-width: 1;
+}
+.aprobada {
+  fill: var(--verde);
+}
+.revision {
+  fill: var(--ambar-barra);
+}
+.rechazada {
+  fill: var(--rojo);
+}
+.azul {
+  fill: var(--azul);
+}
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e4);
+  margin: var(--e3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+.leyenda li::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 6px;
+  background: var(--azul);
+}
+.leyenda li.aprobada::before {
+  background: var(--verde);
+}
+.leyenda li.revision::before {
+  background: var(--ambar-barra);
+}
+.leyenda li.rechazada::before {
+  background: var(--rojo);
+}
+/* los datos de la gráfica en tabla: para lectores de pantalla y para quien quiere la cifra exacta */
+.datos {
+  margin-top: var(--e3);
+  font-size: 14px;
+}
+.datos summary {
+  cursor: pointer;
+  color: var(--azul);
+  min-height: var(--toque);
+  display: inline-flex;
+  align-items: center;
+}
+.datos .caja {
+  overflow-x: auto;
+}
+.datos table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.datos th,
+.datos td {
+  padding: var(--e2) var(--e3);
+  text-align: left;
+  border-bottom: 1px solid var(--linea);
+}
+.datos th {
+  color: var(--texto-suave);
+  font-weight: 600;
+}
+.datos .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.barras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--e3);
+}
+.barras li {
+  display: grid;
+  gap: var(--e1);
+}
+.fila {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--e3);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.fila strong {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.pista {
+  height: 10px;
+  background: var(--crema);
+  border-radius: var(--r-pildora);
+  overflow: hidden;
+}
+.relleno {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pildora);
+  background: var(--azul);
+}
+.soloLector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
