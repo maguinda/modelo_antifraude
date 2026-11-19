@@ -80,6 +80,24 @@
         "title": "Autenticacion2fa",
         "type": "string"
       },
+      "CampoRecibido": {
+        "properties": {
+          "enviado": {
+            "description": "false si el comercio no lo mandó y el sistema usó un valor de reemplazo.",
+            "title": "Enviado",
+            "type": "boolean"
+          },
+          "valor": {
+            "description": "El valor recibido (o calculado). Su tipo depende del campo.",
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "enviado"
+        ],
+        "title": "CampoRecibido",
+        "type": "object"
+      },
       "Canal": {
         "enum": [
           "WEB",
@@ -106,6 +124,40 @@
         ],
         "title": "Categoria",
         "type": "string"
+      },
+      "ComercioPanel": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "pagos": {
+            "title": "Pagos",
+            "type": "integer"
+          },
+          "suspendido": {
+            "title": "Suspendido",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "suspendido",
+          "pagos"
+        ],
+        "title": "ComercioPanel",
+        "type": "object"
       },
       "ComportamientoEntrada": {
         "additionalProperties": false,
@@ -166,6 +218,69 @@
         "title": "ComportamientoEntrada",
         "type": "object"
       },
+      "CubetaDeriva": {
+        "properties": {
+          "desde": {
+            "title": "Desde",
+            "type": "number"
+          },
+          "hasta": {
+            "title": "Hasta",
+            "type": "number"
+          },
+          "observada": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observada"
+          },
+          "referencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referencia"
+          }
+        },
+        "required": [
+          "desde",
+          "hasta"
+        ],
+        "title": "CubetaDeriva",
+        "type": "object"
+      },
+      "CubetaPuntaje": {
+        "properties": {
+          "desde": {
+            "title": "Desde",
+            "type": "number"
+          },
+          "hasta": {
+            "title": "Hasta",
+            "type": "number"
+          },
+          "pagos": {
+            "title": "Pagos",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "desde",
+          "hasta",
+          "pagos"
+        ],
+        "title": "CubetaPuntaje",
+        "type": "object"
+      },
       "Decision": {
         "enum": [
           "APROBADA",
@@ -182,6 +297,45 @@
         ],
         "title": "DecisionAnalista",
         "type": "string"
+      },
+      "DecisionDelPago": {
+        "properties": {
+          "decidio": {
+            "description": "Quién decidió: modelo, regla de seguridad, analista, pendiente de analista…",
+            "title": "Decidio",
+            "type": "string"
+          },
+          "del_modelo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "final": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vacía mientras la revisión sigue pendiente."
+          },
+          "inicial": {
+            "$ref": "#/components/schemas/Decision"
+          }
+        },
+        "required": [
+          "inicial",
+          "decidio"
+        ],
+        "title": "DecisionDelPago",
+        "type": "object"
       },
       "DispositivoEntrada": {
         "additionalProperties": false,
@@ -288,6 +442,36 @@
         "title": "DispositivoEntrada",
         "type": "object"
       },
+      "EntradaAuditoria": {
+        "properties": {
+          "accion": {
+            "title": "Accion",
+            "type": "string"
+          },
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "detalle": {
+            "additionalProperties": true,
+            "description": "Datos de la acción; su forma depende de `accion`.",
+            "title": "Detalle",
+            "type": "object"
+          },
+          "momento": {
+            "title": "Momento",
+            "type": "string"
+          }
+        },
+        "required": [
+          "momento",
+          "accion",
+          "detalle",
+          "actor"
+        ],
+        "title": "EntradaAuditoria",
+        "type": "object"
+      },
       "EntradaListaNegra": {
         "properties": {
           "creada_en": {
@@ -384,6 +568,35 @@
         ],
         "title": "EstadoDispositivo",
         "type": "string"
+      },
+      "FechasPago": {
+        "properties": {
+          "evaluada_en": {
+            "title": "Evaluada En",
+            "type": "string"
+          },
+          "fecha_pago": {
+            "title": "Fecha Pago",
+            "type": "string"
+          },
+          "latencia_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latencia Ms"
+          }
+        },
+        "required": [
+          "fecha_pago",
+          "evaluada_en"
+        ],
+        "title": "FechasPago",
+        "type": "object"
       },
       "FilaComercio": {
         "properties": {
@@ -608,6 +821,138 @@
         "title": "FilaRevision",
         "type": "object"
       },
+      "FiltroCliente": {
+        "properties": {
+          "comercio_id": {
+            "title": "Comercio Id",
+            "type": "integer"
+          },
+          "id_cliente": {
+            "title": "Id Cliente",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id_cliente",
+          "comercio_id"
+        ],
+        "title": "FiltroCliente",
+        "type": "object"
+      },
+      "FiltroDispositivo": {
+        "properties": {
+          "dispositivo": {
+            "title": "Dispositivo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dispositivo"
+        ],
+        "title": "FiltroDispositivo",
+        "type": "object"
+      },
+      "FiltroIp": {
+        "properties": {
+          "ip": {
+            "title": "Ip",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ip"
+        ],
+        "title": "FiltroIp",
+        "type": "object"
+      },
+      "GrupoRelacionadoDispositivo": {
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "filtro": {
+            "$ref": "#/components/schemas/FiltroDispositivo"
+          },
+          "otros_pagos": {
+            "title": "Otros Pagos",
+            "type": "integer"
+          },
+          "ultimos": {
+            "items": {
+              "$ref": "#/components/schemas/PagoRelacionado"
+            },
+            "title": "Ultimos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "codigo",
+          "otros_pagos",
+          "filtro",
+          "ultimos"
+        ],
+        "title": "GrupoRelacionadoDispositivo",
+        "type": "object"
+      },
+      "GrupoRelacionadoIp": {
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "filtro": {
+            "$ref": "#/components/schemas/FiltroIp"
+          },
+          "otros_pagos": {
+            "title": "Otros Pagos",
+            "type": "integer"
+          },
+          "ultimos": {
+            "items": {
+              "$ref": "#/components/schemas/PagoRelacionado"
+            },
+            "title": "Ultimos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "codigo",
+          "otros_pagos",
+          "filtro",
+          "ultimos"
+        ],
+        "title": "GrupoRelacionadoIp",
+        "type": "object"
+      },
+      "HayMasVinculos": {
+        "properties": {
+          "cliente_con_varias_ips": {
+            "title": "Cliente Con Varias Ips",
+            "type": "boolean"
+          },
+          "misma_ip_varios_clientes": {
+            "title": "Misma Ip Varios Clientes",
+            "type": "boolean"
+          },
+          "mismo_dispositivo_varios_clientes": {
+            "title": "Mismo Dispositivo Varios Clientes",
+            "type": "boolean"
+          },
+          "rafagas_por_ip": {
+            "title": "Rafagas Por Ip",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "misma_ip_varios_clientes",
+          "mismo_dispositivo_varios_clientes",
+          "cliente_con_varias_ips",
+          "rafagas_por_ip"
+        ],
+        "title": "HayMasVinculos",
+        "type": "object"
+      },
       "IdentidadEntrada": {
         "additionalProperties": false,
         "properties": {
@@ -670,6 +1015,56 @@
           }
         },
         "title": "IdentidadEntrada",
+        "type": "object"
+      },
+      "IdentificadoresPago": {
+        "properties": {
+          "comercio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comercio"
+          },
+          "comercio_id": {
+            "title": "Comercio Id",
+            "type": "integer"
+          },
+          "id_cliente": {
+            "title": "Id Cliente",
+            "type": "string"
+          },
+          "id_evaluacion": {
+            "title": "Id Evaluacion",
+            "type": "string"
+          },
+          "id_seguimiento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Seguimiento"
+          },
+          "id_transaccion": {
+            "title": "Id Transaccion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id_evaluacion",
+          "id_transaccion",
+          "comercio_id",
+          "id_cliente"
+        ],
+        "title": "IdentificadoresPago",
         "type": "object"
       },
       "InfoModelo": {
@@ -791,6 +1186,200 @@
         "title": "MetodoPago",
         "type": "string"
       },
+      "ModeloDelPago": {
+        "properties": {
+          "conjunto_variables": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjunto Variables"
+          },
+          "estado_origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado Origen"
+          },
+          "modo": {
+            "title": "Modo",
+            "type": "string"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "red_origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Red Origen"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "modo"
+        ],
+        "title": "ModeloDelPago",
+        "type": "object"
+      },
+      "ModeloDeriva": {
+        "properties": {
+          "conjunto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjunto"
+          },
+          "huella_verificada": {
+            "title": "Huella Verificada",
+            "type": "boolean"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "huella_verificada"
+        ],
+        "title": "ModeloDeriva",
+        "type": "object"
+      },
+      "ModeloRegistrado": {
+        "properties": {
+          "archivado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archivado"
+          },
+          "conjunto": {
+            "title": "Conjunto",
+            "type": "string"
+          },
+          "en_ejecucion": {
+            "title": "En Ejecucion",
+            "type": "boolean"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "huella": {
+            "title": "Huella",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "promovido": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promovido"
+          },
+          "registrado": {
+            "title": "Registrado",
+            "type": "string"
+          },
+          "rol": {
+            "title": "Rol",
+            "type": "string"
+          },
+          "tiene_referencia": {
+            "title": "Tiene Referencia",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "rol",
+          "estado",
+          "nombre",
+          "version",
+          "conjunto",
+          "huella",
+          "registrado",
+          "tiene_referencia",
+          "en_ejecucion"
+        ],
+        "title": "ModeloRegistrado",
+        "type": "object"
+      },
       "NivelKyc": {
         "enum": [
           "COMPLETO",
@@ -799,6 +1388,100 @@
         ],
         "title": "NivelKyc",
         "type": "string"
+      },
+      "PaginaTransaccionesPanel": {
+        "properties": {
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "transacciones": {
+            "items": {
+              "$ref": "#/components/schemas/TransaccionPanel"
+            },
+            "title": "Transacciones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "total",
+          "transacciones"
+        ],
+        "title": "PaginaTransaccionesPanel",
+        "type": "object"
+      },
+      "PaginacionVinculos": {
+        "properties": {
+          "desplazamiento": {
+            "title": "Desplazamiento",
+            "type": "integer"
+          },
+          "hay_mas": {
+            "$ref": "#/components/schemas/HayMasVinculos"
+          },
+          "limite": {
+            "title": "Limite",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limite",
+          "desplazamiento",
+          "hay_mas"
+        ],
+        "title": "PaginacionVinculos",
+        "type": "object"
+      },
+      "PagoRelacionado": {
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/Decision"
+          },
+          "fecha": {
+            "title": "Fecha",
+            "type": "string"
+          },
+          "id_cliente": {
+            "title": "Id Cliente",
+            "type": "string"
+          },
+          "id_seguimiento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Seguimiento"
+          }
+        },
+        "required": [
+          "id_cliente",
+          "decision",
+          "fecha"
+        ],
+        "title": "PagoRelacionado",
+        "type": "object"
+      },
+      "PasoDecision": {
+        "properties": {
+          "detalle": {
+            "title": "Detalle",
+            "type": "string"
+          },
+          "paso": {
+            "title": "Paso",
+            "type": "string"
+          }
+        },
+        "required": [
+          "paso",
+          "detalle"
+        ],
+        "title": "PasoDecision",
+        "type": "object"
       },
       "Problema": {
         "description": "Formato de error (RFC 7807).",
@@ -867,6 +1550,33 @@
           "detail"
         ],
         "title": "Problema",
+        "type": "object"
+      },
+      "RafagaPorIp": {
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "filtro": {
+            "$ref": "#/components/schemas/FiltroIp"
+          },
+          "pagos_en_ventana": {
+            "title": "Pagos En Ventana",
+            "type": "integer"
+          },
+          "pagos_totales": {
+            "title": "Pagos Totales",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "codigo",
+          "pagos_en_ventana",
+          "pagos_totales",
+          "filtro"
+        ],
+        "title": "RafagaPorIp",
         "type": "object"
       },
       "RedEntrada": {
@@ -971,6 +1681,30 @@
         "title": "RedEntrada",
         "type": "object"
       },
+      "ReferenciaDeriva": {
+        "properties": {
+          "disponible": {
+            "title": "Disponible",
+            "type": "boolean"
+          },
+          "pagos": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pagos"
+          }
+        },
+        "required": [
+          "disponible"
+        ],
+        "title": "ReferenciaDeriva",
+        "type": "object"
+      },
       "ReglaActivada": {
         "properties": {
           "accion": {
@@ -992,6 +1726,83 @@
           "motivo"
         ],
         "title": "ReglaActivada",
+        "type": "object"
+      },
+      "ReglaMasActivada": {
+        "properties": {
+          "rechazadas": {
+            "title": "Rechazadas",
+            "type": "integer"
+          },
+          "regla": {
+            "title": "Regla",
+            "type": "string"
+          },
+          "veces": {
+            "title": "Veces",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "regla",
+          "veces",
+          "rechazadas"
+        ],
+        "title": "ReglaMasActivada",
+        "type": "object"
+      },
+      "RelacionadoCliente": {
+        "properties": {
+          "filtro": {
+            "$ref": "#/components/schemas/FiltroCliente"
+          },
+          "id_cliente": {
+            "title": "Id Cliente",
+            "type": "string"
+          },
+          "otros_pagos": {
+            "title": "Otros Pagos",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id_cliente",
+          "otros_pagos",
+          "filtro"
+        ],
+        "title": "RelacionadoCliente",
+        "type": "object"
+      },
+      "RelacionadosPago": {
+        "properties": {
+          "misma_ip": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GrupoRelacionadoIp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mismo_cliente": {
+            "$ref": "#/components/schemas/RelacionadoCliente"
+          },
+          "mismo_dispositivo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GrupoRelacionadoDispositivo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mismo_cliente"
+        ],
+        "title": "RelacionadosPago",
         "type": "object"
       },
       "RespuestaAcuerdo": {
@@ -1033,6 +1844,193 @@
           "clave_api"
         ],
         "title": "RespuestaComercio",
+        "type": "object"
+      },
+      "RespuestaDeriva": {
+        "properties": {
+          "cubetas": {
+            "items": {
+              "$ref": "#/components/schemas/CubetaDeriva"
+            },
+            "title": "Cubetas",
+            "type": "array"
+          },
+          "estado": {
+            "description": "muestra_insuficiente, sin_referencia, sin_pagos, estable, atencion o alerta.",
+            "title": "Estado",
+            "type": "string"
+          },
+          "modelo": {
+            "$ref": "#/components/schemas/ModeloDeriva"
+          },
+          "nota": {
+            "title": "Nota",
+            "type": "string"
+          },
+          "psi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Psi"
+          },
+          "referencia": {
+            "$ref": "#/components/schemas/ReferenciaDeriva"
+          },
+          "umbrales": {
+            "$ref": "#/components/schemas/UmbralesDeriva"
+          },
+          "ventana": {
+            "$ref": "#/components/schemas/VentanaDeriva"
+          }
+        },
+        "required": [
+          "modelo",
+          "referencia",
+          "ventana",
+          "estado",
+          "umbrales",
+          "cubetas",
+          "nota"
+        ],
+        "title": "RespuestaDeriva",
+        "type": "object"
+      },
+      "RespuestaDetallePanel": {
+        "properties": {
+          "auditoria": {
+            "items": {
+              "$ref": "#/components/schemas/EntradaAuditoria"
+            },
+            "title": "Auditoria",
+            "type": "array"
+          },
+          "campos_no_enviados": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Campos No Enviados",
+            "type": "array"
+          },
+          "como_se_decidio": {
+            "items": {
+              "$ref": "#/components/schemas/PasoDecision"
+            },
+            "title": "Como Se Decidio",
+            "type": "array"
+          },
+          "datos_recibidos": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/CampoRecibido"
+              },
+              "type": "object"
+            },
+            "description": "Por grupo (pago, dispositivo, red, identidad, comportamiento, calculado_por_la_api) y por campo.",
+            "title": "Datos Recibidos",
+            "type": "object"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/DecisionDelPago"
+          },
+          "fechas": {
+            "$ref": "#/components/schemas/FechasPago"
+          },
+          "identificadores": {
+            "$ref": "#/components/schemas/IdentificadoresPago"
+          },
+          "modelo": {
+            "$ref": "#/components/schemas/ModeloDelPago"
+          },
+          "motivos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Motivos",
+            "type": "array"
+          },
+          "puntaje_riesgo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Puntaje Riesgo"
+          },
+          "reglas_activadas": {
+            "items": {
+              "$ref": "#/components/schemas/ReglaActivada"
+            },
+            "title": "Reglas Activadas",
+            "type": "array"
+          },
+          "relacionados": {
+            "$ref": "#/components/schemas/RelacionadosPago"
+          },
+          "resultado_informado": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultadoInformado"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevisionDelPago"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "senales": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Senales"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo para el personal."
+          },
+          "umbrales": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UmbralesPago"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vacío si hoy corre otro modelo distinto al que decidió este pago."
+          }
+        },
+        "required": [
+          "identificadores",
+          "fechas",
+          "decision",
+          "motivos",
+          "reglas_activadas",
+          "como_se_decidio",
+          "modelo",
+          "datos_recibidos",
+          "campos_no_enviados",
+          "auditoria",
+          "relacionados"
+        ],
+        "title": "RespuestaDetallePanel",
         "type": "object"
       },
       "RespuestaEstadoComercio": {
@@ -1189,6 +2187,58 @@
         "title": "RespuestaEvaluacion",
         "type": "object"
       },
+      "RespuestaResumenPanel": {
+        "properties": {
+          "distribucion_del_puntaje": {
+            "items": {
+              "$ref": "#/components/schemas/CubetaPuntaje"
+            },
+            "title": "Distribucion Del Puntaje",
+            "type": "array"
+          },
+          "por_analista": {
+            "items": {
+              "$ref": "#/components/schemas/ResumenAnalista"
+            },
+            "title": "Por Analista",
+            "type": "array"
+          },
+          "por_comercio": {
+            "items": {
+              "$ref": "#/components/schemas/ResumenComercio"
+            },
+            "title": "Por Comercio",
+            "type": "array"
+          },
+          "por_dia": {
+            "items": {
+              "$ref": "#/components/schemas/ResumenDia"
+            },
+            "title": "Por Dia",
+            "type": "array"
+          },
+          "reglas_mas_activadas": {
+            "items": {
+              "$ref": "#/components/schemas/ReglaMasActivada"
+            },
+            "title": "Reglas Mas Activadas",
+            "type": "array"
+          },
+          "totales": {
+            "$ref": "#/components/schemas/TotalesResumen"
+          }
+        },
+        "required": [
+          "totales",
+          "por_dia",
+          "por_comercio",
+          "reglas_mas_activadas",
+          "por_analista",
+          "distribucion_del_puntaje"
+        ],
+        "title": "RespuestaResumenPanel",
+        "type": "object"
+      },
       "RespuestaSalud": {
         "properties": {
           "advertencias": {
@@ -1226,6 +2276,60 @@
         "title": "RespuestaSalud",
         "type": "object"
       },
+      "RespuestaVinculosPanel": {
+        "properties": {
+          "cliente_con_varias_ips": {
+            "items": {
+              "$ref": "#/components/schemas/VinculoClienteVariasIps"
+            },
+            "title": "Cliente Con Varias Ips",
+            "type": "array"
+          },
+          "minimo": {
+            "title": "Minimo",
+            "type": "integer"
+          },
+          "misma_ip_varios_clientes": {
+            "items": {
+              "$ref": "#/components/schemas/VinculoMismaIp"
+            },
+            "title": "Misma Ip Varios Clientes",
+            "type": "array"
+          },
+          "mismo_dispositivo_varios_clientes": {
+            "items": {
+              "$ref": "#/components/schemas/VinculoMismoDispositivo"
+            },
+            "title": "Mismo Dispositivo Varios Clientes",
+            "type": "array"
+          },
+          "paginacion": {
+            "$ref": "#/components/schemas/PaginacionVinculos"
+          },
+          "rafagas_por_ip": {
+            "items": {
+              "$ref": "#/components/schemas/RafagaPorIp"
+            },
+            "title": "Rafagas Por Ip",
+            "type": "array"
+          },
+          "ventana_rafaga_minutos": {
+            "title": "Ventana Rafaga Minutos",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minimo",
+          "misma_ip_varios_clientes",
+          "mismo_dispositivo_varios_clientes",
+          "cliente_con_varias_ips",
+          "rafagas_por_ip",
+          "ventana_rafaga_minutos",
+          "paginacion"
+        ],
+        "title": "RespuestaVinculosPanel",
+        "type": "object"
+      },
       "RespuestaYo": {
         "properties": {
           "comercio": {
@@ -1258,6 +2362,41 @@
         "title": "RespuestaYo",
         "type": "object"
       },
+      "ResultadoInformado": {
+        "properties": {
+          "fecha_confirmacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Confirmacion"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "resultado": {
+            "title": "Resultado",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resultado"
+        ],
+        "title": "ResultadoInformado",
+        "type": "object"
+      },
       "ResultadoPago": {
         "enum": [
           "FRAUDE_CONFIRMADO",
@@ -1266,6 +2405,190 @@
         ],
         "title": "ResultadoPago",
         "type": "string"
+      },
+      "ResumenAnalista": {
+        "properties": {
+          "analista": {
+            "title": "Analista",
+            "type": "string"
+          },
+          "aprobadas": {
+            "title": "Aprobadas",
+            "type": "integer"
+          },
+          "minutos_promedio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutos Promedio"
+          },
+          "rechazadas": {
+            "title": "Rechazadas",
+            "type": "integer"
+          },
+          "resueltas": {
+            "title": "Resueltas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "analista",
+          "resueltas",
+          "aprobadas",
+          "rechazadas"
+        ],
+        "title": "ResumenAnalista",
+        "type": "object"
+      },
+      "ResumenComercio": {
+        "properties": {
+          "aprobadas": {
+            "title": "Aprobadas",
+            "type": "integer"
+          },
+          "comercio_id": {
+            "title": "Comercio Id",
+            "type": "integer"
+          },
+          "en_revision": {
+            "title": "En Revision",
+            "type": "integer"
+          },
+          "monto_rechazado": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monto Rechazado"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "pagos": {
+            "title": "Pagos",
+            "type": "integer"
+          },
+          "rechazadas": {
+            "title": "Rechazadas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "comercio_id",
+          "pagos",
+          "aprobadas",
+          "en_revision",
+          "rechazadas"
+        ],
+        "title": "ResumenComercio",
+        "type": "object"
+      },
+      "ResumenDia": {
+        "properties": {
+          "aprobadas": {
+            "title": "Aprobadas",
+            "type": "integer"
+          },
+          "dia": {
+            "title": "Dia",
+            "type": "string"
+          },
+          "en_revision": {
+            "title": "En Revision",
+            "type": "integer"
+          },
+          "rechazadas": {
+            "title": "Rechazadas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dia",
+          "aprobadas",
+          "en_revision",
+          "rechazadas"
+        ],
+        "title": "ResumenDia",
+        "type": "object"
+      },
+      "RevisionDelPago": {
+        "properties": {
+          "creada": {
+            "title": "Creada",
+            "type": "string"
+          },
+          "decision_analista": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecisionAnalista"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "resuelta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resuelta"
+          },
+          "resuelta_por": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo para el personal; un comercio no recibe este campo.",
+            "title": "Resuelta Por"
+          }
+        },
+        "required": [
+          "estado",
+          "creada"
+        ],
+        "title": "RevisionDelPago",
+        "type": "object"
       },
       "Senal": {
         "properties": {
@@ -1643,6 +2966,502 @@
         ],
         "title": "TipoIp",
         "type": "string"
+      },
+      "TotalesResumen": {
+        "properties": {
+          "aprobadas": {
+            "title": "Aprobadas",
+            "type": "integer"
+          },
+          "en_revision": {
+            "title": "En Revision",
+            "type": "integer"
+          },
+          "latencia_media_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latencia Media Ms"
+          },
+          "latencia_p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latencia P95 Ms"
+          },
+          "modo_degradado": {
+            "title": "Modo Degradado",
+            "type": "integer"
+          },
+          "monto_cop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monto Cop"
+          },
+          "monto_en_revision_cop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monto En Revision Cop"
+          },
+          "monto_rechazado_cop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monto Rechazado Cop"
+          },
+          "pagos": {
+            "title": "Pagos",
+            "type": "integer"
+          },
+          "rechazadas": {
+            "title": "Rechazadas",
+            "type": "integer"
+          },
+          "revisiones_pendientes": {
+            "title": "Revisiones Pendientes",
+            "type": "integer"
+          },
+          "sin_estado_del_dispositivo": {
+            "title": "Sin Estado Del Dispositivo",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pagos",
+          "aprobadas",
+          "en_revision",
+          "rechazadas",
+          "modo_degradado",
+          "sin_estado_del_dispositivo",
+          "revisiones_pendientes"
+        ],
+        "title": "TotalesResumen",
+        "type": "object"
+      },
+      "TransaccionPanel": {
+        "properties": {
+          "comercio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comercio"
+          },
+          "comercio_id": {
+            "title": "Comercio Id",
+            "type": "integer"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/Decision"
+          },
+          "decision_final": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La decisión que quedó: la del analista si hubo revisión; vacía mientras está pendiente."
+          },
+          "decision_modelo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que decidió el modelo antes de las reglas de seguridad."
+          },
+          "dispositivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Código corto de la huella del dispositivo.",
+            "title": "Dispositivo"
+          },
+          "estado_origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado Origen"
+          },
+          "fecha": {
+            "title": "Fecha",
+            "type": "string"
+          },
+          "id_cliente": {
+            "title": "Id Cliente",
+            "type": "string"
+          },
+          "id_evaluacion": {
+            "title": "Id Evaluacion",
+            "type": "string"
+          },
+          "id_seguimiento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Seguimiento"
+          },
+          "id_transaccion": {
+            "title": "Id Transaccion",
+            "type": "string"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Código corto de la IP (nunca la IP).",
+            "title": "Ip"
+          },
+          "modo": {
+            "title": "Modo",
+            "type": "string"
+          },
+          "monto_cop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monto Cop"
+          },
+          "puntaje_riesgo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Puntaje Riesgo"
+          },
+          "red_origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Red Origen"
+          },
+          "reglas": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Reglas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id_evaluacion",
+          "comercio_id",
+          "id_transaccion",
+          "id_cliente",
+          "fecha",
+          "decision",
+          "modo"
+        ],
+        "title": "TransaccionPanel",
+        "type": "object"
+      },
+      "UmbralesDeriva": {
+        "properties": {
+          "alerta": {
+            "title": "Alerta",
+            "type": "number"
+          },
+          "atencion": {
+            "title": "Atencion",
+            "type": "number"
+          }
+        },
+        "required": [
+          "atencion",
+          "alerta"
+        ],
+        "title": "UmbralesDeriva",
+        "type": "object"
+      },
+      "UmbralesPago": {
+        "properties": {
+          "bloquear": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bloquear"
+          },
+          "revisar": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisar"
+          }
+        },
+        "title": "UmbralesPago",
+        "type": "object"
+      },
+      "VentanaDeriva": {
+        "properties": {
+          "desde": {
+            "title": "Desde",
+            "type": "string"
+          },
+          "dias": {
+            "title": "Dias",
+            "type": "integer"
+          },
+          "minimo_requerido": {
+            "title": "Minimo Requerido",
+            "type": "integer"
+          },
+          "pagos": {
+            "title": "Pagos",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dias",
+          "desde",
+          "pagos",
+          "minimo_requerido"
+        ],
+        "title": "VentanaDeriva",
+        "type": "object"
+      },
+      "VinculoClienteVariasIps": {
+        "properties": {
+          "comercio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comercio"
+          },
+          "comercio_id": {
+            "title": "Comercio Id",
+            "type": "integer"
+          },
+          "filtro": {
+            "$ref": "#/components/schemas/FiltroCliente"
+          },
+          "id_cliente": {
+            "title": "Id Cliente",
+            "type": "string"
+          },
+          "ips": {
+            "title": "Ips",
+            "type": "integer"
+          },
+          "pagos": {
+            "title": "Pagos",
+            "type": "integer"
+          },
+          "primera": {
+            "title": "Primera",
+            "type": "string"
+          },
+          "rechazadas": {
+            "title": "Rechazadas",
+            "type": "integer"
+          },
+          "ultima": {
+            "title": "Ultima",
+            "type": "string"
+          }
+        },
+        "required": [
+          "comercio_id",
+          "id_cliente",
+          "pagos",
+          "ips",
+          "rechazadas",
+          "primera",
+          "ultima",
+          "filtro"
+        ],
+        "title": "VinculoClienteVariasIps",
+        "type": "object"
+      },
+      "VinculoMismaIp": {
+        "properties": {
+          "clientes": {
+            "title": "Clientes",
+            "type": "integer"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "comercios": {
+            "title": "Comercios",
+            "type": "integer"
+          },
+          "en_revision": {
+            "title": "En Revision",
+            "type": "integer"
+          },
+          "filtro": {
+            "$ref": "#/components/schemas/FiltroIp"
+          },
+          "pagos": {
+            "title": "Pagos",
+            "type": "integer"
+          },
+          "primera": {
+            "title": "Primera",
+            "type": "string"
+          },
+          "rechazadas": {
+            "title": "Rechazadas",
+            "type": "integer"
+          },
+          "ultima": {
+            "title": "Ultima",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codigo",
+          "pagos",
+          "clientes",
+          "comercios",
+          "rechazadas",
+          "en_revision",
+          "primera",
+          "ultima",
+          "filtro"
+        ],
+        "title": "VinculoMismaIp",
+        "type": "object"
+      },
+      "VinculoMismoDispositivo": {
+        "properties": {
+          "clientes": {
+            "title": "Clientes",
+            "type": "integer"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "comercios": {
+            "title": "Comercios",
+            "type": "integer"
+          },
+          "en_revision": {
+            "title": "En Revision",
+            "type": "integer"
+          },
+          "filtro": {
+            "$ref": "#/components/schemas/FiltroDispositivo"
+          },
+          "pagos": {
+            "title": "Pagos",
+            "type": "integer"
+          },
+          "primera": {
+            "title": "Primera",
+            "type": "string"
+          },
+          "rechazadas": {
+            "title": "Rechazadas",
+            "type": "integer"
+          },
+          "ultima": {
+            "title": "Ultima",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codigo",
+          "pagos",
+          "clientes",
+          "comercios",
+          "rechazadas",
+          "en_revision",
+          "primera",
+          "ultima",
+          "filtro"
+        ],
+        "title": "VinculoMismoDispositivo",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -3591,8 +5410,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/ComercioPanel"
                   },
                   "title": "Response Panel Comercios",
                   "type": "array"
@@ -3668,9 +5486,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Deriva Del Modelo",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RespuestaDeriva"
                 }
               }
             },
@@ -3738,8 +5554,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/ModeloRegistrado"
                   },
                   "title": "Response Modelos Registrados",
                   "type": "array"
@@ -4097,9 +5912,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Panel Resumen",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RespuestaResumenPanel"
                 }
               }
             },
@@ -4509,9 +6322,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Panel Transacciones",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PaginaTransaccionesPanel"
                 }
               }
             },
@@ -4600,9 +6411,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Panel Detalle",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RespuestaDetallePanel"
                 }
               }
             },
@@ -5017,9 +6826,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Panel Vinculos",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RespuestaVinculosPanel"
                 }
               }
             },

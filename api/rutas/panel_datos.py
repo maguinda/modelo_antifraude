@@ -1,12 +1,19 @@
 """Panel de control: datos de solo lectura para las pantallas."""
 
-from typing import Any, Dict, List
+from typing import List
 
 from fastapi import APIRouter, Depends, Path, Query
 
 from ..almacen import Principal
 from ..consultas import ConsultasPanel, Filtros, ORDENES
 from ..dependencias import exigir, filtros_panel, obtener_consultas
+from ..esquemas_panel import (
+    ComercioPanel,
+    PaginaTransaccionesPanel,
+    RespuestaDetallePanel,
+    RespuestaResumenPanel,
+    RespuestaVinculosPanel,
+)
 from ..metadatos import PATRON_UUID, RESPUESTAS_ERROR
 
 
@@ -24,7 +31,7 @@ _err_panel = {k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 404, 
     description="Lista paginada de pagos evaluados. Filtra por comercio, fechas, decisión, modo, monto, cliente, regla, IP o dispositivo. "
     "La IP y la huella del dispositivo se muestran como **códigos cortos**, nunca en claro. Analistas y administradores ven todos los comercios; "
     "un comercio, solo los suyos.",
-    response_model=Dict[str, Any],
+    response_model=PaginaTransaccionesPanel,
     responses=_err_panel,
 )
 def panel_transacciones(
@@ -45,7 +52,8 @@ def panel_transacciones(
     description="Detalle completo: identificadores (el del comercio y el de seguimiento), datos recibidos y cuáles NO se mandaron, puntaje y umbrales, "
     "reglas activadas y su efecto, revisión, resultado posterior, auditoría y pagos relacionados (misma IP, mismo dispositivo, mismo cliente). "
     "Acepta `id_seguimiento` (AF-XXXX-XXXX) o `id_evaluacion`.",
-    response_model=Dict[str, Any],
+    response_model=RespuestaDetallePanel,
+    response_model_exclude_unset=True,
     responses=_err_panel,
 )
 def panel_detalle(
@@ -62,7 +70,7 @@ def panel_detalle(
     summary="Resumen: totales, por día, por comercio, reglas y calidad",
     operation_id="panel_resumen",
     description="Indicadores del periodo y los filtros pedidos. `por_comercio` solo trae varios comercios para analistas y administradores.",
-    response_model=Dict[str, Any],
+    response_model=RespuestaResumenPanel,
     responses=_err_panel,
 )
 def panel_resumen(f: Filtros = Depends(filtros_panel), consultas: ConsultasPanel = Depends(obtener_consultas)):
@@ -76,7 +84,7 @@ def panel_resumen(f: Filtros = Depends(filtros_panel), consultas: ConsultasPanel
     operation_id="panel_vinculos",
     description="Varios clientes desde una misma IP, varios clientes con un mismo dispositivo, un cliente con varias IPs y ráfagas de pagos desde una IP. "
     "`minimo` es cuántos clientes, IPs o pagos hacen falta para listarlo. Cada fila trae un `filtro` para ver esos pagos. Cada bloque se pagina con `limite` y `desplazamiento`; `paginacion.hay_mas` dice si hay otra página. Las ráfagas se calculan sobre las 200 IPs con más pagos, así que ese bloque tiene como máximo 200 filas.",
-    response_model=Dict[str, Any],
+    response_model=RespuestaVinculosPanel,
     responses=_err_panel,
 )
 def panel_vinculos(
@@ -95,7 +103,7 @@ def panel_vinculos(
     summary="Comercios (para el filtro del panel)",
     operation_id="panel_comercios",
     description="Solo analistas y administradores.",
-    response_model=List[Dict[str, Any]],
+    response_model=List[ComercioPanel],
     responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 429)},
 )
 def panel_comercios(
