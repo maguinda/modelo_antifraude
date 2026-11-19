@@ -37,5 +37,5 @@ python modelo_ia/pruebas_navegador/app_react.py --api  # lo mismo, servida por l
 - **Diferencias con el panel viejo (`/panel`):** «Limpiar» también vuelve a «Pendientes» (el viejo no tocaba el estado); hay un selector «Por página» (10, 25 o 50; el viejo tenía 25 fijo); cambiar de página borra lo escrito en «Buscar» sin aplicar; la clave no se guarda en `sessionStorage` (al recargar hay que volver a entrar).
 - La lista se vigila cada 20 s (solo cuenta; no redibuja, para no perder una nota a medio escribir) y se pausa con la pestaña oculta.
 - Los filtros viven en la dirección y se sanean (un valor raro se descarta). Las etiquetas del contador salen de los datos que se ven, no de los filtros recién elegidos.
-- **Diferencias con `/panel` (a propósito):** la clave NO se guarda en `sessionStorage` (al recargar hay que volver a entrar) y no hay entrada automática de la demo. Menos cómodo, menos superficie ante un XSS.
+- **Sin entrada automática de la demo** (a propósito): menos cómodo, menos superficie ante un XSS. La clave tampoco se guarda en `sessionStorage` (ver la viñeta de diferencias de arriba).
 - Prueba en vivo: `python modelo_ia/pruebas_navegador/app_revision.py` (ver `pruebas_navegador/README.md`).

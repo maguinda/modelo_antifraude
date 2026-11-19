@@ -80,6 +80,7 @@ def comprobar(r, nombre, ok, extra=""):
 
 
 todos_los_fallos = []
+navegadores_abiertos = []  # navegadores lanzados y aún no cerrados
 try:
     compilado = subprocess.run(["npm", "run", "build"], cwd=str(APP), capture_output=True, text=True, timeout=300)
     assert compilado.returncode == 0, "npm run build falló:\n" + compilado.stdout[-1500:] + compilado.stderr[-1500:]
@@ -134,6 +135,7 @@ try:
     with sync_playwright() as pw:
         for motor, nombre, opc in PERFILES:
             br = getattr(pw, motor).launch()
+            navegadores_abiertos.append(br)  # el `finally` del final lo cierra si algo revienta antes del br.close()
             ctx = br.new_context(**(pw.devices[opc] if isinstance(opc, str) else opc))
             pag = ctx.new_page()
             r = {"motor": motor, "perfil": nombre}
@@ -546,6 +548,7 @@ try:
             todos_los_fallos += [f"{motor} {nombre}: {f}" for f in r.get("fallos", [])]
             print(json.dumps(r, ensure_ascii=False), flush=True)
             br.close()
+            navegadores_abiertos.remove(br)
 
     # --- cuentas finales EN LA BASE: nada se perdió, nada se duplicó, nada más cambió
     resueltas = bd("SELECT COUNT(*) FROM revisiones WHERE estado='resuelta'")[0][0]
@@ -565,6 +568,11 @@ try:
     print("RESULTADO:", "TODO BIEN" if not todos_los_fallos else "FALLOS: " + "; ".join(todos_los_fallos), flush=True)
     print("capturas en", S, flush=True)
 finally:
+    for abierto in navegadores_abiertos:
+        try:
+            abierto.close()
+        except Exception:
+            pass
     for pr in procesos:
         try:
             os.killpg(pr.pid, signal.SIGTERM)
@@ -575,3 +583,5 @@ finally:
                 pr.wait(timeout=5)
         except ProcessLookupError:
             pass
+
+sys.exit(1 if todos_los_fallos else 0)  # que un script o la integración continua vean el fallo, no solo quien lea la salida
