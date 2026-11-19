@@ -8,6 +8,7 @@ from ..almacen import Principal
 from ..consultas import ConsultasPanel
 from ..dependencias import exigir, obtener_ajustes, obtener_consultas
 from ..ajustes import Ajustes
+from ..esquemas_panel import ModeloRegistrado, RespuestaDeriva
 from ..metadatos import RESPUESTAS_ERROR
 
 router = APIRouter()
@@ -24,7 +25,7 @@ _errores: Dict[Union[int, str], Dict[str, Any]] = {
     description="Compara la distribución de los **puntajes** de los pagos recientes con la de la validación del modelo (PSI en 10 cubetas): menos de 0,10 estable, "
     "de 0,10 a 0,25 atención, más de 0,25 alerta. Con menos pagos que el mínimo (`MODELO_IA_DERIVA_MIN_MUESTRA`, 500) no se da estado: el PSI sería ruido. "
     "Mide si los puntajes cambiaron, **no si el modelo acierta** (eso exige las etiquetas, que llegan tarde). Solo analistas y administradores.",
-    response_model=Dict[str, Any],
+    response_model=RespuestaDeriva,
     responses=_errores,
 )
 def deriva_del_modelo(
@@ -44,7 +45,7 @@ def deriva_del_modelo(
     operation_id="modelos_registrados",
     description="El registro de modelos: huella (12 primeros caracteres de su SHA-256), estado (candidato, en uso, archivado), cuándo se promovió y cuál se está ejecutando "
     "con la huella verificada. Se administra desde la consola del servidor (`admin modelo-registrar`, `modelo-promover`, `modelo-revertir`). Solo analistas y administradores.",
-    response_model=List[Dict[str, Any]],
+    response_model=List[ModeloRegistrado],
     responses={k: v for k, v in RESPUESTAS_ERROR.items() if k in (401, 403, 429)},
 )
 def modelos_registrados(
