@@ -1,6 +1,7 @@
 // ARCHIVO GENERADO: no lo edites a mano.
-// Sale de api/openapi.json con `python -m modelo_ia.api.exportar_tipos_ts` (una prueba del repo falla si no está al día).
-// Un campo opcional (`?`) es uno que la API a veces no manda; `| null` es uno que puede venir vacío.
+// Sale del contrato OpenAPI con el script `exportar_tipos_ts` (ver el README del frontend); una prueba del repo falla si no está al día.
+// Un campo opcional (`?`) es uno que la API a veces no manda O que tiene valor por omisión (el contrato no distingue); `| null` es uno que puede venir vacío.
+// Los pocos campos con valores fijos que la API declara como `string` (p. ej. `estado`) salen como `string`.
 
 
 export interface AcuerdoHistorial {
