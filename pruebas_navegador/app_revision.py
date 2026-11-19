@@ -584,4 +584,5 @@ finally:
         except ProcessLookupError:
             pass
 
-sys.exit(1 if todos_los_fallos else 0)  # que un script o la integración continua vean el fallo, no solo quien lea la salida
+# que un script o la integración continua vean el fallo, no solo quien lea la salida
+sys.exit(1 if todos_los_fallos else 0)

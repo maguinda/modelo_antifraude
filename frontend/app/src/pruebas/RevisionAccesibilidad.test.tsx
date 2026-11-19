@@ -215,9 +215,7 @@ describe("el foco NO se le quita a quien ya está en otra tarjeta", () => {
     soltar();
     await screen.findByText("Pago TX1: aprobado.");
     await waitFor(() => expect(s.llamadas.filter((l) => l.url.pathname === "/v1/revisiones" && l.metodo === "GET").length).toBeGreaterThan(lecturasAntes));
-    await act(async () => {
-      await esperar(50); // el error de la recarga ya se procesó
-    });
+    await screen.findByText(/No se pudo cargar: /); // el error de la recarga ya se procesó (se espera al aviso, no un tiempo)
     delete s.fallos.lista; // ahora el servidor responde bien
     notaB.blur();
     expect(document.activeElement).toBe(document.body);
