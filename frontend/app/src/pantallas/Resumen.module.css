@@ -1,0 +1,58 @@
+.encabezado {
+  margin-bottom: var(--e3);
+}
+.encabezado h2 {
+  margin: 0 0 var(--e1);
+}
+.encabezado p {
+  margin: 0;
+  color: var(--texto-suave);
+}
+.aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+  padding: var(--e3) var(--e4);
+  margin-bottom: var(--e3);
+  border-radius: var(--r-sm);
+  background: var(--rojo-suave);
+  color: var(--rojo);
+}
+.refrescando {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.cajaTabla {
+  overflow-x: auto;
+}
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla th,
+.tabla td {
+  padding: var(--e3) var(--e4);
+  text-align: left;
+  border-bottom: 1px solid var(--linea);
+  overflow-wrap: anywhere;
+}
+.tabla th {
+  color: var(--texto-suave);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.tabla tbody tr:hover {
+  background: var(--fila-hover);
+}
+.tabla .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* un enlace dentro de la tabla es un control táctil: mide al menos lo que un botón */
+.enlace {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--toque);
+}
